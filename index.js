@@ -43,8 +43,12 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Gemini API 호출
+        console.log(`Sending to Gemini: ${userMessage}`);
+        const startTime = Date.now();
         const result = await model.generateContent(userMessage);
         const aiResponse = result.response.text();
+        const duration = Date.now() - startTime;
+        console.log(`Gemini response received in ${duration}ms`);
 
         console.log('--- Gemini Response ---');
         console.log(aiResponse);
@@ -66,7 +70,16 @@ app.post('/api/chat', async (req, res) => {
         res.status(200).json(responseBody);
     } catch (error) {
         console.error('Error handling chat request:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(200).json({
+            version: "2.0",
+            template: {
+                outputs: [{
+                    simpleText: {
+                        text: "죄송해요, 잠시 생각에 잠겼나 봐요. 다시 한번 말씀해 주시겠어요?"
+                    }
+                }]
+            }
+        });
     }
 });
 
