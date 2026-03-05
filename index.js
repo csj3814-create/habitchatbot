@@ -11,7 +11,7 @@ app.use(express.json());
 // Gemini API 초기화
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = ai.getGenerativeModel({
-    model: 'gemini-1.5-flash', // 안정적인 버전으로 교체
+    model: 'gemini-1.5-flash-002', // 구체적인 버전 명시로 404 에러 해결 시도
     tools: [
         {
             googleSearchRetrieval: {},
