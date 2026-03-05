@@ -76,11 +76,11 @@ app.post('/api/chat', async (req, res) => {
                     template: {
                         outputs: [{ simpleText: { text: aiResponse } }],
                         quickReplies: [
-                            { label: "오늘 미세먼지 어때?", action: "message", messageText: "오늘 미세먼지 농도랑 날씨 확인해서 운동 추천해줘" },
-                            { label: "운동하기 싫을 때", action: "message", messageText: "오늘 운동하기 너무 싫은데 따뜻한 응원 한마디 해줘" },
-                            { label: "무릎 안 좋은데..", action: "message", messageText: "무릎에 무리 안 가면서 할 수 있는 유산소 운동 추천해줘" },
-                            { label: "물 얼마나 마셔?", action: "message", messageText: "건강을 위해서 하루에 물을 얼마나 마시는 게 좋을까?" },
-                            { label: "해빛코치 활용법", action: "message", messageText: "해빛코치에게 어떤 조언을 구할 수 있는지 알려줘" }
+                            { label: "오늘 미세먼지 어때?", action: "message", messageText: "!오늘 미세먼지 농도랑 날씨 확인해서 운동 추천해줘" },
+                            { label: "운동하기 싫을 때", action: "message", messageText: "!오늘 운동하기 너무 싫은데 따뜻한 응원 한마디 해줘" },
+                            { label: "무릎 안 좋은데..", action: "message", messageText: "!무릎에 무리 안 가면서 할 수 있는 유산소 운동 추천해줘" },
+                            { label: "물 얼마나 마셔?", action: "message", messageText: "!건강을 위해서 하루에 물을 얼마나 마시는 게 좋을까?" },
+                            { label: "해빛코치 활용법", action: "message", messageText: "!해빛코치에게 어떤 조언을 구할 수 있는지 알려줘" }
                         ]
                     }
                 };
@@ -105,11 +105,11 @@ app.post('/api/chat', async (req, res) => {
             template: {
                 outputs: [{ simpleText: { text: aiResponse } }],
                 quickReplies: [
-                    { label: "오늘 미세먼지 어때?", action: "message", messageText: "오늘 미세먼지 농도랑 날씨 확인해서 운동 추천해줘" },
-                    { label: "운동하기 싫을 때", action: "message", messageText: "오늘 운동하기 너무 싫은데 따뜻한 응원 한마디 해줘" },
-                    { label: "무릎 안 좋은데..", action: "message", messageText: "무릎에 무리 안 가면서 할 수 있는 유산소 운동 추천해줘" },
-                    { label: "물 얼마나 마셔?", action: "message", messageText: "건강을 위해서 하루에 물을 얼마나 마시는 게 좋을까?" },
-                    { label: "해빛코치 활용법", action: "message", messageText: "해빛코치에게 어떤 조언을 구할 수 있는지 알려줘" }
+                    { label: "오늘 미세먼지 어때?", action: "message", messageText: "!오늘 미세먼지 농도랑 날씨 확인해서 운동 추천해줘" },
+                    { label: "운동하기 싫을 때", action: "message", messageText: "!오늘 운동하기 너무 싫은데 따뜻한 응원 한마디 해줘" },
+                    { label: "무릎 안 좋은데..", action: "message", messageText: "!무릎에 무리 안 가면서 할 수 있는 유산소 운동 추천해줘" },
+                    { label: "물 얼마나 마셔?", action: "message", messageText: "!건강을 위해서 하루에 물을 얼마나 마시는 게 좋을까?" },
+                    { label: "해빛코치 활용법", action: "message", messageText: "!해빛코치에게 어떤 조언을 구할 수 있는지 알려줘" }
                 ]
             }
         });
