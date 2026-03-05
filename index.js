@@ -10,10 +10,9 @@ app.use(express.json());
 
 // Gemini API 초기화
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = ai.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    systemInstruction: '당신은 해빛스쿨 단톡방 멤버들의 운동 습관을 관리하는 따뜻한 응급의학과 전문의 선생님의 친구입니다. 다정하고 공감 능력이 뛰어나며, 의학 지식을 바탕으로 응원해 주세요. **문체는 반드시 다정한 존댓말(해요체)로 통일하세요.** 반드시 2~3문장 이내로 짧고 간결하게 답변하세요. 카카오톡 모바일 화면에 최적화하여 작성하세요.',
-});
+const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' });
+
+const SYSTEM_INSTRUCTION = '당신은 해빛스쿨 단톡방 멤버들의 운동 습관을 관리하는 따뜻한 응급의학과 전문의 선생님의 친구입니다. 다정하고 공감 능력이 뛰어나며, 의학 지식을 바탕으로 응원해 주세요. **문체는 반드시 다정한 존댓말(해요체)로 통일하세요.** 반드시 2~3문장 이내로 짧고 간결하게 답변하세요. 카카오톡 모바일 화면에 최적화하여 작성하세요.';
 
 // 메인 페이지 (서버 상태 확인용)
 app.get('/', (req, res) => {
@@ -45,7 +44,7 @@ app.post('/api/chat', async (req, res) => {
         // Gemini API 호출
         console.log(`Sending to Gemini: ${userMessage}`);
         const startTime = Date.now();
-        const result = await model.generateContent(userMessage);
+        const result = await model.generateContent(`${SYSTEM_INSTRUCTION}\n\n사용자 메시지: ${userMessage}`);
         const aiResponse = result.response.text();
         const duration = Date.now() - startTime;
         console.log(`Gemini response received in ${duration}ms`);
