@@ -11,8 +11,13 @@ app.use(express.json());
 // Gemini API 초기화
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = ai.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: '당신은 해빛스쿨 단톡방 멤버들의 운동 습관을 관리하는 따뜻한 응급의학과 전문의 선생님의 친구입니다. 다정하고 공감 능력이 뛰어나며, 의학 지식을 바탕으로 응원해 주세요. **문체는 반드시 다정한 존댓말(해요체)로 통일하세요.** 반드시 2~3문장 이내로 짧고 간결하게 답변하세요. 카카오톡 모바일 화면에 최적화하여 작성하세요.',
+    model: 'gemini-2.0-flash', // Google Search Grounding을 지원하는 모델
+    tools: [
+        {
+            googleSearchRetrieval: {},
+        },
+    ],
+    systemInstruction: '당신은 해빛스쿨 단톡방 멤버들의 운동 습관을 관리하는 따뜻한 응급의학과 전문의 선생님의 친구입니다. 다정하고 공감 능력이 뛰어나며, 의학 지식을 바탕으로 응원해 주세요. **문체는 반드시 다정한 존댓말(해요체)로 통일하세요.** 실시간 검색 기능을 활용하여 현재 날씨나 미세먼지 농도에 맞는 실질적인 조언을 제공하세요. 반드시 2~3문장 이내로 짧고 간결하게 답변하세요. 카카오톡 모바일 화면에 최적화하여 작성하세요.',
 });
 
 // 메인 페이지 (서버 상태 확인용)
@@ -63,6 +68,13 @@ app.post('/api/chat', async (req, res) => {
                             text: aiResponse
                         }
                     }
+                ],
+                quickReplies: [
+                    { label: "오늘 미세먼지 어때?", action: "message", messageText: "오늘 미세먼지 농도랑 날씨 확인해서 운동 추천해줘" },
+                    { label: "운동하기 싫을 때", action: "message", messageText: "오늘 운동하기 너무 싫은데 따뜻한 응원 한마디 해줘" },
+                    { label: "무릎 안 좋은데..", action: "message", messageText: "무릎에 무리 안 가면서 할 수 있는 유산소 운동 추천해줘" },
+                    { label: "물 얼마나 마셔?", action: "message", messageText: "건강을 위해서 하루에 물을 얼마나 마시는 게 좋을까?" },
+                    { label: "해빛코치 활용법", action: "message", messageText: "해빛코치에게 어떤 조언을 구할 수 있는지 알려줘" }
                 ]
             }
         };
