@@ -34,12 +34,24 @@ app.post('/api/chat', async (req, res) => {
     console.log(`--- Incoming Request: ${userMessage} ---`);
     console.log(`Callback URL status: ${callbackUrl ? 'PRESENT' : 'ABSENT'}`);
 
-    if (!userMessage) {
+    // 호출 신호(!) 확인
+    if (!userMessage.startsWith('!')) {
         return res.status(200).json({
             version: "2.0",
-            template: { outputs: [{ simpleText: { text: "메시지를 이해하지 못했어요." } }] }
+            template: {
+                outputs: [
+                    {
+                        simpleText: {
+                            text: "저를 부르시려면 메시지 앞에 '!'를 붙여주세요! (예: !오늘 미세먼지 어때?)"
+                        }
+                    }
+                ]
+            }
         });
     }
+
+    // 신호 제거된 실제 질문 추출
+    const actualQuestion = userMessage.slice(1).trim();
 
     // 콜백 URL이 있는 경우: 즉시 응답 후 백그라운드 처리
     if (callbackUrl) {
@@ -55,8 +67,8 @@ app.post('/api/chat', async (req, res) => {
         // 2. 백그라운드에서 Gemini 처리 및 콜백 전송
         (async () => {
             try {
-                console.log(`Processing background request for: ${userMessage}`);
-                const result = await model.generateContent(`${SYSTEM_INSTRUCTION}\n\n사용자 메시지: ${userMessage}`);
+                console.log(`Processing background request for: ${actualQuestion}`);
+                const result = await model.generateContent(`${SYSTEM_INSTRUCTION}\n\n사용자 메시지: ${actualQuestion}`);
                 const aiResponse = result.response.text();
 
                 const callbackResponse = {
@@ -85,7 +97,7 @@ app.post('/api/chat', async (req, res) => {
 
     // 콜백 URL이 없는 경우: 기존 (5초 이내 응답 시도)
     try {
-        const result = await model.generateContent(`${SYSTEM_INSTRUCTION}\n\n사용자 메시지: ${userMessage}`);
+        const result = await model.generateContent(`${SYSTEM_INSTRUCTION}\n\n사용자 메시지: ${actualQuestion}`);
         const aiResponse = result.response.text();
 
         res.status(200).json({
