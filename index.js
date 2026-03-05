@@ -11,7 +11,7 @@ app.use(express.json());
 // Gemini API 초기화
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = ai.getGenerativeModel({
-    model: 'gemini-2.0-flash', // Google Search Grounding을 지원하는 모델
+    model: 'gemini-1.5-flash', // 안정적인 버전으로 교체
     tools: [
         {
             googleSearchRetrieval: {},
