@@ -157,7 +157,31 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+app.post('/api/messengerbot', async (req, res) => {
+    const { room, msg, sender, isGroupChat } = req.body;
+
+    if (!msg) {
+        return res.status(400).json({ error: "메시지가 없습니다." });
+    }
+
+    console.log(`[MessengerBot R] Room: ${room}, Sender: ${sender}, Message: ${msg}`);
+
+    try {
+        // 기존 Gemini 호출 로직 재사용
+        const result = await model.generateContent(`${SYSTEM_INSTRUCTION}\n\n사용자 메시지: ${msg}`);
+        const aiResponse = result.response.text();
+
+        // 메신저봇R이 렌더링하기 쉬운 단순 JSON 반환
+        res.status(200).json({ reply: aiResponse });
+    } catch (error) {
+        console.error('Error handling MessengerBot request:', error);
+        res.status(500).json({ reply: "죄송해요, 잠시 생각에 잠겼나 봐요. (서버 에러)" });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Habits School Chatbot Server Runing on http://localhost:${port}`);
     console.log(`Kakao Endpoint: POST http://localhost:${port}/api/chat`);
+    console.log(`MessengerBot R Endpoint: POST http://localhost:${port}/api/messengerbot`);
 });
+
