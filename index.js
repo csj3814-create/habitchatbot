@@ -179,9 +179,17 @@ app.post('/api/messengerbot', async (req, res) => {
     }
 });
 
+// Render 무료 티어의 경우 15분간 외부 요청이 없으면 서버가 절전 모드로 들어갑니다.
+// 서버가 잠들지 않도록 14분(840,000ms)마다 스스로를 호출하는 Self-ping 로직
+const RENDER_URL = "https://habitchatbot.onrender.com"; // Render에서 할당받은 실제 주소
+setInterval(() => {
+    axios.get(RENDER_URL)
+        .then(() => console.log(`[Self-Ping] Server kept awake at ${new Date().toISOString()}`))
+        .catch(err => console.error('[Self-Ping] Error:', err.message));
+}, 14 * 60 * 1000); // 14분 주기
+
 app.listen(port, () => {
     console.log(`Habits School Chatbot Server Runing on http://localhost:${port}`);
     console.log(`Kakao Endpoint: POST http://localhost:${port}/api/chat`);
     console.log(`MessengerBot R Endpoint: POST http://localhost:${port}/api/messengerbot`);
 });
-
