@@ -22,11 +22,16 @@ function initAppFirebase() {
         try {
             appServiceAccount = require('../appServiceAccountKey.json');
         } catch (_) {
-            if (process.env.APP_FIREBASE_KEY) {
-                appServiceAccount = JSON.parse(process.env.APP_FIREBASE_KEY);
-            } else {
-                console.warn('[AppFirebase] appServiceAccountKey.json 없음 & APP_FIREBASE_KEY 환경변수 없음');
-                return null;
+            try {
+                // Render Secret Files는 /etc/secrets/ 에 위치
+                appServiceAccount = require('/etc/secrets/appServiceAccountKey.json');
+            } catch (__) {
+                if (process.env.APP_FIREBASE_KEY) {
+                    appServiceAccount = JSON.parse(process.env.APP_FIREBASE_KEY);
+                } else {
+                    console.warn('[AppFirebase] appServiceAccountKey.json을 찾을 수 없음 (프로젝트 루트, /etc/secrets/, 환경변수 모두 확인)');
+                    return null;
+                }
             }
         }
 
