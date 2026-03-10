@@ -28,7 +28,7 @@ async function handleRegister(sender, args) {
         if (existing) {
             return `✅ ${sender}님은 이미 연결되어 있어요!\n📧 ${existing.googleEmail}\n\n!내습관 으로 기록을 확인해보세요! 📊\n연결 해제: !등록 해제`;
         }
-        return `📱 해빛스쿨 앱 계정 연결\n━━━━━━━━━━━━━━━\n\n사용법: !등록 your@gmail.com\n\n해빛스쿨 앱에 로그인할 때 사용하는\n구글 이메일을 입력해주세요!\n\n연결하면 사용 가능한 기능:\n• !내습관 — 내 앱 기록 조회\n• !주간 — 주간 트렌드 분석\n• AI 코칭 강화 — 내 습관 데이터 반영`;
+        return `🔗 앱 계정 연결 안내\n\n해빛스쿨 앱에 올린 식단·운동·수면·감사일기를 코치가 읽어와서 맞춤 코칭을 해드려요!\n\n👉 !등록 구글이메일@gmail.com\n\n앱 로그인에 쓰는 구글 이메일을 입력하세요 😊`;
     }
 
     const email = args.trim().toLowerCase();
