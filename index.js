@@ -154,7 +154,7 @@ app.post('/api/chat', async (req, res) => {
     // 카카오 템플릿 변환 헬퍼 함수
     function buildKakaoResponse(text) {
         // 정규식으로 유튜브 비디오 ID를 더 확실하게 추출 (다양한 형태 지원)
-        const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+        const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
         const videoIds = [];
         let match;
         
@@ -164,7 +164,7 @@ app.post('/api/chat', async (req, res) => {
         }
         
         // 링크 본문을 텍스트에서 깔끔하게 제거
-        const cleanText = text.replace(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s]+/g, '').trim() || "추천 영상을 확인해 보세요!";
+        const cleanText = text.replace(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]{11}[^\s]*/g, '').trim() || "추천 영상을 확인해 보세요!";
 
         const quickReplies = [
             { label: "내 인증 기록 보기 🏆", action: "message", messageText: "!내기록" }
