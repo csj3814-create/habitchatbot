@@ -36,7 +36,7 @@ const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://habitchatbot-default-rtdb.firebaseio.com" // 에러 발생시 asia-southeast1 등으로 조정 필요
+  databaseURL: "https://habitchatbot-default-rtdb.asia-southeast1.firebasedatabase.app/" // 아시아 리전 올바른 주소
 });
 const db = admin.database();
 
