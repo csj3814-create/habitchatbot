@@ -142,6 +142,62 @@ app.post('/api/chat', async (req, res) => {
         } catch(e) { console.error('DB 조회 에러:', e); }
     }
 
+    // 카카오 템플릿 변환 헬퍼 함수
+    function buildKakaoResponse(text) {
+        // 정규식으로 유튜브 링크 추출 (https://www.youtube.com/watch?v=... 또는 https://youtu.be/...)
+        const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
+        const links = [];
+        let match;
+        
+        // 텍스트에서 링크 추출
+        while ((match = youtubeRegex.exec(text)) !== null) {
+            links.push(match[1]);
+        }
+        
+        // 링크를 제외한 순수 텍스트(설명)만 분리
+        const cleanText = text.replace(youtubeRegex, '').trim() || "추천 영상을 확인해 보세요!";
+
+        const quickReplies = [
+            { label: "내 인증 기록 보기 🏆", action: "message", messageText: "!내기록" }
+        ];
+
+        // 유튜브 링크가 있는 경우 -> BasicCard 템플릿 사용
+        if (links.length > 0) {
+            const videoUrl = links[0];
+            // 유튜브 썸네일 공식 URL 조합
+            const videoIdMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            const videoId = videoIdMatch ? videoIdMatch[1] : '';
+            const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+            return {
+                version: "2.0",
+                template: {
+                    outputs: [
+                        { simpleText: { text: cleanText } }, // 위에 설명 텍스트 먼저 말하고
+                        {
+                            basicCard: { // 아래에 예쁜 영상 카드 첨부
+                                title: "💪 코치님의 추천 영상",
+                                description: "아래 버튼을 눌러 바로 시청해보세요!",
+                                thumbnail: { imageUrl: thumbnailUrl },
+                                buttons: [{ action: "webLink", label: "영상 보러가기 ▶️", webLinkUrl: videoUrl }]
+                            }
+                        }
+                    ],
+                    quickReplies: quickReplies
+                }
+            };
+        } 
+        
+        // 링크가 없으면 일반 텍스트 템플릿
+        return {
+            version: "2.0",
+            template: {
+                outputs: [{ simpleText: { text: text } }],
+                quickReplies: quickReplies
+            }
+        };
+    }
+
     // 콜백 URL이 있는 경우: 즉시 응답 후 백그라운드 처리
     if (callbackUrl) {
         // 1. 즉시 응답 (수신 확인용)
@@ -174,16 +230,8 @@ app.post('/api/chat', async (req, res) => {
                 const result = await chatSession.sendMessage(promptParts);
                 const aiResponse = result.response.text();
 
-                const callbackResponse = {
-                    version: "2.0",
-                    template: {
-                        outputs: [{ simpleText: { text: aiResponse } }],
-                        quickReplies: [
-                            { label: "내 인증 기록 보기 🏆", action: "message", messageText: "!내기록" }
-                        ]
-                    }
-                };
-
+                // 새로 만든 템플릿 변환 함수 사용
+                const callbackResponse = buildKakaoResponse(aiResponse);
                 await axios.post(callbackUrl, callbackResponse);
             } catch (err) {
                 console.error('Error in background processing:', err);
@@ -197,16 +245,9 @@ app.post('/api/chat', async (req, res) => {
     try {
         const result = await chatSession.sendMessage(actualQuestion);
         const aiResponse = result.response.text();
-
-        res.status(200).json({
-            version: "2.0",
-            template: {
-                outputs: [{ simpleText: { text: aiResponse } }],
-                quickReplies: [
-                    { label: "내 인증 기록 보기 🏆", action: "message", messageText: "!내기록" }
-                ]
-            }
-        });
+        
+        // 새로 만든 템플릿 변환 함수 사용
+        res.status(200).json(buildKakaoResponse(aiResponse));
     } catch (error) {
         console.error('Error handling chat request:', error);
         res.status(200).json({
