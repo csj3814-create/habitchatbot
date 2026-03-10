@@ -144,29 +144,27 @@ app.post('/api/chat', async (req, res) => {
 
     // 카카오 템플릿 변환 헬퍼 함수
     function buildKakaoResponse(text) {
-        // 정규식으로 유튜브 링크 추출 (https://www.youtube.com/watch?v=... 또는 https://youtu.be/...)
-        const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11}))/g;
-        const links = [];
+        // 정규식으로 유튜브 비디오 ID를 더 확실하게 추출 (다양한 형태 지원)
+        const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+        const videoIds = [];
         let match;
         
-        // 텍스트에서 링크 추출
+        // 텍스트에서 비디오 ID 모두 추출
         while ((match = youtubeRegex.exec(text)) !== null) {
-            links.push(match[1]);
+            videoIds.push(match[1]);
         }
         
-        // 링크를 제외한 순수 텍스트(설명)만 분리
-        const cleanText = text.replace(youtubeRegex, '').trim() || "추천 영상을 확인해 보세요!";
+        // 링크 본문을 텍스트에서 깔끔하게 제거
+        const cleanText = text.replace(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s]+/g, '').trim() || "추천 영상을 확인해 보세요!";
 
         const quickReplies = [
             { label: "내 인증 기록 보기 🏆", action: "message", messageText: "!내기록" }
         ];
 
         // 유튜브 링크가 있는 경우 -> BasicCard 템플릿 사용
-        if (links.length > 0) {
-            const videoUrl = links[0];
-            // 유튜브 썸네일 공식 URL 조합
-            const videoIdMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-            const videoId = videoIdMatch ? videoIdMatch[1] : '';
+        if (videoIds.length > 0) {
+            const videoId = videoIds[0];
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
             const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
             return {
