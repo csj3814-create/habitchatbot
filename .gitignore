@@ -2,3 +2,4 @@ node_modules/
 .env
 Gemini API Key HBT chatbot.txt
 serviceAccountKey.json
+appServiceAccountKey.json
