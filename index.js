@@ -85,10 +85,16 @@ app.get('/', (req, res) => {
 });
 
 // 카카오톡 i 오픈빌더 스킬 엔드포인트
+// 카카오톡 i 오픈빌더 스킬 엔드포인트
 app.post('/api/chat', async (req, res) => {
     const userMessage = req.body.userRequest?.utterance || '';
     const callbackUrl = req.body.userRequest?.callbackUrl;
     const userId = req.body.userRequest?.user?.id || 'kakao_user';
+    
+    // 오픈빌더에서 넘어오는 사용자 이름 속성 확인 (플러그인/설정에 따라 다름)
+    const userName = req.body.userRequest?.user?.properties?.nickname || 
+                     req.body.action?.params?.sys_plugin_nickname || 
+                     '회원';
 
     // 미디어(사진, 동영상) 확인
     const photo = req.body.contexts?.find(c => c.name === 'photo')?.params?.url?.value || req.body.userRequest?.params?.media?.url;
@@ -105,7 +111,7 @@ app.post('/api/chat', async (req, res) => {
                 outputs: [
                     {
                         simpleText: {
-                            text: "저를 부르시려면 메시지 앞에 '!'를 붙여주세요! (예: !오늘 미세먼지 어때?)\n하지만 사진이나 동영상을 올리시면 제가 바로 달려가서 도와드릴게요! 📸"
+                            text: `저를 부르시려면 메시지 앞에 '!'를 붙여주세요! (예: !오늘 미세먼지 어때?)\n하지만 사진이나 동영상을 올리시면 제가 바로 달려가서 도와드릴게요! 📸`
                         }
                     }
                 ]
@@ -115,6 +121,9 @@ app.post('/api/chat', async (req, res) => {
 
     // 신호 제거된 실제 질문 추출 (텍스트인 경우)
     const actualQuestion = isMedia ? (userMessage || "이 사진/동영상을 분석해서 코칭해줘") : userMessage.slice(1).trim();
+    
+    // AI 모델에게 지시할 때 사용자 이름 덮어쓰기
+    const promptWithContext = `[현재 대화중인 사용자 이름: ${userName}님]\n이름을 부를 때 반드시 '${userName}님' 이라고 다정하게 불러주세요.\n\n사용자 메시지: ${actualQuestion}`;
 
     // 개인 기록 추가 및 대화 세션 가져오기
     await checkAndLogHabits(userId, actualQuestion);
@@ -126,11 +135,11 @@ app.post('/api/chat', async (req, res) => {
             const recordsRef = db.ref(`users/${userId}/records`);
             const snapshot = await recordsRef.once('value');
             const data = snapshot.val();
-            let recordMsg = "아직 습관 기록이 없네요! 지금 당장 물 한 잔 마시고 '!물 1잔' 이라고 쳐보세요 💧";
+            let recordMsg = `${userName}님, 아직 습관 기록이 없네요! 지금 당장 물 한 잔 마시고 '!물 1잔' 이라고 쳐보세요 💧`;
             
             if (data) {
                 const count = Object.keys(data).length;
-                recordMsg = `현재까지 총 ${count}번의 멋진 인증 기록이 있네요! 꾸준히 쌓아가는 모습이 아름답습니다 👏`;
+                recordMsg = `${userName}님! 현재까지 총 ${count}번의 멋진 인증 기록이 있네요! 꾸준히 쌓아가는 모습이 아름답습니다 👏`;
             }
             return res.status(200).json({
                 version: "2.0",
@@ -210,7 +219,7 @@ app.post('/api/chat', async (req, res) => {
         // 2. 백그라운드에서 Gemini 처리 및 콜백 전송
         (async () => {
             try {
-                let promptParts = [actualQuestion];
+                let promptParts = [promptWithContext];
 
                 // 이미지가 있는 경우 멀티모달 처리
                 if (isMedia) {
@@ -241,7 +250,7 @@ app.post('/api/chat', async (req, res) => {
 
     // 콜백 URL이 없는 경우
     try {
-        const result = await chatSession.sendMessage(actualQuestion);
+        const result = await chatSession.sendMessage(promptWithContext);
         const aiResponse = result.response.text();
         
         // 새로 만든 템플릿 변환 함수 사용
@@ -265,6 +274,9 @@ app.post('/api/messengerbot', async (req, res) => {
     console.log(`[MessengerBot R] Room: ${room}, Sender: ${sender}, Message: ${msg}`);
 
     try {
+        // AI 모델에게 지시할 때 사용자 이름(sender) 덮어쓰기
+        const promptWithContext = `[현재 대화중인 사용자 이름: ${sender}님]\n이름을 부를 때 반드시 '${sender}님' 이라고 다정하게 불러주세요.\n\n사용자 메시지: ${msg}`;
+
         // 기록 탐지 및 메모리 맵 사용
         await checkAndLogHabits(sender, msg);
         const chatSession = getChatSession(sender);
@@ -273,12 +285,12 @@ app.post('/api/messengerbot', async (req, res) => {
         if (msg === "내기록" || msg === "내 기록") {
             const snapshot = await db.ref(`users/${sender}/records`).once('value');
             const data = snapshot.val();
-            let recordMsg = "아직 기록이 없네요! 당장 실천해볼까요?";
-            if (data) recordMsg = `현재까지 총 ${Object.keys(data).length}번 기록하셨어요! 👏`;
+            let recordMsg = `${sender}님, 아직 기록이 없네요! 당장 실천해볼까요?`;
+            if (data) recordMsg = `${sender}님! 현재까지 총 ${Object.keys(data).length}번 기록하셨어요! 👏`;
             return res.status(200).json({ reply: recordMsg });
         }
 
-        const result = await chatSession.sendMessage(msg);
+        const result = await chatSession.sendMessage(promptWithContext);
         const aiResponse = result.response.text();
 
         res.status(200).json({ reply: aiResponse });
