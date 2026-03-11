@@ -98,14 +98,15 @@ window.copyWalletAddress = function() {
     });
 };
 
-// 블록 탐색기에서 지갑 열기
+// 블록 탐색기에서 HBT 토큰 페이지 열기 (지갑 필터 적용)
 window.openWalletExplorer = function() {
     const addr = window.getWalletAddress?.();
     if (!addr) {
         alert('지갑 주소가 아직 생성되지 않았습니다.');
         return;
     }
-    window.open(`https://sepolia.basescan.org/address/${addr}`, '_blank');
+    const tokenAddr = '0xca499c14afe8b80e86d9e382aff76f9f9c4e2e29';
+    window.open(`https://sepolia.basescan.org/token/${tokenAddr}?a=${addr}`, '_blank');
 };
 
 // 변환 금액 프리셋 설정

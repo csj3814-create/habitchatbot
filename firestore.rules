@@ -23,11 +23,22 @@ service cloud.firestore {
       return data.userId is string
           && data.date is string
           && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && data.date >= '2024-01-01'
+          && data.date <= '2030-12-31'
           && (!('userName' in data) || data.userName is string)
           && (!('metrics' in data) || data.metrics is map)
           && (!('diet' in data) || data.diet is map)
           && (!('exercise' in data) || data.exercise is map)
           && (!('sleepAndMind' in data) || data.sleepAndMind is map);
+    }
+    
+    // 헬퍼 함수: 사용자 필드 화이트리스트
+    function isAllowedUserField() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoURL', 'walletAddress', 'encryptedWallet',
+                    'activeChallenge', 'activeChallenges', 'milestones', 'settings',
+                    'lastLogin', 'fcmToken', 'healthProfile', 'inbodyData',
+                    'dietAnalysis', 'exerciseAnalysis', 'sleepAndMind']);
     }
     
     // ===== Users Collection =====
@@ -37,7 +48,8 @@ service cloud.firestore {
       // 사용자가 직접 수정 가능한 필드 제한 (hbtBalance, totalHbtEarned, coins는 Cloud Functions만 수정 가능)
       allow update: if isOwner(userId)
         && (!request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['hbtBalance', 'totalHbtEarned', 'coins']));
+            .hasAny(['hbtBalance', 'totalHbtEarned', 'coins']))
+        && isAllowedUserField();
       allow delete: if isAdmin();
 
       // ===== InBody History Subcollection =====
@@ -57,7 +69,8 @@ service cloud.firestore {
     
     // ===== Daily Logs Collection =====
     match /daily_logs/{logId} {
-      allow read: if isSignedIn();
+      // 갤러리: 비로그인 사용자도 읽기 허용 (접근성)
+      allow read: if true;
       
       allow create: if isSignedIn() 
                     && isValidDailyLog()

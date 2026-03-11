@@ -20,9 +20,10 @@ import {
 } from './blockchain-config.js';
 
 import { auth, db, app } from './firebase-config.js';
-import { doc, updateDoc, setDoc, getDoc, collection, addDoc, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { doc, updateDoc, setDoc, getDoc, collection, addDoc, serverTimestamp, increment, runTransaction } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { showToast } from './ui-helpers.js';
 import { getKstDateString } from './ui-helpers.js';
+import { checkRateLimit } from './security.js';
 
 // Cloud Function 참조 (lazy 초기화 — import 실패해도 모듈 로드에 영향 없음)
 let mintHBTFunction = null;
@@ -297,6 +298,10 @@ export function getCurrentEra(totalMinted = 0) {
  * @param {number} [pointAmount] - 변환할 포인트 (미입력 시 기존 input에서 읽음)
  */
 export async function convertPointsToHBT(pointAmount) {
+    if (!checkRateLimit('convertPointsToHBT', 5000)) {
+        showToast('⏳ 변환 처리 중입니다. 잠시 후 다시 시도해주세요.');
+        return false;
+    }
     const currentUser = auth.currentUser;
     if (!currentUser) {
         showToast('❌ 로그인이 필요합니다.');
@@ -392,8 +397,19 @@ export async function startChallenge30D(challengeId) {
         if (duration > 3) {
             const stakeInput = document.getElementById('stake-' + tier);
             hbtAmount = parseFloat(stakeInput?.value || 0);
-            if (!hbtAmount || hbtAmount < minStake) {
+            if (!Number.isFinite(hbtAmount) || hbtAmount < minStake) {
                 showToast(`❌ 최소 ${minStake} HBT 이상 예치해야 합니다.`);
+                return false;
+            }
+            // 소수점 2자리까지만 허용
+            if (Math.round(hbtAmount * 100) !== hbtAmount * 100) {
+                showToast('❌ HBT는 소수점 2자리까지만 입력 가능합니다.');
+                return false;
+            }
+            // 최대 예치량 제한
+            const MAX_STAKE = 10000;
+            if (hbtAmount > MAX_STAKE) {
+                showToast(`❌ 최대 ${MAX_STAKE} HBT까지만 예치 가능합니다.`);
                 return false;
             }
         }
@@ -441,50 +457,59 @@ export async function updateChallengeProgress() {
         if (!currentUser) return;
 
         const userRef = doc(db, "users", currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        const userData = userSnap.data();
         const today = getKstDateString();
 
-        // activeChallenges 수집 (legacy 마이그레이션 포함)
-        let activeChallenges = userData.activeChallenges || {};
-        let hadLegacy = false;
-        if (userData.activeChallenge && userData.activeChallenge.status === 'ongoing') {
-            const legacyTier = CHALLENGES[userData.activeChallenge.challengeId]?.tier || 'master';
-            if (!activeChallenges[legacyTier]) {
-                activeChallenges[legacyTier] = userData.activeChallenge;
-                hadLegacy = true;
+        // 통합 챌린지 검증을 위해 트랜잭션 전에 daily_logs 읽기 (다른 컬렉션이므로 트랜잭션 밖)
+        let dailyLogData = null;
+        try {
+            const logDocId = `${currentUser.uid}_${today}`;
+            const logSnap = await getDoc(doc(db, "daily_logs", logDocId));
+            if (logSnap.exists()) dailyLogData = logSnap.data();
+        } catch (_) {}
+
+        const toastMessages = [];
+        const settlementLogs = [];
+
+        await runTransaction(db, async (transaction) => {
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.data();
+
+            // activeChallenges 수집 (legacy 마이그레이션 포함)
+            let activeChallenges = userData.activeChallenges || {};
+            let hadLegacy = false;
+            if (userData.activeChallenge && userData.activeChallenge.status === 'ongoing') {
+                const legacyTier = CHALLENGES[userData.activeChallenge.challengeId]?.tier || 'master';
+                if (!activeChallenges[legacyTier]) {
+                    activeChallenges[legacyTier] = userData.activeChallenge;
+                    hadLegacy = true;
+                }
             }
-        }
 
-        const tiers = Object.keys(activeChallenges).filter(t => activeChallenges[t]?.status === 'ongoing');
-        if (tiers.length === 0) return;
+            const tiers = Object.keys(activeChallenges).filter(t => activeChallenges[t]?.status === 'ongoing');
+            if (tiers.length === 0) return;
 
-        const updateData = {};
-        if (hadLegacy) updateData.activeChallenge = null;
+            const updateData = {};
+            if (hadLegacy) updateData.activeChallenge = null;
 
-        for (const tier of tiers) {
-            const challenge = activeChallenges[tier];
-            const totalDays = challenge.totalDays || 30;
-            const completedDates = challenge.completedDates || [];
-            const challengeDef = CHALLENGES[challenge.challengeId] || {};
+            for (const tier of tiers) {
+                const challenge = activeChallenges[tier];
+                const totalDays = challenge.totalDays || 30;
+                const completedDates = challenge.completedDates || [];
+                const challengeDef = CHALLENGES[challenge.challengeId] || {};
 
-            // 챌린지 종료일 확인
-            if (today > challenge.endDate) {
-                const successRate = challenge.completedDays / totalDays;
+                // 챌린지 종료일 확인
+                if (today > challenge.endDate) {
+                    const successRate = challenge.completedDays / totalDays;
 
-                if (successRate >= 0.8) {
-                    // 성공 → claimable 상태로 전환 (사용자가 직접 수령)
-                    challenge.status = 'claimable';
-                    updateData[`activeChallenges.${tier}`] = challenge;
-                    showToast(`🎉 ${totalDays}일 챌린지 완료! 내 지갑에서 보상을 수령하세요.`);
-                } else {
-                    // 실패 → 즉시 정산 (예치금 소멸, hbtBalance/coins 변경 없음)
-                    const staked = challenge.hbtStaked || 0;
-                    updateData[`activeChallenges.${tier}`] = null;
-                    showToast(`😢 ${totalDays}일 챌린지 미달성 (${Math.round(successRate*100)}%).${staked > 0 ? `\n예치금 ${staked} HBT 소멸` : ''}`);
-
-                    try {
-                        await addDoc(collection(db, "blockchain_transactions"), {
+                    if (successRate >= 0.8) {
+                        challenge.status = 'claimable';
+                        updateData[`activeChallenges.${tier}`] = challenge;
+                        toastMessages.push(`🎉 ${totalDays}일 챌린지 완료! 내 지갑에서 보상을 수령하세요.`);
+                    } else {
+                        const staked = challenge.hbtStaked || 0;
+                        updateData[`activeChallenges.${tier}`] = null;
+                        toastMessages.push(`😢 ${totalDays}일 챌린지 미달성 (${Math.round(successRate*100)}%).${staked > 0 ? `\n예치금 ${staked} HBT 소멸` : ''}`);
+                        settlementLogs.push({
                             userId: currentUser.uid,
                             type: 'challenge_settlement',
                             challengeId: challenge.challengeId,
@@ -495,27 +520,20 @@ export async function updateChallengeProgress() {
                             timestamp: serverTimestamp(),
                             status: 'failed'
                         });
-                    } catch (logErr) {
-                        console.warn('⚠️ 실패 정산 기록 저장 실패:', logErr.message);
                     }
+                    continue;
                 }
-                continue;
-            }
 
-            // 중복 카운트 방지
-            if (completedDates.includes(today)) {
-                console.log(`ℹ️ ${tier} 챌린지: 오늘 이미 인증 완료`);
-                continue;
-            }
+                // 중복 카운트 방지
+                if (completedDates.includes(today)) {
+                    console.log(`ℹ️ ${tier} 챌린지: 오늘 이미 인증 완료`);
+                    continue;
+                }
 
-            // 통합(all) 챌린지: 식단+운동+마음 모두 완수했는지 확인
-            if (challengeDef.category === 'all') {
-                try {
-                    const logDocId = `${currentUser.uid}_${today}`;
-                    const logSnap = await getDoc(doc(db, "daily_logs", logDocId));
-                    if (logSnap.exists()) {
-                        const logData = logSnap.data();
-                        const ap = logData.awardedPoints || {};
+                // 통합(all) 챌린지: 식단+운동+마음 모두 완수했는지 확인
+                if (challengeDef.category === 'all') {
+                    if (dailyLogData) {
+                        const ap = dailyLogData.awardedPoints || {};
                         if (!ap.diet || !ap.exercise || !ap.mind) {
                             console.log(`ℹ️ 통합 챌린지: 아직 3개 카테고리 미완수 (diet:${!!ap.diet}, exercise:${!!ap.exercise}, mind:${!!ap.mind})`);
                             continue;
@@ -524,24 +542,31 @@ export async function updateChallengeProgress() {
                         console.log(`ℹ️ 통합 챌린지: 오늘 기록 없음`);
                         continue;
                     }
-                } catch (e) {
-                    console.warn('⚠️ 통합 챌린지 검증 오류:', e.message);
-                    continue;
                 }
+
+                // 진행 중 - 오늘 날짜 기록
+                completedDates.push(today);
+                challenge.completedDays = completedDates.length;
+                challenge.completedDates = completedDates;
+                updateData[`activeChallenges.${tier}`] = challenge;
+
+                const remain = totalDays - challenge.completedDays;
+                toastMessages.push(`✅ ${challengeDef.emoji || '🏆'} ${challenge.completedDays}/${totalDays}일 (${remain}일 남음)`);
             }
 
-            // 진행 중 - 오늘 날짜 기록
-            completedDates.push(today);
-            challenge.completedDays = completedDates.length;
-            challenge.completedDates = completedDates;
-            updateData[`activeChallenges.${tier}`] = challenge;
+            if (Object.keys(updateData).length > 0) {
+                transaction.update(userRef, updateData);
+            }
+        });
 
-            const remain = totalDays - challenge.completedDays;
-            showToast(`✅ ${challengeDef.emoji || '🏆'} ${challenge.completedDays}/${totalDays}일 (${remain}일 남음)`);
-        }
-
-        if (Object.keys(updateData).length > 0) {
-            await updateDoc(userRef, updateData);
+        // 트랜잭션 완료 후 토스트 표시 & 정산 로그 저장
+        toastMessages.forEach(msg => showToast(msg));
+        for (const log of settlementLogs) {
+            try {
+                await addDoc(collection(db, "blockchain_transactions"), log);
+            } catch (logErr) {
+                console.warn('⚠️ 실패 정산 기록 저장 실패:', logErr.message);
+            }
         }
 
         window.updateAssetDisplay && window.updateAssetDisplay();

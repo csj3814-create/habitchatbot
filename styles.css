@@ -779,6 +779,9 @@ body {
     padding: 10px;
     border-radius: 10px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .wallet-halving-stat-label {
@@ -788,15 +791,11 @@ body {
 }
 
 .wallet-halving-stat-value {
-    font-size: 26px;
+    font-size: 20px;
     font-weight: 800;
     color: #E65100;
-    margin-top: 2px;
-}
-
-.wallet-halving-stat-value.small {
-    font-size: 14px;
-    font-weight: 700;
+    margin-top: 4px;
+    line-height: 1.2;
 }
 
 .wallet-halving-progress {
@@ -1008,17 +1007,27 @@ body {
     transform: scale(0.95);
 }
 
-/* 자산 증감 델타 */
-.wallet-asset-delta {
-    font-size: 10px;
-    margin-top: 2px;
-    font-weight: 600;
-    min-height: 14px;
+/* 자산 증감 델타 (온체인 배지와 동일 스타일) */
+.wallet-onchain-badge.today-delta {
+    margin-top: 4px;
 }
-
-.wallet-asset-delta.up { color: #4CAF50; }
-.wallet-asset-delta.down { color: #F44336; }
-.wallet-asset-delta.neutral { color: rgba(255,255,255,0.4); }
+.wallet-onchain-badge.today-delta.up {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.9);
+}
+.wallet-onchain-badge.today-delta.up .dot {
+    background: #4CAF50;
+}
+.wallet-onchain-badge.today-delta.neutral {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.5);
+}
+.wallet-onchain-badge.today-delta.neutral .dot {
+    background: rgba(255,255,255,0.3);
+    animation: none;
+}
 
 /* 7일 미니차트 */
 .wallet-minichart {
@@ -1040,7 +1049,7 @@ body {
     display: flex;
     align-items: flex-end;
     gap: 4px;
-    height: 36px;
+    height: 50px;
 }
 
 .wallet-minichart-bar {
@@ -1054,6 +1063,17 @@ body {
 
 .wallet-minichart-bar.today {
     background: rgba(255,255,255,0.6);
+}
+
+.wallet-minichart-bar-value {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 700;
+    opacity: 0.9;
+    white-space: nowrap;
 }
 
 .wallet-minichart-bar-label {

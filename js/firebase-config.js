@@ -4,9 +4,11 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
+// authDomain을 현재 호스팅 도메인으로 설정 → 크로스도메인 쿠키/CSP 문제 원천 차단
 const firebaseConfig = {
     apiKey: "AIzaSyDICPw7HTmu5znaRCYC93-zTux4dYYN9eI",
-    authDomain: "habitschool-8497b.firebaseapp.com",
+    authDomain: location.hostname.endsWith('.web.app') || location.hostname.endsWith('.firebaseapp.com')
+        ? location.hostname : "habitschool-8497b.firebaseapp.com",
     projectId: "habitschool-8497b",
     storageBucket: "habitschool-8497b.firebasestorage.app"
 };

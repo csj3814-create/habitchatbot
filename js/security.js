@@ -115,7 +115,7 @@ export function isValidDate(dateStr) {
  */
 export function isValidNumber(value, min = 0, max = 10000) {
     const num = parseFloat(value);
-    if (isNaN(num)) return false;
+    if (!Number.isFinite(num)) return false;
     return num >= min && num <= max;
 }
 

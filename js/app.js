@@ -16,7 +16,7 @@ import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/fireba
 import { auth, db, storage, MILESTONES, MISSIONS, MISSION_BADGES, MAX_IMG_SIZE, MAX_VID_SIZE, getWeekId } from './firebase-config.js';
 import { getDatesInfo, showToast, getKstDateString } from './ui-helpers.js';
 import { sanitize, compressImage, fetchImageAsBase64 } from './data-manager.js';
-import { escapeHtml, isValidStorageUrl, sanitizeText, isValidFileType } from './security.js';
+import { escapeHtml, isValidStorageUrl, sanitizeText, isValidFileType, checkRateLimit } from './security.js';
 import { requestDietAnalysis, renderDietAnalysisResult, renderDietDaySummary, renderExerciseAnalysisResult, requestSleepMindAnalysis, renderSleepMindAnalysisResult, requestBloodTestAnalysis, renderBloodTestResult } from './diet-analysis.js';
 import { calculateMetabolicScore, renderMetabolicScoreCard } from './metabolic-score.js';
 // 전역 노출 함수 선언 (Hoisting 활용)
@@ -487,6 +487,7 @@ async function extractVideoThumbFromUrl(videoUrl) {
 
         let resolved = false;
         const cleanup = () => {
+            video.pause();
             video.removeAttribute('src');
             video.load();
         };
@@ -1273,7 +1274,7 @@ window.updateAssetDisplay = async function () {
             const pointsDisplay = document.getElementById('asset-points-display');
             if (pointsDisplay) {
                 const ptsVal = parseInt(userData.coins || 0);
-                pointsDisplay.innerHTML = `${ptsVal.toLocaleString()}<span class="wallet-asset-unit">P</span>`;
+                pointsDisplay.innerHTML = `${ptsVal.toLocaleString()} <span class="wallet-asset-unit">P</span>`;
             }
 
             // HBT 표시 업데이트
@@ -1284,47 +1285,97 @@ window.updateAssetDisplay = async function () {
                 hbtDisplay.innerHTML = `${hbtStr} <span class="wallet-asset-unit">HBT</span>`;
             }
 
-            // ========== 자산 변동 표시 (오늘 획득분) ==========
+            // ========== 자산 변동 표시 (오늘 획득분 - daily_logs에서 계산) ==========
             const pointsDeltaEl = document.getElementById('asset-points-delta');
             if (pointsDeltaEl) {
-                const todayPoints = userData.todayEarnedPoints || 0;
+                let todayPoints = 0;
+                try {
+                    const todayStr = getKstDateString();
+                    const todayLogId = `${user.uid}_${todayStr}`;
+                    const todayLogSnap = await getDoc(doc(db, 'daily_logs', todayLogId));
+                    if (todayLogSnap.exists()) {
+                        const ap = todayLogSnap.data().awardedPoints || {};
+                        todayPoints = (ap.dietPoints || 0) + (ap.exercisePoints || 0) + (ap.mindPoints || 0);
+                    }
+                } catch (_) {}
                 if (todayPoints > 0) {
-                    pointsDeltaEl.textContent = `△ +${todayPoints}P 오늘`;
-                    pointsDeltaEl.className = 'wallet-asset-delta up';
+                    pointsDeltaEl.innerHTML = `<span class="dot"></span>+${todayPoints}P 오늘`;
+                    pointsDeltaEl.className = 'wallet-onchain-badge today-delta up';
+                    pointsDeltaEl.style.display = 'inline-flex';
                 } else {
-                    pointsDeltaEl.textContent = '△ 0P 오늘';
-                    pointsDeltaEl.className = 'wallet-asset-delta neutral';
+                    pointsDeltaEl.innerHTML = `<span class="dot"></span>0P 오늘`;
+                    pointsDeltaEl.className = 'wallet-onchain-badge today-delta neutral';
+                    pointsDeltaEl.style.display = 'inline-flex';
                 }
             }
+            // 오늘 변환 HBT 합산 (델타 + 일일 한도 양쪽에서 사용)
+            let todayHbt = 0;
+            try {
+                const todayStr = getKstDateString();
+                const hbtTxQuery = query(
+                    collection(db, 'blockchain_transactions'),
+                    where('userId', '==', user.uid),
+                    where('type', '==', 'conversion'),
+                    where('status', '==', 'success'),
+                    where('date', '==', todayStr)
+                );
+                const hbtTxSnap = await getDocs(hbtTxQuery);
+                hbtTxSnap.forEach(d => { todayHbt += d.data().hbtReceived || 0; });
+            } catch (_) {}
             const hbtDeltaEl = document.getElementById('asset-hbt-delta');
             if (hbtDeltaEl) {
-                const todayHbt = userData.todayEarnedHbt || 0;
                 if (todayHbt > 0) {
-                    hbtDeltaEl.textContent = `△ +${todayHbt} HBT 오늘`;
-                    hbtDeltaEl.className = 'wallet-asset-delta up';
+                    hbtDeltaEl.innerHTML = `<span class="dot"></span>+${todayHbt} HBT 오늘`;
+                    hbtDeltaEl.className = 'wallet-onchain-badge today-delta up';
+                    hbtDeltaEl.style.display = 'inline-flex';
                 } else {
-                    hbtDeltaEl.textContent = '';
-                    hbtDeltaEl.className = 'wallet-asset-delta neutral';
+                    hbtDeltaEl.style.display = 'none';
                 }
             }
 
-            // ========== 7일 미니차트 ==========
+            // ========== 7일 미니차트 (blockchain_transactions에서 실시간 조회) ==========
             const minichartBars = document.getElementById('minichart-bars');
             if (minichartBars) {
-                const weeklyData = userData.weeklyHbt || [];
-                // weeklyHbt: [0, 0, 100, 50, 0, 200, 0] — 최근 7일 HBT 획득량
-                const data = weeklyData.length >= 7 ? weeklyData.slice(-7) : Array(7).fill(0);
-                const maxVal = Math.max(...data, 1);
-                const dayLabels = ['일','월','화','수','목','금','토'];
-                const today = new Date().getDay(); // 0=일, 6=토
-                let barsHtml = '';
-                for (let i = 0; i < 7; i++) {
-                    const dayIdx = (today - 6 + i + 7) % 7;
-                    const heightPct = Math.round((data[i] / maxVal) * 100);
-                    const isToday = i === 6;
-                    barsHtml += `<div class="wallet-minichart-bar${isToday ? ' today' : ''}" style="height:${Math.max(heightPct, 4)}%;" title="${data[i]} HBT"><span class="wallet-minichart-bar-label">${dayLabels[dayIdx]}</span></div>`;
+                try {
+                    const dayLabels = ['일','월','화','수','목','금','토'];
+                    const nowDate = new Date();
+                    const todayDow = nowDate.getDay();
+                    const data = Array(7).fill(0);
+
+                    // 7일 전 날짜 계산
+                    const sevenDaysAgo = new Date(nowDate);
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+                    const startDateStr = sevenDaysAgo.toISOString().split('T')[0];
+
+                    const txQuery = query(
+                        collection(db, 'blockchain_transactions'),
+                        where('userId', '==', user.uid),
+                        where('type', '==', 'conversion'),
+                        where('status', '==', 'success'),
+                        where('date', '>=', startDateStr)
+                    );
+                    const txSnap = await getDocs(txQuery);
+                    txSnap.forEach(d => {
+                        const txDate = new Date(d.data().date + 'T12:00:00');
+                        const diffDays = Math.round((txDate - sevenDaysAgo) / 86400000);
+                        if (diffDays >= 0 && diffDays < 7) {
+                            data[diffDays] += d.data().hbtReceived || 0;
+                        }
+                    });
+
+                    const maxVal = Math.max(...data, 1);
+                    let barsHtml = '';
+                    for (let i = 0; i < 7; i++) {
+                        const dayIdx = (todayDow - 6 + i + 7) % 7;
+                        const heightPct = Math.round((data[i] / maxVal) * 100);
+                        const isToday = i === 6;
+                        const valLabel = data[i] > 0 ? `<span class="wallet-minichart-bar-value">${data[i]}</span>` : '';
+                        barsHtml += `<div class="wallet-minichart-bar${isToday ? ' today' : ''}" style="height:${Math.max(heightPct, 4)}%;" title="${data[i]} HBT">${valLabel}<span class="wallet-minichart-bar-label">${dayLabels[dayIdx]}</span></div>`;
+                    }
+                    minichartBars.innerHTML = barsHtml;
+                } catch (chartErr) {
+                    console.warn('미니차트 로드 실패:', chartErr.message);
                 }
-                minichartBars.innerHTML = barsHtml;
             }
 
             // ========== 변환 비율 배지 & 일일 한도 ==========
@@ -1338,9 +1389,8 @@ window.updateAssetDisplay = async function () {
             }
             const dailyLimitEl = document.getElementById('convert-daily-limit');
             if (dailyLimitEl) {
-                const todayConverted = userData.todayConvertedHbt || 0;
                 const dailyMax = 1000;
-                const remaining = Math.max(dailyMax - todayConverted, 0);
+                const remaining = Math.max(dailyMax - todayHbt, 0);
                 dailyLimitEl.innerHTML = `오늘 변환 한도: <strong>${remaining.toLocaleString()} / ${dailyMax.toLocaleString()} HBT</strong>`;
             }
 
@@ -1441,6 +1491,7 @@ window.updateAssetDisplay = async function () {
             });
             const tierLabels = { mini: '⚡ 3일 미니', weekly: '🔥 7일 위클리', master: '🏆 30일 마스터' };
             const tierColors = { mini: '#4CAF50', weekly: '#FF9800', master: '#E65100' };
+            const tierBaseRewardP = { mini: 30, weekly: 50, master: 100 };
 
             if (activeTiers.length > 0) {
                 let challengeHtml = '';
@@ -1496,7 +1547,7 @@ window.updateAssetDisplay = async function () {
                                 <div class="challenge-ring-name">${tierLabels[tier]}</div>
                                 <div class="challenge-ring-date">${escapeHtml(String(ch.startDate))} ~ ${escapeHtml(String(ch.endDate))}</div>
                                 <div class="challenge-ring-stake">${stakeText}</div>
-                                <div class="challenge-ring-remain">남은 ${remain}일</div>
+                                <div class="challenge-ring-remain">남은 ${remain}일 · 완료 시 ${ch.hbtStaked > 0 ? `${tierBaseRewardP[tier] * 2}P + ${ch.hbtStaked * 2} HBT` : `${tierBaseRewardP[tier]}P`}</div>
                             </div>
                         </div>
                     `;
@@ -4594,19 +4645,27 @@ async function loadGalleryData() {
             if (userSnap.exists()) cachedMyFriends = userSnap.data().friends || [];
         }
 
-        try {
-            const q = query(collection(db, "daily_logs"), orderBy("date", "desc"), limit(MAX_CACHE_SIZE));
-            const snapshot = await getDocs(q);
+        let retries = 0;
+        while (retries < 3) {
+            try {
+                const q = query(collection(db, "daily_logs"), orderBy("date", "desc"), limit(MAX_CACHE_SIZE));
+                const snapshot = await getDocs(q);
 
-            let logsArray = [];
-            snapshot.forEach(d => { logsArray.push({ id: d.id, data: d.data() }); });
-            cachedGalleryLogs = logsArray.slice(0, MAX_CACHE_SIZE);
-            sortedFilteredDirty = true;
-        } catch (e) {
-            console.error('갤러리 데이터 로드 실패:', e);
-            if (!user) {
-                container.innerHTML = '<div style="text-align:center; padding:40px 20px;"><p style="font-size:15px; color:#666; margin-bottom:16px;">갤러리를 보려면 로그인이 필요합니다.</p><button class="google-btn" style="margin:0 auto;" onclick="document.getElementById(\'login-modal\').style.display=\'flex\'">🌟 구글로 시작하기</button></div>';
-                return;
+                let logsArray = [];
+                snapshot.forEach(d => { logsArray.push({ id: d.id, data: d.data() }); });
+                cachedGalleryLogs = logsArray.slice(0, MAX_CACHE_SIZE);
+                sortedFilteredDirty = true;
+                break;
+            } catch (e) {
+                retries++;
+                console.warn(`갤러리 데이터 로드 재시도 (${retries}/3):`, e.message);
+                if (retries < 3) {
+                    await new Promise(r => setTimeout(r, 800 * retries));
+                } else {
+                    console.error('갤러리 데이터 로드 실패:', e);
+                    container.innerHTML = '<div style="text-align:center; padding:40px 20px;"><p style="font-size:15px; color:#666; margin-bottom:16px;">갤러리를 불러오는 중 문제가 발생했습니다.<br>잠시 후 다시 시도해주세요.</p><button class="google-btn" style="margin:0 auto;" onclick="loadGalleryData()">🔄 다시 시도</button></div>';
+                    return;
+                }
             }
         }
 
@@ -5223,6 +5282,10 @@ if (lightboxModal) {
 
 // 식단 사진 AI 분석
 async function analyzeMealPhoto(meal) {
+    if (!checkRateLimit('analyzeMealPhoto', 3000)) {
+        showToast('⏳ 잠시 후 다시 시도해주세요.');
+        return;
+    }
     const previewImg = document.getElementById(`preview-${meal}`);
     const resultContainer = document.getElementById(`diet-analysis-${meal}`);
     const btn = document.querySelector(`.diet-ai-btn[data-meal="${meal}"]`);

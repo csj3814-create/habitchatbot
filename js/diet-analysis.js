@@ -232,9 +232,9 @@ export function renderExerciseAnalysisResult(analysis, container) {
     const progressColor = progress >= 80 ? '#4CAF50' : progress >= 50 ? '#FF9800' : '#F44336';
     const progressLabel = progress >= 100 ? '달성! 🎉' : progress >= 80 ? '거의 달성' : progress >= 50 ? '절반 이상' : '조금 더 노력';
 
-    const exerciseType = analysis.exerciseType ? `<div style="font-size:12px; color:#555; margin-top:4px;">인식: ${analysis.exerciseType}</div>` : '';
+    const exerciseType = analysis.exerciseType ? `<div style="font-size:12px; color:#555; margin-top:4px;">인식: ${escapeHtml(analysis.exerciseType)}</div>` : '';
     const formTip = analysis.formTip ? `
-        <div class="diet-suggestion-box" style="margin-top:10px;">💡 ${analysis.formTip}</div>
+        <div class="diet-suggestion-box" style="margin-top:10px;">💡 ${escapeHtml(analysis.formTip)}</div>
     ` : '';
 
     container.innerHTML = `
@@ -243,7 +243,7 @@ export function renderExerciseAnalysisResult(analysis, container) {
                 <div class="diet-grade-badge" style="background:${intensityColors[intensity] || '#4CAF50'}; font-size: 14px; min-width: 60px;">${intensityEmoji[intensity] || '🏃'} ${intensity}</div>
                 <div class="diet-grade-info">
                     <div class="diet-grade-label">운동 강도 분석</div>
-                    <div class="diet-grade-summary">${analysis.timeAnalysis || ''}</div>
+                    <div class="diet-grade-summary">${escapeHtml(analysis.timeAnalysis || '')}</div>
                     ${exerciseType}
                 </div>
             </div>
@@ -258,7 +258,7 @@ export function renderExerciseAnalysisResult(analysis, container) {
                 <div class="diet-insight-icon">🏋️</div>
                 <div class="diet-insight-text">
                     <div class="diet-insight-label">AI 트레이너 피드백</div>
-                    <div>${analysis.feedback || ''}</div>
+                    <div>${escapeHtml(analysis.feedback || '')}</div>
                 </div>
             </div>
             ${formTip}
@@ -287,10 +287,10 @@ export function renderSleepMindAnalysisResult(analysis, container) {
 
     const details = analysis.details || {};
     let detailsHtml = '';
-    if (details.sleepDuration) detailsHtml += `<div style="font-size:13px;">⏱ 수면 시간: <strong>${details.sleepDuration}</strong></div>`;
-    if (details.sleepQuality) detailsHtml += `<div style="font-size:13px;">📊 수면 품질: ${details.sleepQuality}</div>`;
-    if (details.emotionTone) detailsHtml += `<div style="font-size:13px;">💭 감정 톤: <strong>${details.emotionTone}</strong></div>`;
-    if (details.stressLevel) detailsHtml += `<div style="font-size:13px;">😤 스트레스: <strong>${details.stressLevel}</strong></div>`;
+    if (details.sleepDuration) detailsHtml += `<div style="font-size:13px;">⏱ 수면 시간: <strong>${escapeHtml(details.sleepDuration)}</strong></div>`;
+    if (details.sleepQuality) detailsHtml += `<div style="font-size:13px;">📊 수면 품질: ${escapeHtml(details.sleepQuality)}</div>`;
+    if (details.emotionTone) detailsHtml += `<div style="font-size:13px;">💭 감정 톤: <strong>${escapeHtml(details.emotionTone)}</strong></div>`;
+    if (details.stressLevel) detailsHtml += `<div style="font-size:13px;">😤 스트레스: <strong>${escapeHtml(details.stressLevel)}</strong></div>`;
 
     container.innerHTML = `
         <div class="diet-analysis-card" style="border-left: 4px solid ${gradeColor};">
@@ -298,7 +298,7 @@ export function renderSleepMindAnalysisResult(analysis, container) {
                 <div class="diet-grade-badge" style="background:${gradeColor}; font-size: 16px;">${gradeEmoji[grade] || '🧘'} ${grade}</div>
                 <div class="diet-grade-info">
                     <div class="diet-grade-label">${typeLabel}</div>
-                    <div class="diet-grade-summary">${analysis.summary || ''}</div>
+                    <div class="diet-grade-summary">${escapeHtml(analysis.summary || '')}</div>
                 </div>
             </div>
             ${detailsHtml ? `<div style="margin-top:10px; display:flex; flex-direction:column; gap:4px;">${detailsHtml}</div>` : ''}
@@ -306,10 +306,10 @@ export function renderSleepMindAnalysisResult(analysis, container) {
                 <div class="diet-insight-icon">${analysis.type === 'sleep' ? '🛏️' : '🧠'}</div>
                 <div class="diet-insight-text">
                     <div class="diet-insight-label">AI 코치 피드백</div>
-                    <div>${analysis.feedback || ''}</div>
+                    <div>${escapeHtml(analysis.feedback || '')}</div>
                 </div>
             </div>
-            ${analysis.tip ? `<div class="diet-suggestion-box" style="margin-top:10px;">💡 ${analysis.tip}</div>` : ''}
+            ${analysis.tip ? `<div class="diet-suggestion-box" style="margin-top:10px;">💡 ${escapeHtml(analysis.tip)}</div>` : ''}
         </div>
     `;
     container.style.display = 'block';

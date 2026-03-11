@@ -296,122 +296,6 @@
                     </div>
                 </div>
 
-                <!-- 지갑 정보 -->
-                <div class="card wallet-info-card">
-                    <div class="wallet-info-header">
-                        <h3>🔐 블록체인 지갑</h3>
-                        <span class="wallet-network-badge"><span class="dot"></span> Base Sepolia</span>
-                    </div>
-                    <div class="wallet-address-box">
-                        <span class="wallet-address-text" id="wallet-address-display">로딩 중...</span>
-                        <div class="wallet-addr-actions">
-                            <button class="wallet-addr-btn" onclick="copyWalletAddress()" title="주소 복사">📋</button>
-                            <button class="wallet-addr-btn" onclick="openWalletExplorer()" title="탐색기에서 보기">🔗</button>
-                        </div>
-                    </div>
-                    <div class="wallet-links">
-                        <a href="tokenomics.html" class="wallet-link-btn primary">📋 HBT 토크노믹스</a>
-                    </div>
-                </div>
-
-                <!-- 포인트 → HBT 변환 섹션 -->
-                <div class="card wallet-convert-card">
-                    <h3>🔄 포인트 → HBT 변환</h3>
-                    <p class="wallet-convert-desc">포인트를 HBT 코인으로 변환하세요. 100P 단위로 변환 가능합니다.</p>
-                    <div class="wallet-convert-rate-badge" id="convert-rate-badge">
-                        현재 A구간 · 1:1 비율
-                    </div>
-                    <div class="wallet-convert-presets">
-                        <button class="wallet-preset-btn" onclick="setConvertAmount(100)">100P</button>
-                        <button class="wallet-preset-btn" onclick="setConvertAmount(300)">300P</button>
-                        <button class="wallet-preset-btn" onclick="setConvertAmount(500)">500P</button>
-                        <button class="wallet-preset-btn" onclick="setConvertAmount(1000)">1000P</button>
-                    </div>
-                    <input type="hidden" id="convert-point-input" value="">
-                    <div class="wallet-convert-result-row">
-                        <span class="wallet-convert-arrow">→</span>
-                        <span class="wallet-convert-result" id="convert-result-preview">0 HBT</span>
-                    </div>
-                    <div class="wallet-convert-limit" id="convert-daily-limit">오늘 변환 한도: <strong>1,000 / 1,000 HBT</strong></div>
-                    <button class="wallet-convert-submit" id="convert-submit-btn" onclick="executeConversion()" disabled>
-                        💸 변환하기
-                    </button>
-                </div>
-
-                <!-- 변환 확인 모달 -->
-                <div class="wallet-modal-overlay" id="convert-confirm-modal" style="display:none;">
-                    <div class="wallet-modal">
-                        <div class="wallet-modal-title">🔄 HBT 변환 확인</div>
-                        <div class="wallet-modal-body">
-                            <div class="wallet-modal-summary">
-                                <div class="wallet-modal-row">
-                                    <span>변환 포인트</span>
-                                    <span id="modal-convert-points">0P</span>
-                                </div>
-                                <div class="wallet-modal-row">
-                                    <span>받을 HBT</span>
-                                    <span id="modal-convert-hbt" class="highlight">0 HBT</span>
-                                </div>
-                                <div class="wallet-modal-row">
-                                    <span>적용 비율</span>
-                                    <span id="modal-convert-rate">1:1</span>
-                                </div>
-                            </div>
-                            <p class="wallet-modal-warn">⚠️ 변환 후 취소할 수 없습니다.</p>
-                        </div>
-                        <div class="wallet-modal-actions">
-                            <button class="wallet-modal-btn cancel" onclick="closeConvertModal()">취소</button>
-                            <button class="wallet-modal-btn confirm" id="modal-confirm-btn" onclick="confirmConversion()">확인</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 채굴 반감기 현황 -->
-                <div class="card wallet-halving-card">
-                    <h3>⛏️ 채굴 반감기 현황</h3>
-                    <div class="wallet-halving-grid">
-                        <div class="wallet-halving-stat">
-                            <div class="wallet-halving-stat-label">현재 채굴 구간</div>
-                            <div class="wallet-halving-stat-value" id="halving-era">A</div>
-                        </div>
-                        <div class="wallet-halving-stat">
-                            <div class="wallet-halving-stat-label">현재 전환 비율</div>
-                            <div class="wallet-halving-stat-value small" id="halving-rate">100P = 100 HBT</div>
-                        </div>
-                    </div>
-                    <div class="wallet-halving-progress">
-                        <div class="wallet-halving-progress-header">
-                            <span>구간 진행도</span>
-                            <span id="halving-progress-text">0 / 30,000,000 HBT</span>
-                        </div>
-                        <div class="wallet-halving-bar-bg">
-                            <div class="wallet-halving-bar-fill" id="halving-progress-bar"></div>
-                        </div>
-                    </div>
-                    <div class="wallet-halving-schedule">
-                        <div class="wallet-halving-schedule-header">
-                            <span>구간</span><span>전환 비율</span><span>채굴량</span>
-                        </div>
-                        <div id="halving-schedule">
-                            <div class="wallet-halving-row active">
-                                <span>A 👈</span><span>100P = 100 HBT</span><span>3,000만</span>
-                            </div>
-                            <div class="wallet-halving-row future">
-                                <span>B</span><span>100P = 50 HBT</span><span>1,500만</span>
-                            </div>
-                            <div class="wallet-halving-row future">
-                                <span>C</span><span>100P = 25 HBT</span><span>750만</span>
-                            </div>
-                            <div class="wallet-halving-row future">
-                                <span>D</span><span>100P = 12.5 HBT</span><span>375만</span>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="wallet-halving-tip">
-                        ⚡ 지금은 A구간! 같은 포인트로 받는 HBT가 구간마다 절반으로 줄어듭니다.
-                    </p>
-                </div>
-
                 <!-- 건강 습관 챌린지 섹션 -->
                 <div class="card wallet-challenge-card">
                     <h3 class="wallet-challenge-title">🏆 건강 습관 챌린지</h3>
@@ -473,6 +357,112 @@
                         <div class="challenge-rules-note">
                             📌 80%+ → 원금환급+보너스P · 100% → 원금+예치금의 50~100% HBT 보너스 · 미달 시 소멸
                         </div>
+                    </div>
+                </div>
+
+                <!-- 포인트 → HBT 변환 섹션 -->
+                <div class="card wallet-convert-card">
+                    <h3>🔄 포인트 → HBT 변환</h3>
+                    <p class="wallet-convert-desc">포인트를 HBT 코인으로 변환하세요. 100P 단위로 변환 가능합니다.</p>
+                    <div class="wallet-convert-rate-badge" id="convert-rate-badge">
+                        현재 A구간 · 1:1 비율
+                    </div>
+                    <div class="wallet-convert-presets">
+                        <button class="wallet-preset-btn" onclick="setConvertAmount(100)">100P</button>
+                        <button class="wallet-preset-btn" onclick="setConvertAmount(300)">300P</button>
+                        <button class="wallet-preset-btn" onclick="setConvertAmount(500)">500P</button>
+                        <button class="wallet-preset-btn" onclick="setConvertAmount(1000)">1000P</button>
+                    </div>
+                    <input type="hidden" id="convert-point-input" value="">
+                    <div class="wallet-convert-result-row">
+                        <span class="wallet-convert-arrow">→</span>
+                        <span class="wallet-convert-result" id="convert-result-preview">0 HBT</span>
+                    </div>
+                    <div class="wallet-convert-limit" id="convert-daily-limit">오늘 변환 한도: <strong>1,000 / 1,000 HBT</strong></div>
+                    <button class="wallet-convert-submit" id="convert-submit-btn" onclick="executeConversion()" disabled>
+                        💸 변환하기
+                    </button>
+                </div>
+
+                <!-- 변환 확인 모달 -->
+                <div class="wallet-modal-overlay" id="convert-confirm-modal" style="display:none;">
+                    <div class="wallet-modal">
+                        <div class="wallet-modal-title">🔄 HBT 변환 확인</div>
+                        <div class="wallet-modal-body">
+                            <div class="wallet-modal-summary">
+                                <div class="wallet-modal-row">
+                                    <span>변환 포인트</span>
+                                    <span id="modal-convert-points">0P</span>
+                                </div>
+                                <div class="wallet-modal-row">
+                                    <span>받을 HBT</span>
+                                    <span id="modal-convert-hbt" class="highlight">0 HBT</span>
+                                </div>
+                                <div class="wallet-modal-row">
+                                    <span>적용 비율</span>
+                                    <span id="modal-convert-rate">1:1</span>
+                                </div>
+                            </div>
+                            <p class="wallet-modal-warn">⚠️ 변환 후 취소할 수 없습니다.</p>
+                        </div>
+                        <div class="wallet-modal-actions">
+                            <button class="wallet-modal-btn cancel" onclick="closeConvertModal()">취소</button>
+                            <button class="wallet-modal-btn confirm" id="modal-confirm-btn" onclick="confirmConversion()">확인</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 채굴 반감기 현황 -->
+                <div class="card wallet-halving-card">
+                    <h3>⛏️ 채굴 반감기 현황</h3>
+                    <div class="wallet-halving-progress">
+                        <div class="wallet-halving-progress-header">
+                            <span>구간 진행도</span>
+                            <span id="halving-progress-text">0 / 30,000,000 HBT</span>
+                        </div>
+                        <div class="wallet-halving-bar-bg">
+                            <div class="wallet-halving-bar-fill" id="halving-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div class="wallet-halving-schedule">
+                        <div class="wallet-halving-schedule-header">
+                            <span>구간</span><span>전환 비율</span><span>채굴량</span>
+                        </div>
+                        <div id="halving-schedule">
+                            <div class="wallet-halving-row active">
+                                <span>A 👈</span><span>100P = 100 HBT</span><span>3,000만</span>
+                            </div>
+                            <div class="wallet-halving-row future">
+                                <span>B</span><span>100P = 50 HBT</span><span>1,500만</span>
+                            </div>
+                            <div class="wallet-halving-row future">
+                                <span>C</span><span>100P = 25 HBT</span><span>750만</span>
+                            </div>
+                            <div class="wallet-halving-row future">
+                                <span>D</span><span>100P = 12.5 HBT</span><span>375만</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="wallet-halving-tip">
+                        ⚡ 지금은 A구간! 같은 포인트로 받는 HBT가 구간마다 절반으로 줄어듭니다.
+                    </p>
+                </div>
+
+                <!-- 지갑 정보 -->
+                <div class="card wallet-info-card">
+                    <div class="wallet-info-header">
+                        <h3>🔐 블록체인 지갑</h3>
+                        <span class="wallet-network-badge"><span class="dot"></span> Base Sepolia</span>
+                    </div>
+                    <div class="wallet-address-box">
+                        <span class="wallet-address-text" id="wallet-address-display">로딩 중...</span>
+                        <div class="wallet-addr-actions">
+                            <button class="wallet-addr-btn" onclick="copyWalletAddress()" title="주소 복사">📋</button>
+                            <button class="wallet-addr-btn" onclick="openWalletExplorer()" title="탐색기에서 보기">🔗</button>
+                        </div>
+                    </div>
+                    <div class="wallet-links">
+                        <a href="tokenomics.html" class="wallet-link-btn primary">📋 HBT 토크노믹스</a>
                     </div>
                 </div>
 
