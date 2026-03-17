@@ -12,16 +12,19 @@ const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
+const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 
 const HELP_MSG = `명령어 안내
 !오늘 - 전체 기록 현황
 !내습관 - 내 기록 보기
+!식단 - 식단 현황 + AI 분석
+!운동 - 운동 현황 + AI 분석
+!마음 - 마음습관 현황 + AI 분석
 !주간 - 주간 트렌드
 !우리반 - 기수 현황
 !랭킹 - 이번 주 리더보드
 !등록 이메일 - 앱 연결
 !오운완 - 운동 인증
-!목표 - 마이크로 해빛
 
 그 외 자유롭게 질문하세요!`;
 
@@ -94,6 +97,15 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
 
         if (actualQuestion === '랭킹' || actualQuestion === '순위')
             return res.status(200).json(cmdResponse(await handleRanking()));
+
+        if (actualQuestion === '식단')
+            return res.status(200).json(cmdResponse(await handleDiet(userName, getChatSession)));
+
+        if (actualQuestion === '운동')
+            return res.status(200).json(cmdResponse(await handleExercise(userName, getChatSession)));
+
+        if (actualQuestion === '마음')
+            return res.status(200).json(cmdResponse(await handleMind(userName, getChatSession)));
 
         if (actualQuestion === '도움말' || actualQuestion === '도움' || actualQuestion === '명령어')
             return res.status(200).json(cmdResponse(HELP_MSG));
