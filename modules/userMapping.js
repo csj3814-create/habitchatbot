@@ -73,6 +73,16 @@ async function findAppUserByEmail(googleEmail) {
 }
 
 /**
+ * 전체 user_mappings 조회 (랭킹 uid→sender 역매핑용)
+ * @returns {Object} { encodedSender: { sender, googleEmail, googleUid } }
+ */
+async function getAllMappings() {
+    const db = getDb();
+    const snapshot = await db.ref('user_mappings').once('value');
+    return snapshot.val() || {};
+}
+
+/**
  * 매핑 삭제
  */
 async function removeMapping(sender) {
@@ -84,6 +94,7 @@ async function removeMapping(sender) {
 module.exports = {
     registerUser,
     getMapping,
+    getAllMappings,
     findAppUserByEmail,
     removeMapping
 };
