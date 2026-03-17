@@ -6,7 +6,12 @@
 const { getWeeklyStats } = require('../modules/appFirebase');
 
 async function handleClassStatus(sender) {
-    const stats = await getWeeklyStats();
+    let stats;
+    try {
+        stats = await getWeeklyStats();
+    } catch (e) {
+        return `⚠️ ${e.message}`;
+    }
 
     if (!stats || stats.totalRecords === 0) {
         return `📊 해빛스쿨 현황\n━━━━━━━━━━━━━━━\n이번 주 기록이 아직 없어요!\n\n🌟 첫 번째로 앱에 기록하고\n오픈톡방에 !오늘 으로 확인해보세요!`;

@@ -5,6 +5,7 @@
 
 const { getUserRecords, getUserRecordByDate } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
+const { hasDiet, hasExercise, hasSleep, hasGratitude, hasMeditation, progressBar } = require('../modules/statsHelpers');
 
 async function handleMyHabits(sender) {
     // 매핑 확인
@@ -14,7 +15,12 @@ async function handleMyHabits(sender) {
     }
 
     const googleUid = mapping.googleUid;
-    const records = await getUserRecords(googleUid, 7);
+    let records;
+    try {
+        records = await getUserRecords(googleUid, 7);
+    } catch (e) {
+        return `⚠️ ${e.message}`;
+    }
 
     if (records.length === 0) {
         return `${sender}님, 최근 7일간 앱 기록이 없어요! 😢\n\n지금 해빛스쿨 앱에서 오늘의 식단부터 기록해볼까요? 📱`;
@@ -25,11 +31,11 @@ async function handleMyHabits(sender) {
     const latestDate = latest.date;
 
     // 통계 계산
-    const dietDays = records.filter(r => r.diet && (r.diet.breakfastUrl || r.diet.lunchUrl || r.diet.dinnerUrl || r.diet.snackUrl)).length;
-    const exerciseDays = records.filter(r => r.exercise && ((r.exercise.cardioList?.length > 0) || (r.exercise.strengthList?.length > 0))).length;
-    const sleepDays = records.filter(r => r.sleepAndMind?.sleepImageUrl).length;
-    const gratitudeDays = records.filter(r => r.sleepAndMind?.gratitude).length;
-    const meditationDays = records.filter(r => r.sleepAndMind?.meditationDone).length;
+    const dietDays = records.filter(hasDiet).length;
+    const exerciseDays = records.filter(hasExercise).length;
+    const sleepDays = records.filter(hasSleep).length;
+    const gratitudeDays = records.filter(hasGratitude).length;
+    const meditationDays = records.filter(hasMeditation).length;
 
     // 식단 사진 수 계산 (최신)
     let dietDetail = '';
@@ -90,18 +96,13 @@ async function handleMyHabits(sender) {
         if (parts.length > 0) metricsDetail = `\n⚕️ ${parts.join(' | ')}`;
     }
 
-    const progressBar = (count, total) => {
-        const filled = Math.round((count / total) * 7);
-        return '█'.repeat(filled) + '░'.repeat(7 - filled) + ` ${count}/${total}일`;
-    };
-
     let msg = `📋 ${sender}님의 습관 현황 (최근 7일)\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `🍽 식습관: ${progressBar(dietDays, 7)}\n`;
-    msg += `🏃 운동:   ${progressBar(exerciseDays, 7)}\n`;
-    msg += `😴 수면:   ${progressBar(sleepDays, 7)}\n`;
-    msg += `📝 감사:   ${progressBar(gratitudeDays, 7)}\n`;
-    if (meditationDays > 0) msg += `🧘 명상:   ${progressBar(meditationDays, 7)}\n`;
+    msg += `🍽 식습관: ${progressBar(dietDays)}\n`;
+    msg += `🏃 운동:   ${progressBar(exerciseDays)}\n`;
+    msg += `😴 수면:   ${progressBar(sleepDays)}\n`;
+    msg += `📝 감사:   ${progressBar(gratitudeDays)}\n`;
+    if (meditationDays > 0) msg += `🧘 명상:   ${progressBar(meditationDays)}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━\n`;
 
     msg += `📅 마지막 기록: ${latestDate}\n`;

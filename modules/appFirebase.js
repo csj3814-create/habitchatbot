@@ -8,6 +8,7 @@
  */
 
 const admin = require('firebase-admin');
+const { hasDiet, hasExercise, hasMind } = require('./statsHelpers');
 
 // 앱 Firebase를 두 번째 앱으로 초기화
 let appDb = null;
@@ -63,8 +64,8 @@ async function getGalleryByDate(dateStr) {
 
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (e) {
-        console.error('[AppFirebase] 갤러리 조회 실패:', e.message);
-        return [];
+        console.error(`[AppFirebase] 갤러리 조회 실패 (date=${dateStr}):`, e.message);
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
     }
 }
 
@@ -86,8 +87,8 @@ async function getUserRecords(googleUid, days = 7) {
         records.reverse(); // 오래된 순서로 정렬
         return records;
     } catch (e) {
-        console.error('[AppFirebase] 유저 기록 조회 실패:', e.message);
-        return [];
+        console.error(`[AppFirebase] 유저 기록 조회 실패 (uid=${googleUid}, days=${days}):`, e.message);
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
     }
 }
 
@@ -104,8 +105,8 @@ async function getUserRecordByDate(googleUid, dateStr) {
         if (!docRef.exists) return null;
         return { id: docRef.id, ...docRef.data() };
     } catch (e) {
-        console.error('[AppFirebase] 유저 일별 기록 조회 실패:', e.message);
-        return null;
+        console.error(`[AppFirebase] 유저 일별 기록 조회 실패 (uid=${googleUid}, date=${dateStr}):`, e.message);
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
     }
 }
 
@@ -121,8 +122,8 @@ async function getUserProfile(googleUid) {
         if (!docRef.exists) return null;
         return { id: docRef.id, ...docRef.data() };
     } catch (e) {
-        console.error('[AppFirebase] 유저 프로필 조회 실패:', e.message);
-        return null;
+        console.error(`[AppFirebase] 유저 프로필 조회 실패 (uid=${googleUid}):`, e.message);
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
     }
 }
 
@@ -141,8 +142,8 @@ async function getActiveUserCount(dateStr) {
         const uniqueUsers = new Set(snapshot.docs.map(doc => doc.data().userId));
         return uniqueUsers.size;
     } catch (e) {
-        console.error('[AppFirebase] 유저 수 조회 실패:', e.message);
-        return 0;
+        console.error(`[AppFirebase] 유저 수 조회 실패 (date=${dateStr}):`, e.message);
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
     }
 }
 
@@ -154,12 +155,13 @@ async function getWeeklyStats() {
     if (!db) return null;
 
     try {
-        const today = new Date();
+        // KST 기준 날짜 계산 (UTC+9)
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
         const dates = [];
         for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
+            const d = new Date(todayStr + 'T00:00:00+09:00');
             d.setDate(d.getDate() - i);
-            dates.push(d.toISOString().split('T')[0]);
+            dates.push(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }));
         }
 
         const allLogs = [];
@@ -174,9 +176,9 @@ async function getWeeklyStats() {
         const stats = {
             totalRecords: allLogs.length,
             uniqueUsers: new Set(allLogs.map(l => l.userId)).size,
-            dietCount: allLogs.filter(l => l.diet && (l.diet.breakfastUrl || l.diet.lunchUrl || l.diet.dinnerUrl || l.diet.snackUrl)).length,
-            exerciseCount: allLogs.filter(l => l.exercise && ((l.exercise.cardioList?.length > 0) || (l.exercise.strengthList?.length > 0))).length,
-            mindCount: allLogs.filter(l => l.sleepAndMind && (l.sleepAndMind.sleepImageUrl || l.sleepAndMind.meditationDone || l.sleepAndMind.gratitude)).length,
+            dietCount: allLogs.filter(hasDiet).length,
+            exerciseCount: allLogs.filter(hasExercise).length,
+            mindCount: allLogs.filter(hasMind).length,
             dates,
             dailyBreakdown: dates.map(date => {
                 const dayLogs = allLogs.filter(l => l.date === date);
@@ -191,7 +193,7 @@ async function getWeeklyStats() {
         return stats;
     } catch (e) {
         console.error('[AppFirebase] 주간 통계 조회 실패:', e.message);
-        return null;
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
     }
 }
 
