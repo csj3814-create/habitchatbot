@@ -5,7 +5,7 @@
 
 const { getUserRecords, getUserRecordByDate } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
-const { hasDiet, hasExercise, hasSleep, hasGratitude, hasMeditation, progressBar } = require('../modules/statsHelpers');
+const { hasDiet, hasExercise, hasSleep, hasGratitude, hasMeditation, progressBar, calculateStreak } = require('../modules/statsHelpers');
 
 async function handleMyHabits(sender) {
     // 매핑 확인
@@ -17,7 +17,8 @@ async function handleMyHabits(sender) {
     const googleUid = mapping.googleUid;
     let records;
     try {
-        records = await getUserRecords(googleUid, 7);
+        // 30일치 조회: 최근 7일은 통계 표시, 전체는 스트릭 계산에 활용
+        records = await getUserRecords(googleUid, 30);
     } catch (e) {
         return `⚠️ ${e.message}`;
     }
@@ -30,12 +31,16 @@ async function handleMyHabits(sender) {
     const latest = records[records.length - 1];
     const latestDate = latest.date;
 
-    // 통계 계산
-    const dietDays = records.filter(hasDiet).length;
-    const exerciseDays = records.filter(hasExercise).length;
-    const sleepDays = records.filter(hasSleep).length;
-    const gratitudeDays = records.filter(hasGratitude).length;
-    const meditationDays = records.filter(hasMeditation).length;
+    // 스트릭 계산 (30일 전체 사용)
+    const streak = calculateStreak(records);
+
+    // 통계 계산 (최근 7일만 사용)
+    const recentRecords = records.slice(-7);
+    const dietDays = recentRecords.filter(hasDiet).length;
+    const exerciseDays = recentRecords.filter(hasExercise).length;
+    const sleepDays = recentRecords.filter(hasSleep).length;
+    const gratitudeDays = recentRecords.filter(hasGratitude).length;
+    const meditationDays = recentRecords.filter(hasMeditation).length;
 
     // 식단 사진 수 계산 (최신)
     let dietDetail = '';
@@ -126,6 +131,18 @@ async function handleMyHabits(sender) {
         msg += `\n   오늘 앱에서 기록해볼까요? 화이팅! 🔥`;
     } else {
         msg += `\n🎉 모든 영역을 골고루 잘 실천하고 계세요! 대단해요!`;
+    }
+
+    // 스트릭 표시
+    msg += `\n━━━━━━━━━━━━━━━━━━━━`;
+    if (streak >= 7) {
+        msg += `\n🔥 현재 스트릭: ${streak}일 연속! 완전 대단해요! 🏆`;
+    } else if (streak >= 3) {
+        msg += `\n🔥 현재 스트릭: ${streak}일 연속! 꺾이지 않는 마음! 💪`;
+    } else if (streak > 0) {
+        msg += `\n🌱 스트릭: ${streak}일째! 오늘도 기록하면 ${streak + 1}일 연속!`;
+    } else {
+        msg += `\n✨ 오늘 기록하면 스트릭이 시작돼요!`;
     }
 
     return msg;

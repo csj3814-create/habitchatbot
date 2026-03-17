@@ -197,6 +197,52 @@ async function getWeeklyStats() {
     }
 }
 
+/**
+ * 주간 리더보드 데이터 조회 (랭킹 계산용)
+ * 최근 7일간 daily_logs를 userId별로 집계하여 점수 반환
+ * 점수 = 식단(×1) + 운동(×1.5) + 마음습관(×1)
+ */
+async function getWeeklyLeaderboard() {
+    const db = initAppFirebase();
+    if (!db) return [];
+
+    try {
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
+        const dates = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(todayStr + 'T00:00:00+09:00');
+            d.setDate(d.getDate() - i);
+            dates.push(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }));
+        }
+
+        const snapshot = await db.collection('daily_logs')
+            .where('date', 'in', dates)
+            .get();
+
+        const userScores = {};
+        snapshot.docs.forEach(doc => {
+            const r = doc.data();
+            const uid = r.userId;
+            if (!uid) return;
+            if (!userScores[uid]) userScores[uid] = { diet: 0, exercise: 0, mind: 0 };
+            if (hasDiet(r)) userScores[uid].diet++;
+            if (hasExercise(r)) userScores[uid].exercise++;
+            if (hasMind(r)) userScores[uid].mind++;
+        });
+
+        return Object.entries(userScores).map(([uid, counts]) => ({
+            uid,
+            diet: counts.diet,
+            exercise: counts.exercise,
+            mind: counts.mind,
+            score: Math.round((counts.diet * 1 + counts.exercise * 1.5 + counts.mind * 1) * 10) / 10
+        }));
+    } catch (e) {
+        console.error('[AppFirebase] 리더보드 조회 실패:', e.message);
+        throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해주세요!');
+    }
+}
+
 module.exports = {
     initAppFirebase,
     getGalleryByDate,
@@ -204,5 +250,6 @@ module.exports = {
     getUserRecordByDate,
     getUserProfile,
     getActiveUserCount,
-    getWeeklyStats
+    getWeeklyStats,
+    getWeeklyLeaderboard
 };

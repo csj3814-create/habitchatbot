@@ -28,6 +28,37 @@ function progressBar(count, total = 7, barLength = 7) {
     return '█'.repeat(filled) + '░'.repeat(barLength - filled) + ` ${count}/${total}일`;
 }
 
+/**
+ * 연속 기록 일수(스트릭) 계산
+ * 오늘 기록이 있으면 오늘부터, 없으면 어제부터 역산
+ * @param {Array} records - date 필드를 포함한 기록 배열
+ * @returns {number} 연속 달성 일수
+ */
+function calculateStreak(records) {
+    if (!records || records.length === 0) return 0;
+
+    const recordDates = new Set(records.map(r => r.date));
+    const todayStr = getKstDateStr();
+
+    // 오늘 기록이 없으면 어제부터 체크 (아직 기록 전인 경우 스트릭 유지)
+    const startOffset = recordDates.has(todayStr) ? 0 : 1;
+    let streak = 0;
+
+    for (let i = startOffset; i < 365; i++) {
+        const d = new Date(todayStr + 'T12:00:00+09:00');
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
+
+        if (recordDates.has(dateStr)) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+
+    return streak;
+}
+
 module.exports = {
     hasDiet,
     hasExercise,
@@ -36,5 +67,6 @@ module.exports = {
     hasMeditation,
     hasMind,
     getKstDateStr,
-    progressBar
+    progressBar,
+    calculateStreak
 };
