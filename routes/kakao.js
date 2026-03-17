@@ -6,6 +6,37 @@
 const { Router } = require('express');
 const axios = require('axios');
 const { buildKakaoResponse } = require('../utils/kakaoTemplate');
+const { handleToday } = require('../commands/today');
+const { handleMyHabits } = require('../commands/myHabits');
+const { handleWeekly } = require('../commands/weekly');
+const { handleClassStatus } = require('../commands/classStatus');
+const { handleRegister } = require('../commands/register');
+const { handleRanking } = require('../commands/ranking');
+const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
+
+const HELP_MSG = `명령어 안내
+!오늘 - 전체 기록 현황
+!내습관 - 내 기록 보기
+!식단 - 식단 현황 + AI 분석
+!운동 - 운동 현황 + AI 분석
+!마음 - 마음습관 현황 + AI 분석
+!주간 - 주간 트렌드
+!우리반 - 기수 현황
+!랭킹 - 이번 주 리더보드
+!등록 이메일 - 앱 연결
+!오운완 - 운동 인증
+
+그 외 자유롭게 질문하세요!`;
+
+function cmdResponse(text) {
+    return {
+        version: "2.0",
+        template: {
+            outputs: [{ simpleText: { text } }],
+            quickReplies: [{ label: "내 인증 기록 보기", action: "message", messageText: "!내습관" }]
+        }
+    };
+}
 
 /**
  * @param {{ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }} deps
@@ -51,24 +82,50 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         await checkAndLogHabits(userId, actualQuestion);
         const chatSession = getChatSession(userId);
 
-        // !내기록 명령어
-        if (actualQuestion === "내기록" || actualQuestion === "내 기록") {
+        // ===== 명령어 라우팅 =====
+        if (actualQuestion === '오늘')
+            return res.status(200).json(cmdResponse(await handleToday(userName)));
+
+        if (actualQuestion === '내습관' || actualQuestion === '내 습관')
+            return res.status(200).json(cmdResponse(await handleMyHabits(userName)));
+
+        if (actualQuestion === '주간' || actualQuestion === '주간리포트')
+            return res.status(200).json(cmdResponse(await handleWeekly(userName)));
+
+        if (actualQuestion === '우리반' || actualQuestion === '현황')
+            return res.status(200).json(cmdResponse(await handleClassStatus(userName)));
+
+        if (actualQuestion === '랭킹' || actualQuestion === '순위')
+            return res.status(200).json(cmdResponse(await handleRanking()));
+
+        if (actualQuestion === '식단')
+            return res.status(200).json(cmdResponse(await handleDiet(userName, getChatSession)));
+
+        if (actualQuestion === '운동')
+            return res.status(200).json(cmdResponse(await handleExercise(userName, getChatSession)));
+
+        if (actualQuestion === '마음')
+            return res.status(200).json(cmdResponse(await handleMind(userName, getChatSession)));
+
+        if (actualQuestion === '도움말' || actualQuestion === '도움' || actualQuestion === '명령어')
+            return res.status(200).json(cmdResponse(HELP_MSG));
+
+        if (actualQuestion === '내기록' || actualQuestion === '내 기록') {
             try {
                 const snapshot = await db.ref(`users/${userId}/records`).once('value');
                 const data = snapshot.val();
                 const recordMsg = data
                     ? `${userName}님! 현재까지 총 ${Object.keys(data).length}번의 멋진 인증 기록이 있네요! 꾸준히 쌓아가는 모습이 아름답습니다 👏`
                     : `${userName}님, 아직 습관 기록이 없네요! 지금 당장 물 한 잔 마시고 '!물 1잔' 이라고 쳐보세요 💧`;
-                return res.status(200).json({
-                    version: "2.0",
-                    template: {
-                        outputs: [{ simpleText: { text: recordMsg } }],
-                        quickReplies: [{ label: "채팅으로 돌아가기", action: "message", messageText: "!오늘 운동 추천해줘" }]
-                    }
-                });
+                return res.status(200).json(cmdResponse(recordMsg));
             } catch (e) {
                 console.error('DB 조회 에러:', e);
             }
+        }
+
+        if (actualQuestion === '등록' || actualQuestion.startsWith('등록 ')) {
+            const emailArg = actualQuestion === '등록' ? '' : actualQuestion.substring('등록 '.length).trim();
+            return res.status(200).json(cmdResponse(await handleRegister(userName, emailArg)));
         }
 
         // 콜백 URL이 있는 경우: 즉시 응답 후 백그라운드 처리

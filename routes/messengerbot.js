@@ -10,6 +10,7 @@ const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
+const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
@@ -17,12 +18,13 @@ const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
 const HELP_MSG = `📋 명령어 안내
 !오늘 — 전체 기록 현황
 !내습관 — 내 기록 보기
+!식단 — 식단 현황 + AI 분석
+!운동 — 운동 현황 + AI 분석
+!마음 — 마음습관 현황 + AI 분석
 !주간 — 주간 트렌드
 !우리반 — 기수 현황
 !랭킹 — 이번 주 리더보드 🏆
 !등록 이메일 — 앱 연결
-!오운완 — 운동 인증
-!목표 — 마이크로 해빗
 
 그 외 자유롭게 질문하세요! 😊`;
 
@@ -76,6 +78,15 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
 
             if (command === '랭킹' || command === '순위')
                 return res.json({ reply: await handleRanking() });
+
+            if (command === '식단')
+                return res.json({ reply: await handleDiet(sender, getChatSession) });
+
+            if (command === '운동')
+                return res.json({ reply: await handleExercise(sender, getChatSession) });
+
+            if (command === '마음')
+                return res.json({ reply: await handleMind(sender, getChatSession) });
 
             // ===== 일반 AI 대화 =====
             await checkAndLogHabits(sender, msg);
