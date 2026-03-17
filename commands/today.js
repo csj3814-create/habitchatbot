@@ -4,25 +4,31 @@
  */
 
 const { getGalleryByDate } = require('../modules/appFirebase');
+const { hasDiet, hasExercise, hasSleep, hasGratitude, hasMeditation, getKstDateStr } = require('../modules/statsHelpers');
 
 async function handleToday(sender) {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
-    const month = today.getMonth() + 1;
-    const day = today.getDate();
+    const dateStr = getKstDateStr();
+    const [, monthStr, dayStr] = dateStr.split('-');
+    const month = parseInt(monthStr);
+    const day = parseInt(dayStr);
 
-    const logs = await getGalleryByDate(dateStr);
+    let logs;
+    try {
+        logs = await getGalleryByDate(dateStr);
+    } catch (e) {
+        return `⚠️ ${e.message}`;
+    }
 
     if (logs.length === 0) {
         return `📋 해빛스쿨 오늘의 기록 (${month}/${day})\n━━━━━━━━━━━━━━━\n아직 오늘 기록이 없어요!\n\n🌟 첫 번째로 앱에 기록해보세요!\n오늘의 식단, 운동, 감사일기를 남겨보세요 💪`;
     }
 
     // 통계 계산
-    const dietCount = logs.filter(l => l.diet && (l.diet.breakfastUrl || l.diet.lunchUrl || l.diet.dinnerUrl || l.diet.snackUrl)).length;
-    const exerciseCount = logs.filter(l => l.exercise && ((l.exercise.cardioList?.length > 0) || (l.exercise.strengthList?.length > 0))).length;
-    const sleepCount = logs.filter(l => l.sleepAndMind?.sleepImageUrl).length;
-    const gratitudeCount = logs.filter(l => l.sleepAndMind?.gratitude).length;
-    const meditationCount = logs.filter(l => l.sleepAndMind?.meditationDone).length;
+    const dietCount = logs.filter(hasDiet).length;
+    const exerciseCount = logs.filter(hasExercise).length;
+    const sleepCount = logs.filter(hasSleep).length;
+    const gratitudeCount = logs.filter(hasGratitude).length;
+    const meditationCount = logs.filter(hasMeditation).length;
     const uniqueUsers = new Set(logs.map(l => l.userId)).size;
     const totalActivities = dietCount + exerciseCount + sleepCount + gratitudeCount;
 

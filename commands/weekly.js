@@ -5,6 +5,7 @@
 
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
+const { hasDiet, hasExercise, hasSleep, hasGratitude, getKstDateStr } = require('../modules/statsHelpers');
 
 async function handleWeekly(sender) {
     const mapping = await getMapping(sender);
@@ -12,29 +13,27 @@ async function handleWeekly(sender) {
         return `${sender}님, 아직 앱 계정이 연결되지 않았어요!\n!등록 your@gmail.com 으로 먼저 연결해주세요 🔗`;
     }
 
-    const records = await getUserRecords(mapping.googleUid, 14);
+    let records;
+    try {
+        records = await getUserRecords(mapping.googleUid, 14);
+    } catch (e) {
+        return `⚠️ ${e.message}`;
+    }
 
     if (records.length === 0) {
         return `${sender}님, 아직 앱 기록이 없어요!\n해빛스쿨 앱에서 첫 기록을 남겨보세요 📱`;
     }
 
-    // 이번 주 / 지난 주 분리
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    // 이번 주 / 지난 주 분리 (KST 기준)
+    const todayStr = getKstDateStr();
 
     // 최근 7일
-    const sevenDaysAgo = new Date(today);
+    const sevenDaysAgo = new Date(todayStr + 'T00:00:00+09:00');
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    const sevenDaysAgoStr = sevenDaysAgo.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
 
     const thisWeek = records.filter(r => r.date >= sevenDaysAgoStr && r.date <= todayStr);
     const lastWeek = records.filter(r => r.date < sevenDaysAgoStr);
-
-    // 이번 주 카테고리별 일수
-    const hasDiet = r => r.diet && (r.diet.breakfastUrl || r.diet.lunchUrl || r.diet.dinnerUrl || r.diet.snackUrl);
-    const hasExercise = r => r.exercise && ((r.exercise.cardioList?.length > 0) || (r.exercise.strengthList?.length > 0));
-    const hasSleep = r => r.sleepAndMind?.sleepImageUrl;
-    const hasGratitude = r => r.sleepAndMind?.gratitude;
 
     const tw = {
         diet: thisWeek.filter(hasDiet).length,
