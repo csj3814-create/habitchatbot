@@ -24,7 +24,7 @@ function getKstDateStr() {
  * @param {number} barLength 바 길이 (기본 7)
  */
 function progressBar(count, total = 7, barLength = 7) {
-    const filled = Math.round((count / total) * barLength);
+    const filled = Math.min(Math.round((count / total) * barLength), barLength);
     return '█'.repeat(filled) + '░'.repeat(barLength - filled) + ` ${count}/${total}일`;
 }
 
