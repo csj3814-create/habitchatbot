@@ -60,8 +60,8 @@ async function handleWeekly(sender) {
     };
 
     const progressBar = (count, total = 7) => {
-        const pct = Math.round((count / total) * 100);
-        const filled = Math.round((count / total) * 8);
+        const pct = Math.min(Math.round((count / total) * 100), 100);
+        const filled = Math.min(Math.round((count / total) * 8), 8);
         return '█'.repeat(filled) + '░'.repeat(8 - filled) + ` ${pct}%`;
     };
 

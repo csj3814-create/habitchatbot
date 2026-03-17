@@ -33,6 +33,7 @@ const { initAppFirebase } = require('./modules/appFirebase');
 
 // Express 앱
 const app = express();
+app.set('trust proxy', 1); // Render 리버스 프록시 신뢰 (rate-limit X-Forwarded-For 정상 동작)
 app.use(express.json());
 
 // Rate Limiting

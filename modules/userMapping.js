@@ -55,8 +55,21 @@ async function getMapping(sender) {
  */
 async function findAppUserByEmail(googleEmail) {
     try {
-        // 앱 Firebase 인스턴스에서 Auth 사용
-        const appInstance = admin.app('habitsSchoolApp');
+        // 앱 Firebase 인스턴스 확보 (lazy init 보장)
+        let appInstance;
+        try {
+            appInstance = admin.app('habitsSchoolApp');
+        } catch (_) {
+            // 아직 초기화 안 된 경우 → initAppFirebase() 호출 후 재시도
+            const { initAppFirebase } = require('./appFirebase');
+            const db = initAppFirebase();
+            if (!db) {
+                console.error('[UserMapping] 앱 Firebase 초기화 실패 — appServiceAccountKey.json 확인 필요');
+                return null;
+            }
+            appInstance = admin.app('habitsSchoolApp');
+        }
+
         const userRecord = await appInstance.auth().getUserByEmail(googleEmail);
         return {
             uid: userRecord.uid,
@@ -67,7 +80,7 @@ async function findAppUserByEmail(googleEmail) {
         if (e.code === 'auth/user-not-found') {
             return null; // 해당 이메일의 유저가 앱에 없음
         }
-        console.error('[UserMapping] 앱 유저 검색 실패:', e.message);
+        console.error('[UserMapping] 앱 유저 검색 실패:', e.code, e.message);
         return null;
     }
 }
