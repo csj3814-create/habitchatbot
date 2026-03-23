@@ -10,12 +10,14 @@ const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
+const { handleGuide } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
 
 const HELP_MSG = `📋 명령어 안내
+!안내 — 해빛스쿨 소개 보기
 !오늘 — 전체 기록 현황
 !내습관 — 내 기록 보기
 !식단 — 식단 현황 + AI 분석
@@ -73,6 +75,9 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                 return res.json({ reply: recordMsg });
             }
 
+            if (command === '안내' || command === '시작' || command === '가이드')
+                return res.json({ reply: await handleGuide(sender) });
+
             if (command === '도움말' || command === '도움' || command === '명령어')
                 return res.json({ reply: HELP_MSG });
 
@@ -96,6 +101,9 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             let appDataContext = '';
             try {
                 const mapping = await getMapping(sender);
+                if (!mapping) {
+                    appDataContext = '\n\n[이 사용자는 아직 앱 연결을 하지 않았습니다. 자연스럽게 !안내 로 해빛스쿨 소개를 보고, !등록 으로 앱을 연결할 수 있다고 알려주세요.]';
+                }
                 if (mapping) {
                     const recentRecords = await getUserRecords(mapping.googleUid, 3);
                     if (recentRecords.length > 0) {
