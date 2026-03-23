@@ -24,7 +24,7 @@ const BROADCAST_BASE_URL = "https://habitchatbot.onrender.com/api/broadcast";
 const GROUP_ROOM_NAME = "해빛스쿨";
 
 // ⚠️ 서버의 MESSENGER_API_KEY 환경변수와 동일한 값으로 변경하세요
-const API_KEY = "여기에_비밀_키를_입력하세요";
+const API_KEY = "5e89f10d34289f460dee36dcaf92e9a21ebb159aaa8000b0118a11109b3b843d";
 
 function response(room, msg, sender, isGroupChat, replier, imageDB, packageName) {
     try {
