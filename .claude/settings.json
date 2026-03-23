@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "작업 정리 중...",
+            "command": "cd \"C:/SJ/antigravity/habitchatbot\" && git checkout main 2>&1 && git pull origin main 2>&1 && MERGED=$(git branch --merged main | grep -v '^\\* \\|  main$') && if [ -n \"$MERGED\" ]; then echo \"$MERGED\" | xargs git branch -d && REMOTE_DEL=$(echo \"$MERGED\" | tr '\\n' ' ') && git push origin --delete $REMOTE_DEL 2>/dev/null || true && MSG=\"[정리] 브랜치 삭제: $MERGED\"; else MSG=\"[정리] 삭제할 브랜치 없음\"; fi && STASHES=$(git stash list) && STASH_MSG=$([ -n \"$STASHES\" ] && echo \"\\n[Stash] $STASHES\" || echo \"\\n[Stash] 없음\") && echo \"{\\\"systemMessage\\\": \\\"✅ 작업 정리 완료\\\\n$MSG$STASH_MSG\\\"}\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
