@@ -21,7 +21,7 @@ const SERVER_URL = "https://habitchatbot.onrender.com/api/messengerbot";
 const BROADCAST_BASE_URL = "https://habitchatbot.onrender.com/api/broadcast";
 
 // ⚠️ 아래 값을 실제 단톡방 이름으로 변경하세요 (정확히 일치해야 함)
-const GROUP_ROOM_NAME = "해빛스쿨";
+const GROUP_ROOM_NAME = "해빛스쿨 - 습관을 바꿔라 (Dr.최석재와 함께)";
 
 // ⚠️ 서버의 MESSENGER_API_KEY 환경변수와 동일한 값으로 변경하세요
 const API_KEY = "5e89f10d34289f460dee36dcaf92e9a21ebb159aaa8000b0118a11109b3b843d";
