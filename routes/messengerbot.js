@@ -4,6 +4,7 @@
  */
 
 const { Router } = require('express');
+const { apiKeyAuth } = require('../utils/apiKeyAuth');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
@@ -36,7 +37,7 @@ const HELP_MSG = `📋 명령어 안내
 function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
     const router = Router();
 
-    router.post('/', async (req, res) => {
+    router.post('/', apiKeyAuth, async (req, res) => {
         const { room, msg, sender } = req.body;
 
         if (!msg) {

@@ -23,6 +23,9 @@ const BROADCAST_BASE_URL = "https://habitchatbot.onrender.com/api/broadcast";
 // ⚠️ 아래 값을 실제 단톡방 이름으로 변경하세요 (정확히 일치해야 함)
 const GROUP_ROOM_NAME = "해빛스쿨";
 
+// ⚠️ 서버의 MESSENGER_API_KEY 환경변수와 동일한 값으로 변경하세요
+const API_KEY = "여기에_비밀_키를_입력하세요";
+
 function response(room, msg, sender, isGroupChat, replier, imageDB, packageName) {
     try {
         Log.i("수신 -> 방: " + room + " / 보낸분: " + sender + " / 메시지: " + msg);
@@ -85,6 +88,7 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
         // HTTP POST 요청 전송 (Jsoup 사용, 타임아웃 15초)
         var document = org.jsoup.Jsoup.connect(SERVER_URL)
             .header("Content-Type", "application/json")
+            .header("x-api-key", API_KEY)
             .requestBody(JSON.stringify(postData))
             .ignoreContentType(true)
             .timeout(15000)
