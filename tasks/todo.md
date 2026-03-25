@@ -27,7 +27,19 @@
 - [x] Worktree 정리
 
 ## 현재 상태
-- `main` 브랜치 = 최신 (c8c8497)
+- `main` 브랜치 = 최신 (c4b0be1)
 - 활성 브랜치: `main` 하나만
 - 미완료 stash: `WIP: rate-limit + API키 인증 + habitCheckers + session TTL 개선`
   → 대부분 PR #7에서 반영됨, 나머지는 추후 검토
+
+---
+
+# 작업 로그 — 2026-03-24
+
+## 완료된 작업
+
+### 핫픽스 — !안내 메세지 gmail.com 링크 제거
+- [x] `commands/guide.js` 14번째 줄: `이메일@gmail.com` → `구글 이메일` 변경
+  - 메신저봇이 `@gmail.com` 문자열을 이메일로 인식해 하단에 링크를 자동 추가하는 현상 방지
+- [x] 커밋 `c4b0be1` → `origin/main` 푸시 완료
+- `messengerbot_script.js` 변경 없음 (환영 메세지에 gmail.com 형식 없음, 정상)
