@@ -33,7 +33,7 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
         // ✅ 신규 멤버 입장 감지 (오픈채팅봇 환영 메세지 수신 시)
         // 오픈채팅방에서 "OOO님이 들어왔습니다" 시스템 메세지는 메신저봇R에 수신되지 않음
         // 대신 카카오 오픈채팅봇이 보내는 환영 메세지를 트리거로 사용
-        if (isGroupChat && sender === "오픈채팅봇") {
+        if (sender === "오픈채팅봇") {
             // 10초 후 자기소개 유도 메세지 (별도 스레드)
             new java.lang.Thread(function() {
                 java.lang.Thread.sleep(10000);
