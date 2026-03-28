@@ -10,15 +10,11 @@
  * [v2 업데이트] 해빛스쿨 앱 연동 명령어 추가
  * !오늘, !내습관, !주간, !우리반, !등록, !도움말, !랭킹, !안내
  *
- * [v3 업데이트] 하루 4회 자동 브로드캐스트 추가
- * 아침(08:00) / 점심(12:00) / 저녁(18:30) / 취침전(21:00)
- *
  * [v4 업데이트] 신규 멤버 온보딩
- * 단톡방 입장 시스템 메시지 감지 → 자동 환영 + 10초 후 자기소개 유도
+ * 오픈채팅봇 환영 메세지 감지 → 10초 후 자기소개 유도 + 앱 사용방법 안내
  */
 
 const SERVER_URL = "https://habitchatbot.onrender.com/api/messengerbot";
-const BROADCAST_BASE_URL = "https://habitchatbot.onrender.com/api/broadcast";
 
 // ⚠️ 아래 값을 실제 단톡방 이름으로 변경하세요 (정확히 일치해야 함)
 const GROUP_ROOM_NAME = "최석재";
@@ -34,12 +30,35 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
         // 오픈채팅방에서 "OOO님이 들어왔습니다" 시스템 메세지는 메신저봇R에 수신되지 않음
         // 대신 카카오 오픈채팅봇이 보내는 환영 메세지를 트리거로 사용
         if (sender === "오픈채팅봇") {
-            // 10초 후 자기소개 유도 메세지 (별도 스레드)
             new java.lang.Thread(function() {
+                // 10초 후 자기소개 유도
                 java.lang.Thread.sleep(10000);
                 replier.reply("😊 새로 오신 분, 간단하게 자기소개 부탁드려도 될까요?\n\n"
                     + "예: 이름, 참여 계기, 만들고 싶은 습관 등\n"
                     + "자유롭게 편하게 적어주세요! ✍️");
+
+                // 2초 후 앱 사용방법 안내
+                java.lang.Thread.sleep(2000);
+                replier.reply("📖 해빛스쿨 앱 사용방법\n"
+                    + "━━━━━━━━━━━━━━━\n\n"
+                    + "🏫 해빛스쿨이란?\n"
+                    + "식단·운동·수면·마음 4가지 습관을 매일 기록하며\n"
+                    + "건강한 생활을 만들어가는 프로그램이에요.\n\n"
+                    + "📱 시작하기\n"
+                    + "1. 해빛스쿨 앱 설치 → 구글 로그인\n"
+                    + "2. 여기서 !등록 구글 이메일 입력\n"
+                    + "3. 연결 완료! 앱 기록이 코칭에 반영돼요\n\n"
+                    + "💬 주요 명령어\n"
+                    + "• !오늘 — 오늘 전체 기록 현황\n"
+                    + "• !내습관 — 내 앱 기록 보기\n"
+                    + "• !주간 — 주간 트렌드 분석\n"
+                    + "• !우리반 — 우리 기수 현황\n"
+                    + "• !오운완 — 운동 인증 (폭풍 칭찬!)\n"
+                    + "• !목표 — 마이크로 해빗 설정\n\n"
+                    + "🤖 AI 코칭\n"
+                    + "! 뒤에 자유롭게 질문하세요!\n"
+                    + "예: !오늘 뭐 먹으면 좋을까?\n\n"
+                    + "궁금한 점은 언제든 !안내 로 다시 볼 수 있어요 😊");
             }).start();
             return;
         }
@@ -85,52 +104,3 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
     }
 }
 
-/**
- * schedule() — 메신저봇R이 1분마다 자동 호출하는 함수
- * 하루 4회 브로드캐스트: 아침(08:00) / 점심(12:00) / 저녁(18:30) / 취침전(21:00)
- *
- * [설정 방법]
- * 메신저봇R 앱 → 스크립트 설정 → '스케줄' 활성화 → 1분 간격
- */
-function schedule() {
-    try {
-        // KST 시간 계산 (UTC+9)
-        var now = new Date();
-        var kstHour = (now.getUTCHours() + 9) % 24;
-        var kstMinute = now.getMinutes();
-
-        // 브로드캐스트 타입 결정 (정각±0분에만 전송)
-        var broadcastType = null;
-        if (kstHour === 8  && kstMinute === 0) broadcastType = "morning";
-        if (kstHour === 12 && kstMinute === 0) broadcastType = "lunch";
-        if (kstHour === 18 && kstMinute === 30) broadcastType = "dinner";
-        if (kstHour === 21 && kstMinute === 0) broadcastType = "night";
-
-        if (!broadcastType) return;
-
-        Log.i("[Schedule] 브로드캐스트 시작: " + broadcastType);
-
-        // 서버에서 메시지 가져오기
-        var url = BROADCAST_BASE_URL + "/" + broadcastType;
-        var doc = org.jsoup.Jsoup.connect(url)
-            .ignoreContentType(true)
-            .timeout(10000)
-            .get();
-
-        var responseJson = JSON.parse(doc.body().text());
-        if (!responseJson || !responseJson.message) {
-            Log.e("[Schedule] 빈 응답: " + broadcastType);
-            return;
-        }
-
-        // 단톡방에 메시지 전송
-        // 메신저봇R API: com.xfl.msgbot.application.services.NotificationListener.replyRoom
-        com.xfl.msgbot.application.services.NotificationListener
-            .replyRoom(GROUP_ROOM_NAME, responseJson.message);
-
-        Log.i("[Schedule] 전송 완료: " + broadcastType);
-
-    } catch (e) {
-        Log.e("[Schedule] 오류: " + e.message);
-    }
-}
