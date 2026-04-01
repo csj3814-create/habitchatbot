@@ -11,7 +11,7 @@ const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
-const { handleGuide } = require('../commands/guide');
+const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
@@ -19,6 +19,7 @@ const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
 
 const HELP_MSG = `📋 명령어 안내
 !안내 — 해빛스쿨 소개 보기
+!앱 — 해빛스쿨 앱 사용방법
 !오늘 — 전체 기록 현황
 !내습관 — 내 기록 보기
 !식단 — 식단 현황 + AI 분석
@@ -78,6 +79,9 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
 
             if (command === '안내' || command === '시작' || command === '가이드')
                 return res.json({ reply: await handleGuide(sender) });
+
+            if (command === '앱')
+                return res.json({ reply: await handleApp() });
 
             if (command === '도움말' || command === '도움' || command === '명령어')
                 return res.json({ reply: HELP_MSG });
