@@ -13,6 +13,7 @@ const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
+const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
@@ -29,6 +30,8 @@ const HELP_MSG = `📋 명령어 안내
 !우리반 — 기수 현황
 !랭킹 — 이번 주 리더보드 🏆
 !등록 이메일 — 앱 연결
+!내코드 — 내 친구 코드 확인
+!친구 코드 — 친구 추가
 
 그 외 자유롭게 질문하세요! 😊`;
 
@@ -66,6 +69,14 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             if (command === '등록' || command.startsWith('등록 ')) {
                 const emailArg = command === '등록' ? '' : commandArgs;
                 return res.json({ reply: await handleRegister(sender, emailArg) });
+            }
+
+            if (command === '내코드')
+                return res.json({ reply: await handleMyCode(sender) });
+
+            if (command === '친구' || command.startsWith('친구 ')) {
+                const codeArg = command === '친구' ? '' : commandArgs;
+                return res.json({ reply: await handleAddFriend(sender, codeArg) });
             }
 
             if (command === '내기록' || command === '내 기록') {

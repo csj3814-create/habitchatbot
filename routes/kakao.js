@@ -13,6 +13,7 @@ const { handleClassStatus } = require('../commands/classStatus');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
+const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 
 const HELP_MSG = `명령어 안내
 !오늘 - 전체 기록 현황
@@ -24,6 +25,8 @@ const HELP_MSG = `명령어 안내
 !우리반 - 기수 현황
 !랭킹 - 이번 주 리더보드
 !등록 이메일 - 앱 연결
+!내코드 - 내 친구 코드 확인
+!친구 코드 - 친구 추가
 !오운완 - 운동 인증
 
 그 외 자유롭게 질문하세요!`;
@@ -126,6 +129,14 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         if (actualQuestion === '등록' || actualQuestion.startsWith('등록 ')) {
             const emailArg = actualQuestion === '등록' ? '' : actualQuestion.substring('등록 '.length).trim();
             return res.status(200).json(cmdResponse(await handleRegister(userName, emailArg)));
+        }
+
+        if (actualQuestion === '내코드')
+            return res.status(200).json(cmdResponse(await handleMyCode(userName)));
+
+        if (actualQuestion === '친구' || actualQuestion.startsWith('친구 ')) {
+            const codeArg = actualQuestion === '친구' ? '' : actualQuestion.substring('친구 '.length).trim();
+            return res.status(200).json(cmdResponse(await handleAddFriend(userName, codeArg)));
         }
 
         // 콜백 URL이 있는 경우: 즉시 응답 후 백그라운드 처리
