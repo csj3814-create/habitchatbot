@@ -1,70 +1,124 @@
 /**
- * userMapping.js
- * 카카오톡(메신저봇R) sender 닉네임 ↔ 해빛스쿨 앱 구글 UID 매핑
- * 
- * 챗봇의 Firebase Realtime DB에 매핑 정보 저장
- * path: user_mappings/{sender_name_encoded}
+ * Chat identity to Habits School app account mapping helpers.
+ * Supports stable identity keys with backward compatibility for legacy sender-name mappings.
  */
 
 const admin = require('firebase-admin');
 
-// 챗봇 Firebase의 DB 레퍼런스
 function getDb() {
     return admin.database();
 }
 
-// sender 이름에서 Firebase 경로에 사용 불가한 문자 제거
-function encodeSender(sender) {
-    return sender.replace(/[.#$[\]\/]/g, '_');
+function encodeKey(value) {
+    return String(value || '').replace(/[.#$[\]\/]/g, '_');
 }
 
-/**
- * 유저 매핑 등록
- * @param {string} sender - 카카오톡 sender 이름
- * @param {string} googleEmail - 구글 이메일 주소
- * @param {string} googleUid - 앱 Firebase의 유저 UID (이메일로 조회 후 설정)
- */
-async function registerUser(sender, googleEmail, googleUid) {
+function getDisplayName(user) {
+    if (typeof user === 'string') {
+        return user;
+    }
+
+    return user?.displayName || user?.sender || user?.nickname || user?.userId || '사용자';
+}
+
+function buildIdentityKey(user) {
+    if (typeof user === 'string') {
+        return encodeKey(user);
+    }
+
+    const platform = user?.platform || 'legacy';
+    const userId = user?.userId || user?.sender || user?.displayName;
+
+    if (!userId) {
+        throw new Error('Missing user identity');
+    }
+
+    return encodeKey(`${platform}:${userId}`);
+}
+
+function buildLegacyKeys(user) {
+    if (typeof user === 'string') {
+        return [encodeKey(user)];
+    }
+
+    const candidates = [
+        user?.legacySender,
+        user?.sender,
+        user?.displayName,
+        user?.nickname
+    ].filter(Boolean);
+
+    return [...new Set(candidates.map(encodeKey))];
+}
+
+async function readMappingByKey(key) {
+    const snapshot = await getDb().ref(`user_mappings/${key}`).once('value');
+    return snapshot.val();
+}
+
+async function registerUser(user, googleEmail, googleUid) {
     const db = getDb();
-    const key = encodeSender(sender);
+    const key = buildIdentityKey(user);
+    const displayName = getDisplayName(user);
 
     await db.ref(`user_mappings/${key}`).set({
-        sender,
+        identityKey: key,
+        platform: typeof user === 'string' ? 'legacy' : (user.platform || 'legacy'),
+        sender: displayName,
+        displayName,
         googleEmail,
         googleUid,
         registeredAt: new Date().toISOString()
     });
 
-    console.log(`[UserMapping] 등록 완료: ${sender} → ${googleEmail} (uid: ${googleUid})`);
+    console.log(`[UserMapping] Registered: ${displayName} -> ${googleEmail} (uid: ${googleUid})`);
 }
 
-/**
- * 매핑 조회 (sender → google UID)
- */
-async function getMapping(sender) {
+async function getMapping(user) {
     const db = getDb();
-    const key = encodeSender(sender);
+    const stableKey = buildIdentityKey(user);
+    const stableMapping = await readMappingByKey(stableKey);
+    if (stableMapping) {
+        return stableMapping;
+    }
 
-    const snapshot = await db.ref(`user_mappings/${key}`).once('value');
-    return snapshot.val(); // null if not found
+    for (const legacyKey of buildLegacyKeys(user)) {
+        if (legacyKey === stableKey) {
+            continue;
+        }
+
+        const legacyMapping = await readMappingByKey(legacyKey);
+        if (!legacyMapping) {
+            continue;
+        }
+
+        const migrated = {
+            ...legacyMapping,
+            identityKey: stableKey,
+            platform: typeof user === 'string' ? 'legacy' : (user.platform || legacyMapping.platform || 'legacy'),
+            sender: getDisplayName(user),
+            displayName: getDisplayName(user),
+            migratedFrom: legacyKey
+        };
+
+        await db.ref(`user_mappings/${stableKey}`).set(migrated);
+        console.log(`[UserMapping] Migrated legacy mapping ${legacyKey} -> ${stableKey}`);
+        return migrated;
+    }
+
+    return null;
 }
 
-/**
- * 구글 이메일로 앱 Firebase에서 유저 검색
- * firebase-admin의 Auth를 사용하여 이메일 → UID 변환
- */
 async function findAppUserByEmail(googleEmail) {
     try {
-        // 앱 Firebase 인스턴스 확보 (lazy init 보장)
         let appInstance;
         try {
             appInstance = admin.app('habitsSchoolApp');
         } catch (_) {
-            // 아직 초기화 안 된 경우 → initAppFirebase() 호출 후 재시도
             const { initAppFirebase } = require('./appFirebase');
             const db = initAppFirebase();
             if (!db) {
-                console.error('[UserMapping] 앱 Firebase 초기화 실패 — appServiceAccountKey.json 확인 필요');
+                console.error('[UserMapping] Failed to initialize Habits School Firebase app.');
                 return null;
             }
             appInstance = admin.app('habitsSchoolApp');
@@ -76,32 +130,26 @@ async function findAppUserByEmail(googleEmail) {
             email: userRecord.email,
             displayName: userRecord.displayName || null
         };
-    } catch (e) {
-        if (e.code === 'auth/user-not-found') {
-            return null; // 해당 이메일의 유저가 앱에 없음
+    } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+            return null;
         }
-        console.error('[UserMapping] 앱 유저 검색 실패:', e.code, e.message);
+
+        console.error('[UserMapping] App user lookup failed:', error.code, error.message);
         return null;
     }
 }
 
-/**
- * 전체 user_mappings 조회 (랭킹 uid→sender 역매핑용)
- * @returns {Object} { encodedSender: { sender, googleEmail, googleUid } }
- */
 async function getAllMappings() {
-    const db = getDb();
-    const snapshot = await db.ref('user_mappings').once('value');
+    const snapshot = await getDb().ref('user_mappings').once('value');
     return snapshot.val() || {};
 }
 
-/**
- * 매핑 삭제
- */
-async function removeMapping(sender) {
+async function removeMapping(user) {
     const db = getDb();
-    const key = encodeSender(sender);
-    await db.ref(`user_mappings/${key}`).remove();
+    const keys = new Set([buildIdentityKey(user), ...buildLegacyKeys(user)]);
+
+    await Promise.all([...keys].map(key => db.ref(`user_mappings/${key}`).remove()));
 }
 
 module.exports = {
@@ -109,5 +157,7 @@ module.exports = {
     getMapping,
     getAllMappings,
     findAppUserByEmail,
-    removeMapping
+    removeMapping,
+    getDisplayName,
+    buildIdentityKey
 };

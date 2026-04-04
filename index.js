@@ -1,60 +1,68 @@
 require('dotenv').config();
+
 const express = require('express');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
-const config = require('./config');
+const admin = require('firebase-admin');
 
-// 환경변수 검증
+const config = require('./config');
+const serviceAccount = require('./serviceAccountKey.json');
+const { createGeminiManager } = require('./utils/gemini');
+const { createHabitLogger, isAllowedImageUrl } = require('./utils/habitLogger');
+const { createKakaoRouter } = require('./routes/kakao');
+const { createMessengerbotRouter } = require('./routes/messengerbot');
+const {
+    initAppFirebase,
+    consumeShareCardToken,
+    getShareCardPayload
+} = require('./modules/appFirebase');
+const { renderShareCardPng } = require('./utils/shareCardRenderer');
+
 if (!process.env.GEMINI_API_KEY) {
-    console.error('[FATAL] GEMINI_API_KEY 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.');
+    console.error('[FATAL] GEMINI_API_KEY is not configured. Check your .env file.');
     process.exit(1);
 }
 
-// Firebase Realtime DB 초기화
-const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json');
+if (!process.env.MESSENGER_API_KEY) {
+    console.warn('[WARN] MESSENGER_API_KEY is not configured. /api/messengerbot will reject requests.');
+}
+
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: config.FIREBASE_DB_URL
 });
-const db = admin.database();
 
-// 유틸리티
-const { createGeminiManager } = require('./utils/gemini');
-const { createHabitLogger, isAllowedImageUrl } = require('./utils/habitLogger');
+const db = admin.database();
+const app = express();
 const { getChatSession } = createGeminiManager();
 const { checkAndLogHabits } = createHabitLogger(db);
 
-// 라우터
-const { createKakaoRouter } = require('./routes/kakao');
-const { createMessengerbotRouter } = require('./routes/messengerbot');
-const { createBroadcastRouter } = require('./routes/broadcast');
-const { initAppFirebase } = require('./modules/appFirebase');
-
-// Express 앱
-const app = express();
-app.set('trust proxy', 1); // Render 리버스 프록시 신뢰 (rate-limit X-Forwarded-For 정상 동작)
+app.set('trust proxy', 1);
 app.use(express.json());
 
-// Rate Limiting
 const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: config.RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { version: "2.0", template: { outputs: [{ simpleText: { text: "요청이 너무 많아요. 잠시 후 다시 시도해주세요! 🙏" } }] } }
+    message: {
+        version: '2.0',
+        template: {
+            outputs: [{ simpleText: { text: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.' } }]
+        }
+    }
 });
+
 app.use('/api/', apiLimiter);
 
-// ===== 헬스 체크 =====
 app.get('/health', async (req, res) => {
     const status = { ok: true, timestamp: new Date().toISOString(), checks: {} };
 
     try {
         await db.ref('.info/connected').once('value');
         status.checks.firebase_rtdb = 'ok';
-    } catch (e) {
-        status.checks.firebase_rtdb = `error: ${e.message}`;
+    } catch (error) {
+        status.checks.firebase_rtdb = `error: ${error.message}`;
         status.ok = false;
     }
 
@@ -65,51 +73,79 @@ app.get('/health', async (req, res) => {
             status.checks.firestore = 'ok';
         } else {
             status.checks.firestore = 'not_initialized';
+            status.ok = false;
         }
-    } catch (e) {
-        status.checks.firestore = `error: ${e.message}`;
+    } catch (error) {
+        status.checks.firestore = `error: ${error.message}`;
         status.ok = false;
     }
 
     status.checks.gemini_api_key = process.env.GEMINI_API_KEY ? 'ok' : 'missing';
-    if (!process.env.GEMINI_API_KEY) status.ok = false;
+    status.checks.messenger_api_key = process.env.MESSENGER_API_KEY ? 'ok' : 'missing';
+
+    if (!process.env.GEMINI_API_KEY || !process.env.MESSENGER_API_KEY) {
+        status.ok = false;
+    }
 
     res.status(status.ok ? 200 : 503).json(status);
 });
 
-// ===== 메인 페이지 =====
 app.get('/', (req, res) => {
-    res.send('<h1>해빛스쿨 운동 챗봇 서버가 정상 동작 중입니다!</h1><p>카카오톡 챗봇 설정에서 이 주소를 사용하세요.</p>');
+    res.send('<h1>Habits School chatbot server is running.</h1><p>Use the configured Kakao or MessengerBot endpoint.</p>');
 });
 
-// ===== 라우트 마운트 =====
-app.use('/api/chat',          createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }));
-app.use('/api/messengerbot',  createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }));
-app.use('/api/broadcast',     createBroadcastRouter());
+app.get('/api/share-card/:token.png', async (req, res) => {
+    try {
+        const tokenData = await consumeShareCardToken(req.params.token);
+        if (!tokenData) {
+            return res.status(404).send('expired');
+        }
 
-// ===== Render 절전 방지 Self-ping =====
+        const payload = await getShareCardPayload(tokenData.googleUid);
+        if (!payload) {
+            return res.status(404).send('no-record');
+        }
+
+        const png = await renderShareCardPng(payload);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        return res.status(200).send(png);
+    } catch (error) {
+        console.error('[ShareCard] render error:', error);
+        return res.status(500).send('error');
+    }
+});
+
+app.use('/api/chat', createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }));
+app.use('/api/messengerbot', createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }));
+
 setInterval(() => {
     axios.get(config.RENDER_URL)
         .then(() => console.log(`[Self-Ping] Server kept awake at ${new Date().toISOString()}`))
-        .catch(err => console.error('[Self-Ping] Error:', err.message));
+        .catch((error) => console.error('[Self-Ping] Error:', error.message));
 }, config.SELF_PING_INTERVAL_MS);
 
-// ===== 서버 시작 =====
 const server = app.listen(config.PORT, () => {
     console.log(`Habits School Chatbot Server Running on http://localhost:${config.PORT}`);
-    console.log(`Kakao Endpoint:       POST http://localhost:${config.PORT}/api/chat`);
+    console.log(`Kakao Endpoint:        POST http://localhost:${config.PORT}/api/chat`);
     console.log(`MessengerBot Endpoint: POST http://localhost:${config.PORT}/api/messengerbot`);
+    console.log(`Share Card Endpoint:   GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
     console.log(`Health Check:          GET  http://localhost:${config.PORT}/health`);
 });
 
-// ===== Graceful Shutdown =====
 function gracefulShutdown(signal) {
-    console.log(`[${signal}] 서버 종료 시작...`);
+    console.log(`[${signal}] Starting graceful shutdown...`);
+
     server.close(() => {
-        console.log('[Shutdown] 모든 연결 종료 완료');
+        console.log('[Shutdown] All connections closed.');
         process.exit(0);
     });
-    setTimeout(() => { console.error('[Shutdown] 강제 종료'); process.exit(1); }, 10000);
+
+    setTimeout(() => {
+        console.error('[Shutdown] Forced exit after timeout.');
+        process.exit(1);
+    }, 10000);
 }
+
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

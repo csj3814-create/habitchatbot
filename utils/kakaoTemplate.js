@@ -1,60 +1,54 @@
 /**
- * utils/kakaoTemplate.js
- * 카카오 오픈빌더 응답 템플릿 생성 유틸리티
+ * Kakao skill response builders.
  */
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
-
-// 카카오 simpleText 권장 최대 글자 수 (초과 시 "전체보기" 버튼 노출)
 const KAKAO_TEXT_MAX = 300;
 
-/**
- * 텍스트를 문장 경계에서 자연스럽게 자름
- * 300자 이내로 제한, 가능하면 마지막 완성된 문장까지만 유지
- */
 function truncateForKakao(text) {
-    if (text.length <= KAKAO_TEXT_MAX) return text;
-
-    const truncated = text.substring(0, KAKAO_TEXT_MAX);
-
-    // 마지막 문장 끝 위치 탐색 (한국어 문장 종결 패턴)
-    const endings = ['요.\n', '요!\n', '요?\n', '다.\n', '다!\n', '다?\n',
-                     '요.', '요!', '요?', '다.', '다!', '다?', '!\n', '.\n'];
-    let bestEnd = -1;
-    for (const ending of endings) {
-        const idx = truncated.lastIndexOf(ending);
-        if (idx > 80 && idx > bestEnd) bestEnd = idx + ending.length - 1;
+    const source = String(text || '');
+    if (source.length <= KAKAO_TEXT_MAX) {
+        return source;
     }
 
-    if (bestEnd > 80) return text.substring(0, bestEnd + 1).trimEnd();
-    return truncated.trimEnd() + '...';
+    const truncated = source.slice(0, KAKAO_TEXT_MAX);
+    const endings = ['.\n', '!\n', '?\n', '. ', '! ', '? ', '.\r', '!\r', '?\r'];
+    let bestEnd = -1;
+
+    endings.forEach((ending) => {
+        const index = truncated.lastIndexOf(ending);
+        if (index > 80 && index > bestEnd) {
+            bestEnd = index + ending.length - 1;
+        }
+    });
+
+    if (bestEnd > 80) {
+        return source.slice(0, bestEnd + 1).trimEnd();
+    }
+
+    return `${truncated.trimEnd()}...`;
 }
 
-/**
- * AI 텍스트 응답을 카카오 오픈빌더 템플릿으로 변환
- * - 유튜브 링크 포함 시 BasicCard 템플릿 사용
- * - 일반 텍스트는 simpleText 템플릿 사용
- */
-function buildKakaoResponse(text) {
-    // 카카오 글자 수 제한 적용 (유튜브 링크 추출 전에 원본 보존)
-    const displayText = truncateForKakao(text);
+function buildDefaultQuickReplies() {
+    return [
+        { label: '내 습관 보기', action: 'message', messageText: '!내습관' }
+    ];
+}
 
+function buildKakaoResponse(text) {
+    const fullText = String(text || '');
+    const regex = new RegExp(YOUTUBE_REGEX.source, 'g');
     const videoIds = [];
     let match;
-    const regex = new RegExp(YOUTUBE_REGEX.source, 'g');
 
-    while ((match = regex.exec(text)) !== null) {
+    while ((match = regex.exec(fullText)) !== null) {
         videoIds.push(match[1]);
     }
 
     const cleanText = truncateForKakao(
-        text.replace(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]{11}[^\s]*/g, '')
-            .trim() || "추천 영상을 확인해 보세요!"
+        fullText.replace(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]{11}[^\s]*/g, '').trim()
+        || '추천 영상을 확인해 보세요.'
     );
-
-    const quickReplies = [
-        { label: "내 인증 기록 보기 🏆", action: "message", messageText: "!내기록" }
-    ];
 
     if (videoIds.length > 0) {
         const videoId = videoIds[0];
@@ -62,31 +56,66 @@ function buildKakaoResponse(text) {
         const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
         return {
-            version: "2.0",
+            version: '2.0',
             template: {
                 outputs: [
                     { simpleText: { text: cleanText } },
                     {
                         basicCard: {
-                            title: "💪 해빛코치의 추천 영상",
-                            description: "아래 버튼을 눌러 바로 시청해보세요!",
+                            title: '해빛코치 추천 영상',
+                            description: '아래 버튼을 눌러 바로 시청해 보세요.',
                             thumbnail: { imageUrl: thumbnailUrl },
-                            buttons: [{ action: "webLink", label: "영상 보러가기 ▶️", webLinkUrl: videoUrl }]
+                            buttons: [
+                                { action: 'webLink', label: '영상 보러 가기', webLinkUrl: videoUrl }
+                            ]
                         }
                     }
                 ],
-                quickReplies
+                quickReplies: buildDefaultQuickReplies()
             }
         };
     }
 
     return {
-        version: "2.0",
+        version: '2.0',
         template: {
-            outputs: [{ simpleText: { text: displayText } }],
-            quickReplies
+            outputs: [{ simpleText: { text: truncateForKakao(fullText) } }],
+            quickReplies: buildDefaultQuickReplies()
         }
     };
 }
 
-module.exports = { buildKakaoResponse };
+function buildKakaoShareCardResponse({ title, description, imageUrl, webLinkUrl }) {
+    return {
+        version: '2.0',
+        template: {
+            outputs: [
+                {
+                    basicCard: {
+                        title: title || '내 해빛 공유 카드',
+                        description: description || '오늘의 기록을 카드로 정리했어요.',
+                        thumbnail: {
+                            imageUrl
+                        },
+                        buttons: [
+                            {
+                                action: 'webLink',
+                                label: '앱에서 보기',
+                                webLinkUrl: webLinkUrl || 'https://habitschool.web.app/#gallery'
+                            }
+                        ]
+                    }
+                }
+            ],
+            quickReplies: [
+                { label: '내습관 보기', action: 'message', messageText: '!내습관' },
+                { label: '주간 리포트', action: 'message', messageText: '!주간' }
+            ]
+        }
+    };
+}
+
+module.exports = {
+    buildKakaoResponse,
+    buildKakaoShareCardResponse
+};
