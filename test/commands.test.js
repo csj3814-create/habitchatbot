@@ -343,3 +343,54 @@ test('handleShare returns a share-card payload with a tokenized image URL', asyn
     assert.equal(result.imageUrl, 'https://habitchatbot.example.com/api/share-card/share-token-1.png');
     assert.equal(result.webLinkUrl, 'https://habitschool.web.app/#gallery');
 });
+
+test('handleConnect returns a deep-link card for an unlinked user', async () => {
+    const { handleConnect } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'connect.js'),
+        {
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/chatbotConnect': {
+                createChatbotConnectToken: async (user) => {
+                    assert.equal(user.userId, 'kakao-1');
+                    return {
+                        token: 'connect-token-1',
+                        expiresAt: '2026-04-05T00:10:00.000Z',
+                        webLinkUrl: 'https://habitschool.web.app/?chatbotConnectToken=connect-token-1#profile'
+                    };
+                }
+            }
+        }
+    );
+
+    const result = await handleConnect({ displayName: '테스트 사용자', userId: 'kakao-1', platform: 'kakao' });
+
+    assert.equal(result.type, 'connect-card');
+    assert.equal(result.webLinkUrl, 'https://habitschool.web.app/?chatbotConnectToken=connect-token-1#profile');
+    assert.match(result.description, /10분/);
+});
+
+test('handleConnect explains when the user is already linked', async () => {
+    const { handleConnect } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'connect.js'),
+        {
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'app-user-1', googleEmail: 'linked@example.com' }),
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/chatbotConnect': {
+                createChatbotConnectToken: async () => {
+                    throw new Error('should not be called');
+                }
+            }
+        }
+    );
+
+    const result = await handleConnect({ displayName: '테스트 사용자', userId: 'kakao-1', platform: 'kakao' });
+
+    assert.equal(result.type, 'text');
+    assert.match(result.text, /이미/);
+    assert.match(result.text, /!등록 해제/);
+});

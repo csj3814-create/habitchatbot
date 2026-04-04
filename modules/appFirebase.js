@@ -34,6 +34,32 @@ function getHabitsSchoolApp() {
     }
 }
 
+async function verifyAppUserIdToken(idToken) {
+    const normalizedToken = String(idToken || '').trim();
+    if (!normalizedToken) {
+        return null;
+    }
+
+    const appInstance = getHabitsSchoolApp();
+    if (!appInstance) {
+        return null;
+    }
+
+    try {
+        const decoded = await appInstance.auth().verifyIdToken(normalizedToken);
+        const userRecord = await appInstance.auth().getUser(decoded.uid);
+
+        return {
+            uid: userRecord.uid,
+            email: userRecord.email || decoded.email || null,
+            displayName: userRecord.displayName || decoded.name || null
+        };
+    } catch (error) {
+        console.warn('[AppFirebase] Failed to verify app user id token:', error.message);
+        return null;
+    }
+}
+
 function getRealtimeDb() {
     return admin.database();
 }
@@ -613,5 +639,6 @@ module.exports = {
     createShareCardToken,
     consumeShareCardToken,
     normalizeShareSettings,
-    getSharePoints
+    getSharePoints,
+    verifyAppUserIdToken
 };

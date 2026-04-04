@@ -15,6 +15,7 @@ const { handleRanking } = require('../commands/ranking');
 const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
+const { handleConnect } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
@@ -31,6 +32,7 @@ const HELP_MSG = `명령어 안내
 !주간 - 주간 리포트
 !클래스 - 전체 현황
 !순위 - 이번 주 리더보드
+!연결 - 앱에서 계정 연결 마무리
 !등록 코드 - 앱 계정 연결
 !내코드 - 내 친구 코드 확인
 !친구 코드 - 친구 요청
@@ -53,6 +55,14 @@ function formatShareReply(result) {
     }
 
     return `공유 카드를 만들었어요.\n${result.description}\n\n이미지: ${result.imageUrl}\n앱에서 보기: ${result.webLinkUrl}`;
+}
+
+function formatConnectReply(result) {
+    if (result.type !== 'connect-card') {
+        return result.text;
+    }
+
+    return `${result.description}\n\n연결 열기: ${result.webLinkUrl}`;
 }
 
 function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
@@ -106,6 +116,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             if (command === '친구' || command.startsWith('친구 ')) {
                 const codeArg = command === '친구' ? '' : args;
                 return res.json({ reply: await handleAddFriend(user, codeArg) });
+            }
+
+            if (command === '연결') {
+                return res.json({ reply: formatConnectReply(await handleConnect(user)) });
             }
 
             if (command === '공유' || command === '인증공유') {

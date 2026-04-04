@@ -16,6 +16,10 @@ const {
     consumeShareCardToken,
     getShareCardPayload
 } = require('./modules/appFirebase');
+const {
+    getChatbotConnectToken,
+    completeChatbotConnect
+} = require('./modules/chatbotConnect');
 const { renderShareCardPng } = require('./utils/shareCardRenderer');
 
 if (!process.env.GEMINI_API_KEY) {
@@ -31,6 +35,14 @@ admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: config.FIREBASE_DB_URL
 });
+
+const CHATBOT_CONNECT_ALLOWED_ORIGINS = new Set([
+    'https://habitschool.web.app',
+    'https://habitschool-staging.web.app',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+    process.env.HABITSCHOOL_APP_ORIGIN
+].filter(Boolean));
 
 const db = admin.database();
 const app = express();
@@ -54,6 +66,28 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/', apiLimiter);
+
+function applyConnectCors(req, res) {
+    const origin = req.headers.origin;
+
+    if (origin && CHATBOT_CONNECT_ALLOWED_ORIGINS.has(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+    }
+
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+app.options('/api/chatbot-connect/:token', (req, res) => {
+    applyConnectCors(req, res);
+    return res.status(204).end();
+});
+
+app.options('/api/chatbot-connect/complete', (req, res) => {
+    applyConnectCors(req, res);
+    return res.status(204).end();
+});
 
 app.get('/health', async (req, res) => {
     const status = { ok: true, timestamp: new Date().toISOString(), checks: {} };
@@ -116,6 +150,70 @@ app.get('/api/share-card/:token.png', async (req, res) => {
     }
 });
 
+app.get('/api/chatbot-connect/:token', async (req, res) => {
+    applyConnectCors(req, res);
+
+    try {
+        const tokenData = await getChatbotConnectToken(req.params.token);
+        if (!tokenData) {
+            return res.status(404).json({ ok: false, code: 'expired' });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            displayName: tokenData.displayName,
+            platform: tokenData.identity.platform,
+            expiresAt: tokenData.expiresAt,
+            status: tokenData.status
+        });
+    } catch (error) {
+        console.error('[ChatbotConnect] token lookup error:', error);
+        return res.status(500).json({ ok: false, code: 'error' });
+    }
+});
+
+app.post('/api/chatbot-connect/complete', async (req, res) => {
+    applyConnectCors(req, res);
+
+    try {
+        const authHeader = String(req.headers.authorization || '');
+        const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+        const token = String(req.body?.token || '').trim();
+
+        if (!token) {
+            return res.status(400).json({ ok: false, code: 'missing_token' });
+        }
+
+        if (!idToken) {
+            return res.status(401).json({ ok: false, code: 'missing_auth' });
+        }
+
+        const result = await completeChatbotConnect(token, idToken);
+
+        if (!result.ok) {
+            const statusCode = result.code === 'unauthorized'
+                ? 401
+                : result.code === 'already_used'
+                    ? 409
+                    : result.code === 'expired'
+                        ? 404
+                        : 400;
+
+            return res.status(statusCode).json(result);
+        }
+
+        return res.status(200).json({
+            ok: true,
+            alreadyCompleted: result.alreadyCompleted,
+            kakaoDisplayName: result.displayName,
+            appUser: result.appUser
+        });
+    } catch (error) {
+        console.error('[ChatbotConnect] complete error:', error);
+        return res.status(500).json({ ok: false, code: 'error' });
+    }
+});
+
 app.use('/api/chat', createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }));
 app.use('/api/messengerbot', createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }));
 
@@ -127,10 +225,12 @@ setInterval(() => {
 
 const server = app.listen(config.PORT, () => {
     console.log(`Habits School Chatbot Server Running on http://localhost:${config.PORT}`);
-    console.log(`Kakao Endpoint:        POST http://localhost:${config.PORT}/api/chat`);
-    console.log(`MessengerBot Endpoint: POST http://localhost:${config.PORT}/api/messengerbot`);
-    console.log(`Share Card Endpoint:   GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
-    console.log(`Health Check:          GET  http://localhost:${config.PORT}/health`);
+    console.log(`Kakao Endpoint:            POST http://localhost:${config.PORT}/api/chat`);
+    console.log(`MessengerBot Endpoint:     POST http://localhost:${config.PORT}/api/messengerbot`);
+    console.log(`Share Card Endpoint:       GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
+    console.log(`Chatbot Connect Lookup:    GET  http://localhost:${config.PORT}/api/chatbot-connect/:token`);
+    console.log(`Chatbot Connect Complete:  POST http://localhost:${config.PORT}/api/chatbot-connect/complete`);
+    console.log(`Health Check:              GET  http://localhost:${config.PORT}/health`);
 });
 
 function gracefulShutdown(signal) {

@@ -115,7 +115,35 @@ function buildKakaoShareCardResponse({ title, description, imageUrl, webLinkUrl 
     };
 }
 
+function buildKakaoConnectCardResponse({ title, description, webLinkUrl, buttonLabel = '앱에서 연결하기' }) {
+    return {
+        version: '2.0',
+        template: {
+            outputs: [
+                {
+                    basicCard: {
+                        title: title || '앱에서 연결 완료하기',
+                        description: description || '버튼을 눌러 해빛스쿨 앱에서 연결을 마무리해 주세요.',
+                        buttons: [
+                            {
+                                action: 'webLink',
+                                label: buttonLabel,
+                                webLinkUrl
+                            }
+                        ]
+                    }
+                }
+            ],
+            quickReplies: [
+                { label: '연결 도움말', action: 'message', messageText: '!등록' },
+                { label: '내습관 보기', action: 'message', messageText: '!내습관' }
+            ]
+        }
+    };
+}
+
 module.exports = {
     buildKakaoResponse,
-    buildKakaoShareCardResponse
+    buildKakaoShareCardResponse,
+    buildKakaoConnectCardResponse
 };

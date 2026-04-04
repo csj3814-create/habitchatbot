@@ -5,7 +5,7 @@
 const { Router } = require('express');
 const axios = require('axios');
 
-const { buildKakaoResponse, buildKakaoShareCardResponse } = require('../utils/kakaoTemplate');
+const { buildKakaoResponse, buildKakaoShareCardResponse, buildKakaoConnectCardResponse } = require('../utils/kakaoTemplate');
 const { createChatIdentity } = require('../utils/chatIdentity');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
@@ -15,6 +15,7 @@ const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
+const { handleConnect } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 
 const HELP_MSG = `명령어 안내
@@ -26,6 +27,7 @@ const HELP_MSG = `명령어 안내
 !주간 - 주간 리포트
 !클래스 - 전체 현황
 !순위 - 이번 주 리더보드
+!연결 - 앱에서 계정 연결 마무리
 !등록 코드 - 앱 계정 연결
 !내코드 - 내 친구 코드 확인
 !친구 코드 - 친구 요청
@@ -129,6 +131,14 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             const result = await handleShare(user);
             if (result.type === 'share-card') {
                 return res.status(200).json(buildKakaoShareCardResponse(result));
+            }
+            return res.status(200).json(cmdResponse(result.text));
+        }
+
+        if (actualQuestion === '연결') {
+            const result = await handleConnect(user);
+            if (result.type === 'connect-card') {
+                return res.status(200).json(buildKakaoConnectCardResponse(result));
             }
             return res.status(200).json(cmdResponse(result.text));
         }
