@@ -11,6 +11,7 @@ const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
+const { handleGuide } = require('../commands/guide');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
@@ -144,7 +145,7 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         }
 
         if (actualQuestion === '도움말' || actualQuestion === '명령어') {
-            return res.status(200).json(cmdResponse(HELP_MSG));
+            return res.status(200).json(cmdResponse(await handleGuide(user.displayName)));
         }
 
         if (actualQuestion === '등록' || actualQuestion.startsWith('등록 ')) {

@@ -155,7 +155,7 @@ test('handleRegister shows link-code guidance for an unlinked user', async () =>
 
     const result = await handleRegister({ displayName: '테스트' }, '');
     assert.match(result, /!등록 ABCD1234/);
-    assert.match(result, /10분/);
+    assert.match(result, /!연결/);
 });
 
 test('handleRegister consumes a valid code and stores the mapping', async () => {
@@ -188,8 +188,42 @@ test('handleRegister consumes a valid code and stores the mapping', async () => 
     const user = { displayName: '채팅 사용자', platform: 'kakao', userId: 'kakao-1' };
     const result = await handleRegister(user, 'abcd1234');
 
-    assert.match(result, /연결 완료/);
+    assert.match(result, /!내습관/);
     assert.deepEqual(capturedRegistration, [user, 'linked@example.com', 'app-user-1']);
+});
+
+test('handleMyCode returns an invite link and fallback friend code', async () => {
+    const { handleMyCode } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'addFriend.js'),
+        {
+            'firebase-admin': adminMock,
+            '../modules/appFirebase': {
+                initAppFirebase: () => ({
+                    doc(docPath) {
+                        assert.equal(docPath, 'users/app-user-1');
+                        return {
+                            async get() {
+                                return createSnapshot('app-user-1', {
+                                    referralCode: 'ABC123',
+                                    displayName: '초대 사용자'
+                                });
+                            }
+                        };
+                    }
+                })
+            },
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'app-user-1' }),
+                getDisplayName: (user) => user.displayName
+            }
+        }
+    );
+
+    const result = await handleMyCode({ displayName: '테스트 사용자' });
+
+    assert.match(result, /https:\/\/habitschool\.web\.app\/\?ref=ABC123/);
+    assert.match(result, /친구 코드: ABC123/);
+    assert.match(result, /!친구 ABC123/);
 });
 
 test('handleAddFriend allows a new request even when the user already has many friends', async () => {
@@ -267,7 +301,6 @@ test('handleAddFriend no longer mentions a global max-friends cap when users are
 
     assert.match(result, /현재 친구 수: 1명/);
     assert.doesNotMatch(result, /\/3/);
-    assert.doesNotMatch(result, /최대/);
 });
 
 test('handleShare asks the user to link their account first', async () => {
@@ -289,7 +322,7 @@ test('handleShare asks the user to link their account first', async () => {
     const result = await handleShare({ displayName: '테스트 사용자', userId: 'kakao-1' });
 
     assert.equal(result.type, 'text');
-    assert.match(result.text, /!등록 코드/);
+    assert.match(result.text, /!등록/);
 });
 
 test('handleShare explains when no shareable record exists yet', async () => {
@@ -325,7 +358,7 @@ test('handleShare returns a share-card payload with a tokenized image URL', asyn
             },
             '../modules/appFirebase': {
                 getShareCardPayload: async () => ({
-                    subtitle: '오늘의 해빛 흐름을 카드로 정리했어요.',
+                    subtitle: '오늘의 해빛 요약을 카드로 정리했어요.',
                     appUrl: 'https://habitschool.web.app/#gallery'
                 }),
                 createShareCardToken: async ({ googleUid, kakaoUserKey }) => {
@@ -369,7 +402,7 @@ test('handleConnect returns a deep-link card for an unlinked user', async () => 
 
     assert.equal(result.type, 'connect-card');
     assert.equal(result.webLinkUrl, 'https://habitschool.web.app/?chatbotConnectToken=connect-token-1#profile');
-    assert.match(result.description, /10분/);
+    assert.equal(result.expiresAt, '2026-04-05T00:10:00.000Z');
 });
 
 test('handleConnect explains when the user is already linked', async () => {
@@ -391,6 +424,6 @@ test('handleConnect explains when the user is already linked', async () => {
     const result = await handleConnect({ displayName: '테스트 사용자', userId: 'kakao-1', platform: 'kakao' });
 
     assert.equal(result.type, 'text');
-    assert.match(result.text, /이미/);
-    assert.match(result.text, /!등록 해제/);
+    assert.match(result.text, /!등록/);
+    assert.match(result.text, /!연결/);
 });

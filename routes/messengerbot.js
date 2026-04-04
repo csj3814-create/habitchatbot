@@ -135,7 +135,7 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             }
 
             if (command === '도움말' || command === '명령어') {
-                return res.json({ reply: HELP_MSG });
+                return res.json({ reply: await handleGuide(getDisplayName(user)) });
             }
 
             if (command === '순위' || command === '주간순위') {
