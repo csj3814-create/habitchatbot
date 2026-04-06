@@ -161,3 +161,16 @@
 - Confirmed the app already links to `https://pf.kakao.com/_QDZZX` in `C:\SJ\antigravity\habitschool\index.html`, and verified that `https://pf.kakao.com/_QDZZX/chat` responds.
 - Updated `commands/connect.js`, `commands/guide.js`, and `commands/register.js` to point users to the direct 1:1 link instead of telling them to search manually.
 - Verification passed: `node --check config.js`, `node --check commands/connect.js`, `node --check commands/guide.js`, `node --check commands/register.js`, `npm test`.
+
+# 2026-04-07 MessengerBot Connect Lockdown
+> Status: Completed
+
+## Tasks
+- [x] Confirm why open-chat `!연결` still emitted a magic link after the first guard change
+- [x] Change MessengerBot so `!연결` and `!등록` always return direct 1:1 guidance instead of account-link payloads
+- [x] Add a route-level test proving the block still applies when `isGroupChat=false`
+
+## Review
+- Rewrote `routes/messengerbot.js` so MessengerBot never handles account linking directly and always responds with `buildDirectChatOnlyMessage()` for `!연결` and `!등록`.
+- Added `test/messengerbot-route.test.js` to verify that both commands are blocked even when the incoming payload says `isGroupChat: false`.
+- Verification passed: `node --check routes/messengerbot.js`, `node --check test/messengerbot-route.test.js`, `npm test`.

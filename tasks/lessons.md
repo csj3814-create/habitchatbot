@@ -59,3 +59,7 @@
 ### Prefer the actual entry URL over procedural navigation when it already exists
 - Mistake: I replaced an unsafe shared-room link with a safe but clumsy search instruction, even though the product already had a stable Kakao channel URL in the app.
 - Rule: If a verified direct entry link already exists for the target flow, use that link in chatbot guidance instead of asking users to search or navigate manually.
+
+### Do not trust MessengerBot's `isGroupChat` for account-link security
+- Mistake: I assumed MessengerBot would reliably mark open chats as `isGroupChat=true`, then used that flag as the only gate for sensitive connect commands.
+- Rule: In MessengerBot integrations, treat account linking and manual registration codes as unsafe in every room unless the transport is explicitly private and verified. Do not rely on `isGroupChat` alone for security decisions.

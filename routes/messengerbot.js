@@ -10,12 +10,11 @@ const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
-const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
-const { handleConnect, buildDirectChatOnlyMessage } = require('../commands/connect');
+const { buildDirectChatOnlyMessage } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
@@ -42,21 +41,11 @@ ${result.description}
 앱에서 보기: ${result.webLinkUrl}`;
 }
 
-function formatConnectReply(result) {
-    if (result.type !== 'connect-card') {
-        return result.text;
-    }
-
-    return `${result.description}
-
-연결 열기: ${result.webLinkUrl}`;
-}
-
 function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
     const router = Router();
 
     router.post('/', apiKeyAuth, async (req, res) => {
-        const { room, msg, sender, isGroupChat } = req.body;
+        const { room, msg, sender } = req.body;
 
         if (!msg) {
             return res.status(400).json({ error: '메시지가 없습니다.' });
@@ -91,13 +80,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                 return res.json({ reply: await handleClassStatus(getDisplayName(user)) });
             }
 
-            if (isGroupChat && (command === '등록' || command.startsWith('등록 '))) {
-                return res.json({ reply: buildDirectChatOnlyMessage() });
-            }
-
+            // MessengerBot rooms can surface shared/open chat traffic.
+            // Never emit account-link tokens or accept manual link codes here.
             if (command === '등록' || command.startsWith('등록 ')) {
-                const registrationArg = command === '등록' ? '' : args;
-                return res.json({ reply: await handleRegister(user, registrationArg) });
+                return res.json({ reply: buildDirectChatOnlyMessage() });
             }
 
             if (command === '내코드') {
@@ -109,12 +95,8 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                 return res.json({ reply: await handleAddFriend(user, codeArg) });
             }
 
-            if (isGroupChat && command === '연결') {
-                return res.json({ reply: buildDirectChatOnlyMessage() });
-            }
-
             if (command === '연결') {
-                return res.json({ reply: formatConnectReply(await handleConnect(user)) });
+                return res.json({ reply: buildDirectChatOnlyMessage() });
             }
 
             if (command === '공유' || command === '인증공유') {
@@ -166,7 +148,8 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             try {
                 const mapping = await getMapping(user);
                 if (!mapping) {
-                    appDataContext = '\n\n[아직 해빛스쿨 앱 계정 연결이 없습니다. 자연스럽게 !연결 안내를 해 주세요.]';
+                    appDataContext =
+                        '\n\n[아직 해빛스쿨 앱 계정 연결이 없습니다. 자연스럽게 !연결 안내를 해 주세요.]';
                 } else {
                     const recentRecords = await getUserRecords(mapping.googleUid, 3);
                     if (recentRecords.length > 0) {
@@ -176,20 +159,27 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                         if (latest.diet) {
                             const meals = ['breakfastUrl', 'lunchUrl', 'dinnerUrl', 'snackUrl']
                                 .filter((key) => latest.diet[key])
-                                .map((key) => ({
-                                    breakfastUrl: '아침',
-                                    lunchUrl: '점심',
-                                    dinnerUrl: '저녁',
-                                    snackUrl: '간식'
-                                }[key]));
+                                .map(
+                                    (key) =>
+                                        ({
+                                            breakfastUrl: '아침',
+                                            lunchUrl: '점심',
+                                            dinnerUrl: '저녁',
+                                            snackUrl: '간식'
+                                        })[key]
+                                );
 
                             if (meals.length > 0) parts.push(`식단: ${meals.join(', ')}`);
                         }
 
                         if (latest.exercise) {
                             const exercise = [];
-                            if (latest.exercise.cardioList?.length) exercise.push(`유산소 ${latest.exercise.cardioList.length}개`);
-                            if (latest.exercise.strengthList?.length) exercise.push(`근력 ${latest.exercise.strengthList.length}개`);
+                            if (latest.exercise.cardioList?.length) {
+                                exercise.push(`유산소 ${latest.exercise.cardioList.length}개`);
+                            }
+                            if (latest.exercise.strengthList?.length) {
+                                exercise.push(`근력 ${latest.exercise.strengthList.length}개`);
+                            }
                             if (exercise.length > 0) parts.push(`운동: ${exercise.join(', ')}`);
                         }
 
@@ -197,7 +187,12 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                             const mind = [];
                             if (latest.sleepAndMind.sleepImageUrl) mind.push('수면');
                             if (latest.sleepAndMind.meditationDone) mind.push('명상');
-                            if (latest.sleepAndMind.gratitudeJournal || latest.sleepAndMind.gratitude) mind.push('감사');
+                            if (
+                                latest.sleepAndMind.gratitudeJournal ||
+                                latest.sleepAndMind.gratitude
+                            ) {
+                                mind.push('감사');
+                            }
                             if (mind.length > 0) parts.push(`마음: ${mind.join(', ')}`);
                         }
 
