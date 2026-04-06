@@ -448,6 +448,6 @@ test('buildDirectChatOnlyMessage explains that connect commands are 1:1 only', a
 
     assert.match(result, /1:1/);
     assert.match(result, /!연결/);
-    assert.match(result, /!등록/);
-    assert.match(result, /검색|돋보기/);
+    assert.match(result, /pf\.kakao\.com\/_QDZZX\/chat/);
+    assert.doesNotMatch(result, /!등록/);
 });

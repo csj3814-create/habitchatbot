@@ -63,3 +63,7 @@
 ### Do not trust MessengerBot's `isGroupChat` for account-link security
 - Mistake: I assumed MessengerBot would reliably mark open chats as `isGroupChat=true`, then used that flag as the only gate for sensitive connect commands.
 - Rule: In MessengerBot integrations, treat account linking and manual registration codes as unsafe in every room unless the transport is explicitly private and verified. Do not rely on `isGroupChat` alone for security decisions.
+
+### Keep security warning copy as short as the user-requested interaction allows
+- Mistake: I kept adding fallback and extra help text after the user had already provided the exact warning shape they wanted.
+- Rule: When the user specifies the exact scope of a warning message, keep only that content unless extra text is required for correctness or safety.

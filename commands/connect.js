@@ -8,9 +8,7 @@ function buildDirectChatOnlyMessage() {
 해빛코치 1:1 바로가기
 ${config.KAKAO_CHANNEL_CHAT_URL}
 
-위 링크로 1:1 채팅방을 열고 !연결 을 입력해 주세요.
-링크가 바로 열리지 않으면 카카오톡 홈 상단 돋보기에서 해빛코치 를 검색해 주세요.
-수동 연결이 필요하면 같은 1:1 채팅에서 !등록 코드 를 사용할 수 있어요.`;
+위 링크로 1:1 채팅방을 열고 !연결 을 입력해 주세요.`;
 }
 
 async function handleConnect(user) {

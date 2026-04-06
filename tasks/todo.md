@@ -174,3 +174,16 @@
 - Rewrote `routes/messengerbot.js` so MessengerBot never handles account linking directly and always responds with `buildDirectChatOnlyMessage()` for `!연결` and `!등록`.
 - Added `test/messengerbot-route.test.js` to verify that both commands are blocked even when the incoming payload says `isGroupChat: false`.
 - Verification passed: `node --check routes/messengerbot.js`, `node --check test/messengerbot-route.test.js`, `npm test`.
+
+# 2026-04-07 Connect Warning Copy Trim
+> Status: Completed
+
+## Tasks
+- [x] Trim the direct-chat warning down to the exact user-requested copy
+- [x] Update the connect warning test to match the shorter copy
+- [x] Re-run syntax checks and tests
+
+## Review
+- Reduced `buildDirectChatOnlyMessage()` to the exact three-part warning the user requested: short block notice, direct 1:1 link, and `!연결` instruction only.
+- Updated `test/commands.test.js` so the warning must include the direct Kakao link and must not mention `!등록`.
+- Verification passed: `node --check commands/connect.js`, `node --check test/commands.test.js`, `npm test`.
