@@ -1,5 +1,17 @@
+const config = require('../config');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { createChatbotConnectToken } = require('../modules/chatbotConnect');
+
+function buildDirectChatOnlyMessage() {
+    return `보안을 위해 계정 연결 명령은 오픈톡방이나 단체방에서 사용할 수 없어요.
+
+해빛코치 1:1 바로가기
+${config.KAKAO_CHANNEL_CHAT_URL}
+
+위 링크로 1:1 채팅방을 열고 !연결 을 입력해 주세요.
+링크가 바로 열리지 않으면 카카오톡 홈 상단 돋보기에서 해빛코치 를 검색해 주세요.
+수동 연결이 필요하면 같은 1:1 채팅에서 !등록 코드 를 사용할 수 있어요.`;
+}
 
 async function handleConnect(user) {
     const displayName = getDisplayName(user);
@@ -8,7 +20,7 @@ async function handleConnect(user) {
     if (existing) {
         return {
             type: 'text',
-            text: `${displayName}님은 이미 해빛스쿨 계정이 연결되어 있어요.\n다른 계정으로 바꾸려면 !등록 해제 후 다시 !연결 을 입력해 주세요.`
+            text: `${displayName}님은 이미 해빛스쿨 계정과 연결되어 있어요.\n다른 계정으로 바꾸려면 !등록 해제 후 다시 !연결 을 입력해 주세요.`
         };
     }
 
@@ -17,7 +29,7 @@ async function handleConnect(user) {
     return {
         type: 'connect-card',
         title: '앱에서 연결 완료하기',
-        description: '버튼을 누르면 해빛스쿨 앱이 열리고, 로그인된 계정으로 바로 연결할 수 있어요. 링크는 10분 동안 유효해요.',
+        description: '버튼을 누르면 해빛스쿨 앱이 열리고 로그인된 계정으로 바로 연결할 수 있어요. 링크는 10분 동안 유효해요.',
         webLinkUrl: connectToken.webLinkUrl,
         buttonLabel: '앱에서 연결하기',
         expiresAt: connectToken.expiresAt
@@ -25,5 +37,6 @@ async function handleConnect(user) {
 }
 
 module.exports = {
-    handleConnect
+    handleConnect,
+    buildDirectChatOnlyMessage
 };

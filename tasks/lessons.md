@@ -27,3 +27,35 @@
 3. `git branch --merged main` → 머지된 로컬 브랜치 일괄 삭제
 4. `git push origin --delete <merged-branches>`
 5. `git stash list` → 오래된 stash 정리
+
+## 2026-04-04
+
+### Separate app repo assumption check
+- Mistake: I assumed the Habits School app UI lived in this chatbot repository and added app-side profile UI here.
+- Rule: Before editing app/frontend files for a cross-system feature, confirm whether the production app is in the same repository or a separate project/versioned codebase.
+- Safer pattern: Split work into `chatbot-side changes in this repo` and `app-side changes in the app repo`, then implement each part only in the correct codebase.
+
+### Social friendship must match the product rule, not the easiest data write
+- Mistake: A one-way `friends` array update is easy to implement, but it does not satisfy a product flow where social challenges require both sides to recognize the friendship.
+- Rule: When a social feature depends on mutual consent, model friendship as `request -> accept/decline -> active`, keep a dedicated source of truth like `friendships/{pairId}`, and treat `users.friends` as a cache only.
+- Rollout rule: If legacy one-way friend data exists, reset or explicitly migrate it before turning on the new flow; do not mix old direct-array friendships with the new request/accept contract.
+
+### Prefer one-tap product flows over copy-paste when app and chatbot can cooperate
+- Mistake: I initially optimized the existing code-based linking flow instead of first asking whether the chatbot and app could complete the account connection through a direct handoff.
+- Rule: For cross-system onboarding, check whether a bot-issued short-lived link plus in-app confirmation can replace manual copy/paste. If the app is logged in and both systems are under our control, default to `chat -> deep link -> in-app confirm` before settling on code entry UX.
+
+### Shared invite links can serve both growth and social graph flows
+- Mistake: I treated referral links and friend connections as separate UX paths even though the product already had a strong shared intent signal: one person explicitly sharing a personal invite link.
+- Rule: When an app already has a durable personal invite link, evaluate whether that link should unify acquisition and social connection. For existing members, prefer `open link -> in-app confirm -> active friendship`; for new members, consider `signup attribution + friendship` in one flow if the consent signal is strong enough.
+
+### Auth links and auth codes must never be emitted into shared rooms
+- Mistake: I improved the one-tap connect flow, but I did not immediately re-check whether the transport channel was private. A short-lived auth link is still unsafe if the room itself is shared.
+- Rule: Before shipping any login, registration, mapping, or account-link command, verify whether the response can appear in a group room. If yes, block the sensitive command there and require a direct 1:1 chat or an additional second-factor confirmation.
+
+### Shared-room fallback messages must explain the next click path
+- Mistake: After blocking `!연결` in shared rooms, I only told users to use a 1:1 chat and did not explain how to actually reach that 1:1 window from Kakao.
+- Rule: When a secure command is blocked in a shared room, the warning must include the concrete navigation path to the private chat or channel window. "Use 1:1" alone is not enough if the platform flow is not obvious.
+
+### Prefer the actual entry URL over procedural navigation when it already exists
+- Mistake: I replaced an unsafe shared-room link with a safe but clumsy search instruction, even though the product already had a stable Kakao channel URL in the app.
+- Rule: If a verified direct entry link already exists for the target flow, use that link in chatbot guidance instead of asking users to search or navigate manually.

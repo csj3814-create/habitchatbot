@@ -427,3 +427,27 @@ test('handleConnect explains when the user is already linked', async () => {
     assert.match(result.text, /!등록/);
     assert.match(result.text, /!연결/);
 });
+
+test('buildDirectChatOnlyMessage explains that connect commands are 1:1 only', async () => {
+    const { buildDirectChatOnlyMessage } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'connect.js'),
+        {
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/chatbotConnect': {
+                createChatbotConnectToken: async () => {
+                    throw new Error('should not be called');
+                }
+            }
+        }
+    );
+
+    const result = buildDirectChatOnlyMessage();
+
+    assert.match(result, /1:1/);
+    assert.match(result, /!연결/);
+    assert.match(result, /!등록/);
+    assert.match(result, /검색|돋보기/);
+});

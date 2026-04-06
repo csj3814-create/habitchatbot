@@ -15,30 +15,11 @@ const { handleRanking } = require('../commands/ranking');
 const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
-const { handleConnect } = require('../commands/connect');
+const { handleConnect, buildDirectChatOnlyMessage } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
-
-const HELP_MSG = `명령어 안내
-!안내 - 시작 가이드
-!앱 - 앱 열기
-!오늘 - 전체 기록 요약
-!내습관 - 내 기록 보기
-!식단 - 식단 현황 + AI 코칭
-!운동 - 운동 현황 + AI 코칭
-!마음 - 마음 현황 + AI 코칭
-!주간 - 주간 리포트
-!클래스 - 전체 현황
-!순위 - 이번 주 리더보드
-!연결 - 앱에서 계정 연결 마무리
-!등록 코드 - 앱 계정 연결
-!내코드 - 내 친구 코드 확인
-!친구 코드 - 친구 요청
-!공유 - 내 최신 인증 카드 공유
-
-그 외에는 자유롭게 질문해도 괜찮아요.`;
 
 function normalizeCommand(rawMessage) {
     const trimmed = String(rawMessage || '').trim();
@@ -54,7 +35,11 @@ function formatShareReply(result) {
         return result.text;
     }
 
-    return `공유 카드를 만들었어요.\n${result.description}\n\n이미지: ${result.imageUrl}\n앱에서 보기: ${result.webLinkUrl}`;
+    return `공유 카드를 만들었어요.
+${result.description}
+
+이미지: ${result.imageUrl}
+앱에서 보기: ${result.webLinkUrl}`;
 }
 
 function formatConnectReply(result) {
@@ -62,14 +47,16 @@ function formatConnectReply(result) {
         return result.text;
     }
 
-    return `${result.description}\n\n연결 열기: ${result.webLinkUrl}`;
+    return `${result.description}
+
+연결 열기: ${result.webLinkUrl}`;
 }
 
 function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
     const router = Router();
 
     router.post('/', apiKeyAuth, async (req, res) => {
-        const { room, msg, sender } = req.body;
+        const { room, msg, sender, isGroupChat } = req.body;
 
         if (!msg) {
             return res.status(400).json({ error: '메시지가 없습니다.' });
@@ -92,7 +79,7 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                 return res.json({ reply: await handleToday(getDisplayName(user)) });
             }
 
-            if (command === '내습관' || command === '내기록') {
+            if (command === '내습관' || command === '기록') {
                 return res.json({ reply: await handleMyHabits(user) });
             }
 
@@ -102,6 +89,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
 
             if (command === '클래스' || command === '현황') {
                 return res.json({ reply: await handleClassStatus(getDisplayName(user)) });
+            }
+
+            if (isGroupChat && (command === '등록' || command.startsWith('등록 '))) {
+                return res.json({ reply: buildDirectChatOnlyMessage() });
             }
 
             if (command === '등록' || command.startsWith('등록 ')) {
@@ -116,6 +107,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             if (command === '친구' || command.startsWith('친구 ')) {
                 const codeArg = command === '친구' ? '' : args;
                 return res.json({ reply: await handleAddFriend(user, codeArg) });
+            }
+
+            if (isGroupChat && command === '연결') {
+                return res.json({ reply: buildDirectChatOnlyMessage() });
             }
 
             if (command === '연결') {
@@ -171,7 +166,7 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             try {
                 const mapping = await getMapping(user);
                 if (!mapping) {
-                    appDataContext = '\n\n[아직 해빛스쿨 앱 계정 연결이 없습니다. 자연스럽게 !등록 안내를 해 주세요.]';
+                    appDataContext = '\n\n[아직 해빛스쿨 앱 계정 연결이 없습니다. 자연스럽게 !연결 안내를 해 주세요.]';
                 } else {
                     const recentRecords = await getUserRecords(mapping.googleUid, 3);
                     if (recentRecords.length > 0) {
@@ -225,7 +220,7 @@ ${parts.join('\n')}
                 console.warn('[MessengerBot] Failed to inject app data context:', error.message);
             }
 
-            const prompt = `[현재 대화방 사용자 이름: ${getDisplayName(user)}]
+            const prompt = `[현재 대화 사용자 이름: ${getDisplayName(user)}]
 이름은 '${getDisplayName(user)}'이라고 자연스럽게 불러 주세요.${appDataContext}
 
 사용자 메시지: ${trimmed}`;
