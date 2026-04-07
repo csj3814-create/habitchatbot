@@ -428,6 +428,42 @@ test('handleConnect explains when the user is already linked', async () => {
     assert.match(result.text, /!연결/);
 });
 
+test('handleGuide includes the web-app entry URL and short connect guidance', async () => {
+    const { handleGuide } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'guide.js'),
+        {
+            '../config': {
+                KAKAO_CHANNEL_CHAT_URL: 'https://pf.kakao.com/_QDZZX/chat'
+            }
+        }
+    );
+
+    const result = await handleGuide('테스트 사용자');
+
+    assert.match(result, /웹앱/);
+    assert.match(result, /https:\/\/habitschool\.web\.app/);
+    assert.match(result, /1:1 채팅: https:\/\/pf\.kakao\.com\/_QDZZX\/chat/);
+    assert.match(result, /입력: !연결/);
+});
+
+test('handleApp keeps the app-start copy short and points to the web app', async () => {
+    const { handleApp } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'guide.js'),
+        {
+            '../config': {
+                KAKAO_CHANNEL_CHAT_URL: 'https://pf.kakao.com/_QDZZX/chat'
+            }
+        }
+    );
+
+    const result = await handleApp();
+
+    assert.match(result, /웹앱 주소/);
+    assert.match(result, /https:\/\/habitschool\.web\.app/);
+    assert.match(result, /3\. 해빛코치 1:1에서 !연결/);
+    assert.match(result, /!내습관 !주간 !공유/);
+});
+
 test('buildDirectChatOnlyMessage explains that connect commands are 1:1 only', async () => {
     const { buildDirectChatOnlyMessage } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'connect.js'),
