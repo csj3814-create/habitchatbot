@@ -67,3 +67,7 @@
 ### Keep security warning copy as short as the user-requested interaction allows
 - Mistake: I kept adding fallback and extra help text after the user had already provided the exact warning shape they wanted.
 - Rule: When the user specifies the exact scope of a warning message, keep only that content unless extra text is required for correctness or safety.
+
+### Fast command routes must bypass logging and model setup
+- Mistake: I let fixed Kakao commands wait on `checkAndLogHabits()` before command routing, and I missed an explicit `!앱` route, so simple help messages became slow and could fall through to Gemini.
+- Rule: In chat routers, handle deterministic commands like help/app/status before any logging, persistence, or model-session setup. Add route tests that prove `!앱` and `!도움말` do not call logging or Gemini code.

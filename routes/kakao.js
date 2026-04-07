@@ -11,7 +11,7 @@ const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
-const { handleGuide } = require('../commands/guide');
+const { handleGuide, handleApp } = require('../commands/guide');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
@@ -88,14 +88,6 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             ? (userMessage || '이 사진 또는 영상을 분석해서 코칭해 주세요.')
             : userMessage.slice(1).trim();
 
-        const promptWithContext = `[현재 대화방 사용자 이름: ${user.displayName}]
-이름은 '${user.displayName}'이라고 자연스럽게 불러 주세요.
-
-사용자 메시지: ${actualQuestion}`;
-
-        await checkAndLogHabits(user.userId, actualQuestion);
-        const chatSession = getChatSession(`kakao:${user.userId}`);
-
         if (actualQuestion === '오늘') {
             return res.status(200).json(cmdResponse(await handleToday(user.displayName)));
         }
@@ -144,8 +136,20 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             return res.status(200).json(cmdResponse(result.text));
         }
 
+        if (
+            actualQuestion === '앱'
+            || actualQuestion === '안내'
+            || actualQuestion === '시작'
+            || actualQuestion === '가이드'
+        ) {
+            const text = actualQuestion === '앱'
+                ? await handleApp()
+                : await handleGuide();
+            return res.status(200).json(cmdResponse(text));
+        }
+
         if (actualQuestion === '도움말' || actualQuestion === '명령어') {
-            return res.status(200).json(cmdResponse(await handleGuide(user.displayName)));
+            return res.status(200).json(cmdResponse(await handleGuide()));
         }
 
         if (actualQuestion === '등록' || actualQuestion.startsWith('등록 ')) {
@@ -161,6 +165,14 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             const codeArg = actualQuestion === '친구' ? '' : actualQuestion.substring('친구 '.length).trim();
             return res.status(200).json(cmdResponse(await handleAddFriend(user, codeArg)));
         }
+
+        const promptWithContext = `[현재 대화방 사용자 이름: ${user.displayName}]
+이름은 '${user.displayName}'이라고 자연스럽게 불러 주세요.
+
+사용자 메시지: ${actualQuestion}`;
+
+        await checkAndLogHabits(user.userId, actualQuestion);
+        const chatSession = getChatSession(`kakao:${user.userId}`);
 
         if (callbackUrl) {
             res.status(200).json({
