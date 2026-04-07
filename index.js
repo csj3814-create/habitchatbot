@@ -9,6 +9,7 @@ const config = require('./config');
 const serviceAccount = require('./serviceAccountKey.json');
 const { createGeminiManager } = require('./utils/gemini');
 const { createHabitLogger, isAllowedImageUrl } = require('./utils/habitLogger');
+const { shouldRunSelfPing } = require('./utils/selfPingWindow');
 const { createKakaoRouter } = require('./routes/kakao');
 const { createMessengerbotRouter } = require('./routes/messengerbot');
 const {
@@ -218,6 +219,16 @@ app.use('/api/chat', createKakaoRouter({ db, getChatSession, checkAndLogHabits, 
 app.use('/api/messengerbot', createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }));
 
 setInterval(() => {
+    const shouldPing = shouldRunSelfPing(new Date(), {
+        sleepStartHourKst: config.SELF_PING_SLEEP_START_HOUR_KST,
+        sleepEndHourKst: config.SELF_PING_SLEEP_END_HOUR_KST
+    });
+
+    if (!shouldPing) {
+        console.log('[Self-Ping] Skipped during KST sleep window.');
+        return;
+    }
+
     axios.get(config.RENDER_URL)
         .then(() => console.log(`[Self-Ping] Server kept awake at ${new Date().toISOString()}`))
         .catch((error) => console.error('[Self-Ping] Error:', error.message));

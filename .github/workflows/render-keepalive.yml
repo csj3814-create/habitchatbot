@@ -1,0 +1,56 @@
+name: Render Keepalive
+
+on:
+  schedule:
+    - cron: '0,14,28,42,56 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  RENDER_PING_URL: https://habitchatbot.onrender.com/
+  SLEEP_START_HOUR_KST: '1'
+  SLEEP_END_HOUR_KST: '7'
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to ping
+        id: window
+        shell: bash
+        run: |
+          kst_hour=$(TZ='Asia/Seoul' date +%H)
+          kst_hour=$((10#$kst_hour))
+          sleep_start=$((10#$SLEEP_START_HOUR_KST))
+          sleep_end=$((10#$SLEEP_END_HOUR_KST))
+          in_sleep=false
+
+          if [ "$sleep_start" -ne "$sleep_end" ]; then
+            if [ "$sleep_start" -lt "$sleep_end" ]; then
+              if [ "$kst_hour" -ge "$sleep_start" ] && [ "$kst_hour" -lt "$sleep_end" ]; then
+                in_sleep=true
+              fi
+            else
+              if [ "$kst_hour" -ge "$sleep_start" ] || [ "$kst_hour" -lt "$sleep_end" ]; then
+                in_sleep=true
+              fi
+            fi
+          fi
+
+          echo "kst_hour=$kst_hour" >> "$GITHUB_OUTPUT"
+          echo "in_sleep=$in_sleep" >> "$GITHUB_OUTPUT"
+
+      - name: Skip during sleep window
+        if: steps.window.outputs.in_sleep == 'true'
+        run: echo "Skipping keepalive during KST sleep window. hour=${{ steps.window.outputs.kst_hour }}"
+
+      - name: Ping Render
+        if: steps.window.outputs.in_sleep != 'true'
+        shell: bash
+        run: |
+          curl -fsS --max-time 30 --retry 2 --retry-delay 5 \
+            -A "github-actions-render-keepalive" \
+            "$RENDER_PING_URL" \
+            -o /dev/null \
+            -w "status=%{http_code} total=%{time_total}\n"
