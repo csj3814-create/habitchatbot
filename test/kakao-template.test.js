@@ -12,7 +12,7 @@ test('buildKakaoGuideResponse adds action-first quick replies', () => {
     assert.equal(result.template.outputs[0].simpleText.text, 'GUIDE');
     assert.deepEqual(
         result.template.quickReplies.map((item) => item.messageText),
-        ['!앱', '!연결', '!오늘', '!내습관']
+        ['!앱', '!오늘', '!내습관', '!공유']
     );
 });
 
@@ -21,7 +21,7 @@ test('buildKakaoAppCardResponse builds app and chat buttons', () => {
         title: '앱 시작',
         description: '설명',
         appUrl: 'https://habitschool.web.app',
-        chatUrl: 'https://pf.kakao.com/_QDZZX/chat'
+        galleryUrl: 'https://habitschool.web.app/#gallery'
     });
 
     const card = result.template.outputs[0].basicCard;
@@ -30,11 +30,11 @@ test('buildKakaoAppCardResponse builds app and chat buttons', () => {
     assert.equal(card.description, '설명');
     assert.deepEqual(
         card.buttons.map((button) => button.webLinkUrl),
-        ['https://habitschool.web.app', 'https://pf.kakao.com/_QDZZX/chat']
+        ['https://habitschool.web.app', 'https://habitschool.web.app/#gallery']
     );
     assert.deepEqual(
         result.template.quickReplies.map((item) => item.messageText),
-        ['!연결', '!도움말', '!오늘']
+        ['!오늘', '!내습관', '!공유']
     );
 });
 
@@ -42,9 +42,9 @@ test('buildKakaoAppCardResponse works with default arguments', () => {
     const result = buildKakaoAppCardResponse();
     const card = result.template.outputs[0].basicCard;
 
-    assert.equal(card.title, '해빛스쿨 앱 시작');
+    assert.equal(card.title, '해빛스쿨 웹앱');
     assert.deepEqual(
         card.buttons.map((button) => button.label),
-        ['앱 열기', '1:1 연결']
+        ['앱 열기', '갤러리 보기']
     );
 });

@@ -75,3 +75,7 @@
 ### Keepalive cadence needs margin over the platform sleep threshold
 - Mistake: I matched the external keepalive almost exactly to Render's 15-minute idle cutoff. GitHub Actions schedule jitter left occasional gaps long enough for cold starts to return.
 - Rule: When a host sleeps after N idle minutes, do not schedule keepalive at N-1. Leave several minutes of buffer for scheduler drift; for a 15-minute cutoff, prefer 10-minute cadence.
+
+### App guidance should optimize for app usage, not the side workflow I just implemented
+- Mistake: After adding a convenient `!연결` path, I let `!앱` guidance over-focus on 1:1 connection instead of the user's real goal: helping people use the Habits School web app well.
+- Rule: For entry/help commands like `!앱`, center the primary product action. Mention account linking only as a secondary, task-specific step, and only when that command is explicitly about linking.

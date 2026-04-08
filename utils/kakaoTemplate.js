@@ -5,7 +5,7 @@
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
 const KAKAO_TEXT_MAX = 300;
 const DEFAULT_APP_URL = 'https://habitschool.web.app';
-const DEFAULT_CHAT_URL = 'https://pf.kakao.com/_QDZZX/chat';
+const DEFAULT_GALLERY_URL = 'https://habitschool.web.app/#gallery';
 
 function truncateForKakao(text) {
     const source = String(text || '');
@@ -40,9 +40,9 @@ function buildDefaultQuickReplies() {
 function buildGuideQuickReplies() {
     return [
         { label: '앱 열기', action: 'message', messageText: '!앱' },
-        { label: '계정 연결', action: 'message', messageText: '!연결' },
         { label: '오늘 보기', action: 'message', messageText: '!오늘' },
-        { label: '내습관', action: 'message', messageText: '!내습관' }
+        { label: '내습관', action: 'message', messageText: '!내습관' },
+        { label: '공유', action: 'message', messageText: '!공유' }
     ];
 }
 
@@ -137,10 +137,10 @@ function buildKakaoGuideResponse(text) {
 }
 
 function buildKakaoAppCardResponse({
-    title = '해빛스쿨 앱 시작',
-    description = '웹앱 접속 후 로그인하고\n해빛코치 1:1에서 !연결',
+    title = '해빛스쿨 웹앱',
+    description = '로그인 후 기록하고\n갤러리와 친구 활동 확인',
     appUrl = DEFAULT_APP_URL,
-    chatUrl = DEFAULT_CHAT_URL
+    galleryUrl = DEFAULT_GALLERY_URL
 } = {}) {
     return {
         version: '2.0',
@@ -158,17 +158,17 @@ function buildKakaoAppCardResponse({
                             },
                             {
                                 action: 'webLink',
-                                label: '1:1 연결',
-                                webLinkUrl: chatUrl
+                                label: '갤러리 보기',
+                                webLinkUrl: galleryUrl
                             }
                         ]
                     }
                 }
             ],
             quickReplies: [
-                { label: '계정 연결', action: 'message', messageText: '!연결' },
-                { label: '도움말', action: 'message', messageText: '!도움말' },
-                { label: '오늘 보기', action: 'message', messageText: '!오늘' }
+                { label: '오늘 보기', action: 'message', messageText: '!오늘' },
+                { label: '내습관', action: 'message', messageText: '!내습관' },
+                { label: '공유', action: 'message', messageText: '!공유' }
             ]
         }
     };

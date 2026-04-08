@@ -93,7 +93,7 @@ test('kakao help commands return immediately without habit logging or Gemini ses
                 },
                 buildKakaoAppCardResponse: () => {
                     appCardCalls += 1;
-                    return { template: { outputs: [{ basicCard: { title: 'APP_CARD' } }], quickReplies: [{ messageText: '!연결' }] } };
+                    return { template: { outputs: [{ basicCard: { title: 'APP_CARD' } }], quickReplies: [{ messageText: '!오늘' }] } };
                 },
                 buildKakaoShareCardResponse: () => {
                     throw new Error('share response should not be built');
@@ -157,7 +157,7 @@ test('kakao help commands return immediately without habit logging or Gemini ses
     const appResponse = await postJsonToRouter(router, buildKakaoBody('!앱'));
     assert.equal(appResponse.status, 200);
     assert.equal(appResponse.json.template.outputs[0].basicCard.title, 'APP_CARD');
-    assert.equal(appResponse.json.template.quickReplies[0].messageText, '!연결');
+    assert.equal(appResponse.json.template.quickReplies[0].messageText, '!오늘');
 
     assert.equal(habitLogCalls, 0);
     assert.equal(chatSessionCalls, 0);
