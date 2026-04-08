@@ -79,12 +79,22 @@ function buildKakaoBody(utterance) {
 test('kakao help commands return immediately without habit logging or Gemini session', async () => {
     let habitLogCalls = 0;
     let chatSessionCalls = 0;
+    let guideCalls = 0;
+    let appCardCalls = 0;
 
     const { createKakaoRouter } = loadWithMocks(
         path.join(__dirname, '..', 'routes', 'kakao.js'),
         {
             '../utils/kakaoTemplate': {
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => {
+                    guideCalls += 1;
+                    return { template: { outputs: [{ simpleText: { text } }], quickReplies: [{ messageText: '!앱' }] } };
+                },
+                buildKakaoAppCardResponse: () => {
+                    appCardCalls += 1;
+                    return { template: { outputs: [{ basicCard: { title: 'APP_CARD' } }], quickReplies: [{ messageText: '!연결' }] } };
+                },
                 buildKakaoShareCardResponse: () => {
                     throw new Error('share response should not be built');
                 },
@@ -105,8 +115,7 @@ test('kakao help commands return immediately without habit logging or Gemini ses
             '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
             '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
             '../commands/guide': {
-                handleGuide: async () => 'GUIDE',
-                handleApp: async () => 'APP'
+                handleGuide: async () => 'GUIDE'
             },
             '../commands/register': { handleRegister: async () => 'REGISTER' },
             '../commands/ranking': { handleRanking: async () => 'RANK' },
@@ -143,11 +152,15 @@ test('kakao help commands return immediately without habit logging or Gemini ses
     const guideResponse = await postJsonToRouter(router, buildKakaoBody('!도움말'));
     assert.equal(guideResponse.status, 200);
     assert.equal(guideResponse.json.template.outputs[0].simpleText.text, 'GUIDE');
+    assert.equal(guideResponse.json.template.quickReplies[0].messageText, '!앱');
 
     const appResponse = await postJsonToRouter(router, buildKakaoBody('!앱'));
     assert.equal(appResponse.status, 200);
-    assert.equal(appResponse.json.template.outputs[0].simpleText.text, 'APP');
+    assert.equal(appResponse.json.template.outputs[0].basicCard.title, 'APP_CARD');
+    assert.equal(appResponse.json.template.quickReplies[0].messageText, '!연결');
 
     assert.equal(habitLogCalls, 0);
     assert.equal(chatSessionCalls, 0);
+    assert.equal(guideCalls, 1);
+    assert.equal(appCardCalls, 1);
 });

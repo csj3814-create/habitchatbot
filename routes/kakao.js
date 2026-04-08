@@ -5,13 +5,19 @@
 const { Router } = require('express');
 const axios = require('axios');
 
-const { buildKakaoResponse, buildKakaoShareCardResponse, buildKakaoConnectCardResponse } = require('../utils/kakaoTemplate');
+const {
+    buildKakaoResponse,
+    buildKakaoGuideResponse,
+    buildKakaoAppCardResponse,
+    buildKakaoShareCardResponse,
+    buildKakaoConnectCardResponse
+} = require('../utils/kakaoTemplate');
 const { createChatIdentity } = require('../utils/chatIdentity');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
-const { handleGuide, handleApp } = require('../commands/guide');
+const { handleGuide } = require('../commands/guide');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
@@ -142,14 +148,15 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             || actualQuestion === '시작'
             || actualQuestion === '가이드'
         ) {
-            const text = actualQuestion === '앱'
-                ? await handleApp()
-                : await handleGuide();
-            return res.status(200).json(cmdResponse(text));
+            if (actualQuestion === '앱') {
+                return res.status(200).json(buildKakaoAppCardResponse());
+            }
+
+            return res.status(200).json(buildKakaoGuideResponse(await handleGuide()));
         }
 
         if (actualQuestion === '도움말' || actualQuestion === '명령어') {
-            return res.status(200).json(cmdResponse(await handleGuide()));
+            return res.status(200).json(buildKakaoGuideResponse(await handleGuide()));
         }
 
         if (actualQuestion === '등록' || actualQuestion.startsWith('등록 ')) {

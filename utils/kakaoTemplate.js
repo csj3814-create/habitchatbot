@@ -4,6 +4,8 @@
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
 const KAKAO_TEXT_MAX = 300;
+const DEFAULT_APP_URL = 'https://habitschool.web.app';
+const DEFAULT_CHAT_URL = 'https://pf.kakao.com/_QDZZX/chat';
 
 function truncateForKakao(text) {
     const source = String(text || '');
@@ -32,6 +34,15 @@ function truncateForKakao(text) {
 function buildDefaultQuickReplies() {
     return [
         { label: '내 습관 보기', action: 'message', messageText: '!내습관' }
+    ];
+}
+
+function buildGuideQuickReplies() {
+    return [
+        { label: '앱 열기', action: 'message', messageText: '!앱' },
+        { label: '계정 연결', action: 'message', messageText: '!연결' },
+        { label: '오늘 보기', action: 'message', messageText: '!오늘' },
+        { label: '내습관', action: 'message', messageText: '!내습관' }
     ];
 }
 
@@ -115,6 +126,54 @@ function buildKakaoShareCardResponse({ title, description, imageUrl, webLinkUrl 
     };
 }
 
+function buildKakaoGuideResponse(text) {
+    return {
+        version: '2.0',
+        template: {
+            outputs: [{ simpleText: { text: truncateForKakao(text) } }],
+            quickReplies: buildGuideQuickReplies()
+        }
+    };
+}
+
+function buildKakaoAppCardResponse({
+    title = '해빛스쿨 앱 시작',
+    description = '웹앱 접속 후 로그인하고\n해빛코치 1:1에서 !연결',
+    appUrl = DEFAULT_APP_URL,
+    chatUrl = DEFAULT_CHAT_URL
+}) {
+    return {
+        version: '2.0',
+        template: {
+            outputs: [
+                {
+                    basicCard: {
+                        title,
+                        description,
+                        buttons: [
+                            {
+                                action: 'webLink',
+                                label: '앱 열기',
+                                webLinkUrl: appUrl
+                            },
+                            {
+                                action: 'webLink',
+                                label: '1:1 연결',
+                                webLinkUrl: chatUrl
+                            }
+                        ]
+                    }
+                }
+            ],
+            quickReplies: [
+                { label: '계정 연결', action: 'message', messageText: '!연결' },
+                { label: '도움말', action: 'message', messageText: '!도움말' },
+                { label: '오늘 보기', action: 'message', messageText: '!오늘' }
+            ]
+        }
+    };
+}
+
 function buildKakaoConnectCardResponse({ title, description, webLinkUrl, buttonLabel = '앱에서 연결하기' }) {
     return {
         version: '2.0',
@@ -144,6 +203,8 @@ function buildKakaoConnectCardResponse({ title, description, webLinkUrl, buttonL
 
 module.exports = {
     buildKakaoResponse,
+    buildKakaoGuideResponse,
+    buildKakaoAppCardResponse,
     buildKakaoShareCardResponse,
     buildKakaoConnectCardResponse
 };
