@@ -71,3 +71,7 @@
 ### Fast command routes must bypass logging and model setup
 - Mistake: I let fixed Kakao commands wait on `checkAndLogHabits()` before command routing, and I missed an explicit `!앱` route, so simple help messages became slow and could fall through to Gemini.
 - Rule: In chat routers, handle deterministic commands like help/app/status before any logging, persistence, or model-session setup. Add route tests that prove `!앱` and `!도움말` do not call logging or Gemini code.
+
+### Keepalive cadence needs margin over the platform sleep threshold
+- Mistake: I matched the external keepalive almost exactly to Render's 15-minute idle cutoff. GitHub Actions schedule jitter left occasional gaps long enough for cold starts to return.
+- Rule: When a host sleeps after N idle minutes, do not schedule keepalive at N-1. Leave several minutes of buffer for scheduler drift; for a 15-minute cutoff, prefer 10-minute cadence.

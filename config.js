@@ -6,7 +6,7 @@ module.exports = {
     PORT: process.env.PORT || 3000,
     GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     SESSION_TTL_MS: parseInt(process.env.SESSION_TTL_MS, 10) || 1000 * 60 * 60 * 2,
-    SELF_PING_INTERVAL_MS: parseInt(process.env.SELF_PING_INTERVAL_MS, 10) || 14 * 60 * 1000,
+    SELF_PING_INTERVAL_MS: parseInt(process.env.SELF_PING_INTERVAL_MS, 10) || 10 * 60 * 1000,
     SELF_PING_SLEEP_START_HOUR_KST:
         parseInt(process.env.SELF_PING_SLEEP_START_HOUR_KST, 10) || 1,
     SELF_PING_SLEEP_END_HOUR_KST:
