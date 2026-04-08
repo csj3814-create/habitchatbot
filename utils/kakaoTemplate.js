@@ -141,7 +141,7 @@ function buildKakaoAppCardResponse({
     description = '웹앱 접속 후 로그인하고\n해빛코치 1:1에서 !연결',
     appUrl = DEFAULT_APP_URL,
     chatUrl = DEFAULT_CHAT_URL
-}) {
+} = {}) {
     return {
         version: '2.0',
         template: {

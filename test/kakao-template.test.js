@@ -37,3 +37,14 @@ test('buildKakaoAppCardResponse builds app and chat buttons', () => {
         ['!연결', '!도움말', '!오늘']
     );
 });
+
+test('buildKakaoAppCardResponse works with default arguments', () => {
+    const result = buildKakaoAppCardResponse();
+    const card = result.template.outputs[0].basicCard;
+
+    assert.equal(card.title, '해빛스쿨 앱 시작');
+    assert.deepEqual(
+        card.buttons.map((button) => button.label),
+        ['앱 열기', '1:1 연결']
+    );
+});
