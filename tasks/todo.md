@@ -333,3 +333,17 @@
 - Updated `utils/kakaoTemplate.js` so the default Kakao `!앱` card opens the same simple app URL and labels the card as `해빛스쿨 심플형 앱`.
 - Verification passed: `node --check commands/guide.js`, `node --check utils/kakaoTemplate.js`, `node --check test/commands.test.js`, `node --check test/kakao-template.test.js`, `npm test`.
 
+# 2026-04-10 Concise Simple App Guidance
+> Status: Completed
+
+## Tasks
+- [x] Re-check whether the simple app already contains a built-in path to the basic app before adding more CTA copy
+- [x] Shorten `!도움말` / `!앱` guidance so it leads with the simple app and only the core chatbot commands
+- [x] Shorten the Kakao `!앱` card description to the same product framing
+- [x] Update tests and re-run verification
+
+## Review
+- Removed the extra linking and feature-explainer lines from `commands/guide.js` so the chatbot now points users to the simple app first and keeps only the key command list.
+- Shortened the default Kakao app-card description in `utils/kakaoTemplate.js` to match the same concise onboarding message.
+- Verification passed: `node --check commands/guide.js`, `node --check utils/kakaoTemplate.js`, `node --check test/commands.test.js`, `node --check test/kakao-template.test.js`, `npm test`.
+

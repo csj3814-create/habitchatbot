@@ -9,18 +9,13 @@ async function handleGuide() {
 
 심플형 앱
 ${SIMPLE_APP_URL}
-로그인 후 기록하면 시작돼요.
+처음엔 여기서 시작하세요.
 
-앱에서 해요
+앱에서
 식단 운동 수면 마음 기록
-갤러리 친구 활동 확인
 
-챗봇 명령
-!오늘 !내습관 !주간
-!공유 !식단 !운동 !마음
-
-필요할 때만
-!연결`;
+챗봇
+!오늘 !내습관 !주간 !공유`;
 }
 
 async function handleApp() {
@@ -29,15 +24,11 @@ async function handleApp() {
 심플형 앱
 ${SIMPLE_APP_URL}
 
-앱에서 할 일
+처음엔 여기서 시작하세요.
 식단 운동 수면 마음 기록
-갤러리 보기
-친구 초대 관리
 
-챗봇에서
-!오늘 !내습관 !주간 !공유
-
-계정 연결이 필요할 때만 !연결`;
+챗봇
+!오늘 !내습관 !주간 !공유`;
 }
 
 module.exports = { handleGuide, handleApp, SIMPLE_APP_URL };

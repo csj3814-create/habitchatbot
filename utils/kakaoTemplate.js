@@ -138,7 +138,7 @@ function buildKakaoGuideResponse(text) {
 
 function buildKakaoAppCardResponse({
     title = '해빛스쿨 심플형 앱',
-    description = '심플하게 기록 시작\n갤러리와 친구 활동 확인',
+    description = '처음엔 심플형으로 시작\n식단 운동 수면 마음 기록',
     appUrl = DEFAULT_APP_URL,
     galleryUrl = DEFAULT_GALLERY_URL
 } = {}) {

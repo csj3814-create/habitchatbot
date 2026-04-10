@@ -43,6 +43,7 @@ test('buildKakaoAppCardResponse works with default arguments', () => {
     const card = result.template.outputs[0].basicCard;
 
     assert.equal(card.title, '해빛스쿨 심플형 앱');
+    assert.equal(card.description, '처음엔 심플형으로 시작\n식단 운동 수면 마음 기록');
     assert.deepEqual(
         card.buttons.map((button) => button.webLinkUrl),
         ['https://habitschool.web.app/simple/', 'https://habitschool.web.app/#gallery']

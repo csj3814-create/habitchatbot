@@ -83,3 +83,7 @@
 ### Open-chat-bot onboarding triggers must use the real production welcome copy
 - Mistake: I initially generalized the open-chat-bot welcome detector with broad keywords before confirming the exact production welcome message text.
 - Rule: When a platform bot message is being used as a trigger, capture the real first-line production copy and match that concrete pattern before widening the detector. Prefer exact first-line matching over loose substring keywords when the goal is to react only to one specific automation message.
+
+### Confirm existing in-app transition paths before proposing new CTA work
+- Mistake: I suggested adding a simple-to-basic app transition CTA before confirming whether that path already existed in the app.
+- Rule: Before proposing new onboarding or transition UI, verify whether the app already has that button or flow. If it already exists, prefer tightening external guidance copy instead of adding redundant navigation.
