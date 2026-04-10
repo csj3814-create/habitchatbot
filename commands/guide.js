@@ -2,13 +2,13 @@
  * General onboarding / help text for chatbot users.
  */
 
-const APP_URL = 'https://habitschool.web.app';
+const SIMPLE_APP_URL = 'https://habitschool.web.app/simple/';
 
 async function handleGuide() {
     return `해빛코치 안내
 
-웹앱
-${APP_URL}
+심플형 앱
+${SIMPLE_APP_URL}
 로그인 후 기록하면 시작돼요.
 
 앱에서 해요
@@ -24,10 +24,10 @@ ${APP_URL}
 }
 
 async function handleApp() {
-    return `해빛스쿨 앱 안내
+    return `해빛스쿨 심플형 앱 안내
 
-웹앱
-${APP_URL}
+심플형 앱
+${SIMPLE_APP_URL}
 
 앱에서 할 일
 식단 운동 수면 마음 기록
@@ -40,4 +40,4 @@ ${APP_URL}
 계정 연결이 필요할 때만 !연결`;
 }
 
-module.exports = { handleGuide, handleApp };
+module.exports = { handleGuide, handleApp, SIMPLE_APP_URL };

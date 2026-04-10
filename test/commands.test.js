@@ -437,7 +437,8 @@ test('handleGuide includes the web-app entry URL and short connect guidance', as
     const result = await handleGuide('테스트 사용자');
 
     assert.match(result, /로그인 후 기록하면 시작돼요/);
-    assert.match(result, /https:\/\/habitschool\.web\.app/);
+    assert.match(result, /심플형 앱/);
+    assert.match(result, /https:\/\/habitschool\.web\.app\/simple\//);
     assert.match(result, /식단 운동 수면 마음 기록/);
     assert.match(result, /갤러리 친구 활동 확인/);
     assert.match(result, /필요할 때만\s*!연결/);
@@ -451,8 +452,9 @@ test('handleApp keeps the app-start copy short and points to the web app', async
 
     const result = await handleApp();
 
+    assert.match(result, /심플형 앱/);
     assert.match(result, /앱에서 할 일/);
-    assert.match(result, /https:\/\/habitschool\.web\.app/);
+    assert.match(result, /https:\/\/habitschool\.web\.app\/simple\//);
     assert.match(result, /갤러리 보기/);
     assert.match(result, /친구 초대 관리/);
     assert.match(result, /!오늘 !내습관 !주간 !공유/);

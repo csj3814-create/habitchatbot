@@ -79,3 +79,7 @@
 ### App guidance should optimize for app usage, not the side workflow I just implemented
 - Mistake: After adding a convenient `!연결` path, I let `!앱` guidance over-focus on 1:1 connection instead of the user's real goal: helping people use the Habits School web app well.
 - Rule: For entry/help commands like `!앱`, center the primary product action. Mention account linking only as a secondary, task-specific step, and only when that command is explicitly about linking.
+
+### Open-chat-bot onboarding triggers must use the real production welcome copy
+- Mistake: I initially generalized the open-chat-bot welcome detector with broad keywords before confirming the exact production welcome message text.
+- Rule: When a platform bot message is being used as a trigger, capture the real first-line production copy and match that concrete pattern before widening the detector. Prefer exact first-line matching over loose substring keywords when the goal is to react only to one specific automation message.

@@ -4,7 +4,7 @@
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
 const KAKAO_TEXT_MAX = 300;
-const DEFAULT_APP_URL = 'https://habitschool.web.app';
+const DEFAULT_APP_URL = 'https://habitschool.web.app/simple/';
 const DEFAULT_GALLERY_URL = 'https://habitschool.web.app/#gallery';
 
 function truncateForKakao(text) {
@@ -137,8 +137,8 @@ function buildKakaoGuideResponse(text) {
 }
 
 function buildKakaoAppCardResponse({
-    title = '해빛스쿨 웹앱',
-    description = '로그인 후 기록하고\n갤러리와 친구 활동 확인',
+    title = '해빛스쿨 심플형 앱',
+    description = '심플하게 기록 시작\n갤러리와 친구 활동 확인',
     appUrl = DEFAULT_APP_URL,
     galleryUrl = DEFAULT_GALLERY_URL
 } = {}) {
