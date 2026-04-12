@@ -60,10 +60,10 @@
 - [x] 커밋 `0d58f66`, `f8c2b10` → `origin/main` 푸시 완료
 
 ### 미해결
-- [ ] 하루 4회 브로드캐스트 운영 방향 확정
+- [x] 하루 4회 브로드캐스트 운영 방향 확정
   - 현재 이 저장소 기준 자동 아침/점심/저녁/밤 브로드캐스트 기능은 제거됨 (`README.md`와 구현 현황 확인).
-  - 남은 일은 코드 미완성이 아니라 운영/플랫폼 결정이다.
-  - 선택지: `1)` 이 저장소에서는 계속 미지원으로 유지, `2)` 메신저봇R 베타(BotStudio) 또는 카카오 예약 메시지로 외부 운영, `3)` 별도 스케줄러 + 발송 채널 구조를 새로 설계.
+  - 결정: 이 저장소에서는 브로드캐스트를 다시 구현하지 않고, 카카오 오픈채팅봇 예약 메시지 + `!오늘` 자동 응답 흐름으로 운영한다.
+  - 운영 메모: 환영 메시지는 오픈채팅봇의 실제 환영 문구에만 반응하고, 밤 예약 메시지는 첫 줄 `!오늘`로 통계를 띄운다.
 
 ## 현재 상태
 - `main` 브랜치 = 최신 (`f8c2b10`)
@@ -293,17 +293,18 @@
 - Left unrelated local changes in `README.md`, `messengerbot_script.js`, and `AGENTS.md` untouched.
 
 # 2026-04-09 Task Log Cleanup And Next Actions
-> Status: In Progress
+> Status: Completed
 
 ## Tasks
 - [x] Reconcile stale 2026-04-08 checklist items with the 2026-04-09 closeout
 - [x] Reclassify the old MessengerBot broadcast item as an operations/platform decision instead of an in-repo implementation task
-- [ ] Choose the broadcast path: keep it removed, move it to BotStudio/카카오 예약 메시지, or design a separate scheduler-based solution
-- [ ] If broadcast stays in scope, write the exact owner/tool/channel spec before starting any implementation
+- [x] Choose the broadcast path: keep it removed in-repo and operate through 카카오 예약 메시지 + `!오늘`
+- [x] Close the item without new implementation because the chosen path is operational, not code-based
 
 ## Review
 - Confirmed `README.md` already states that automatic morning/lunch/dinner/night broadcasts were removed from this repository.
-- Confirmed there is no active in-repo broadcast scheduler code left to finish; the remaining work is a product/operations decision about where that capability should live.
+- Confirmed there is no active in-repo broadcast scheduler code left to finish.
+- Closed the remaining item with the chosen operating model: keep broadcasts out of this repo, use the open-chat-bot reservation feature, and reserve chatbot behavior for `!오늘` plus welcome-message filtering.
 
 # 2026-04-09 Open Chat Bot Welcome Filter
 > Status: Completed
@@ -346,4 +347,19 @@
 - Removed the extra linking and feature-explainer lines from `commands/guide.js` so the chatbot now points users to the simple app first and keeps only the key command list.
 - Shortened the default Kakao app-card description in `utils/kakaoTemplate.js` to match the same concise onboarding message.
 - Verification passed: `node --check commands/guide.js`, `node --check utils/kakaoTemplate.js`, `node --check test/commands.test.js`, `node --check test/kakao-template.test.js`, `npm test`.
+
+# 2026-04-12 Kakao BasicCard Thumbnail Fix
+> Status: Completed
+
+## Tasks
+- [x] Confirm the Kakao `!연결` and `!앱` response builders still emit `basicCard` without `thumbnail.imageUrl`
+- [x] Add a shared public HTTPS thumbnail URL to the Kakao connect/app card builders
+- [x] Add tests that fail if either card loses `basicCard.thumbnail.imageUrl`
+- [x] Run syntax checks and the Kakao template test suite
+
+## Review
+- Added a shared Kakao card thumbnail default in `utils/kakaoTemplate.js` using the public HTTPS asset `https://habitschool.web.app/icons/og-image.png`.
+- Updated both `buildKakaoAppCardResponse()` and `buildKakaoConnectCardResponse()` so their `basicCard` payloads now include `thumbnail.imageUrl`, matching Kakao's schema requirement.
+- Extended `test/kakao-template.test.js` to assert thumbnail presence for both the app card and connect card so the regression is caught locally.
+- Verification passed: `node --check utils/kakaoTemplate.js`, `node --check test/kakao-template.test.js`, `node --test test/kakao-template.test.js`, `npm test`.
 

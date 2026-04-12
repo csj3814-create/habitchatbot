@@ -6,6 +6,7 @@ const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|e
 const KAKAO_TEXT_MAX = 300;
 const DEFAULT_APP_URL = 'https://habitschool.web.app/simple/';
 const DEFAULT_GALLERY_URL = 'https://habitschool.web.app/#gallery';
+const DEFAULT_CARD_THUMBNAIL_URL = 'https://habitschool.web.app/icons/og-image.png';
 
 function truncateForKakao(text) {
     const source = String(text || '');
@@ -140,7 +141,8 @@ function buildKakaoAppCardResponse({
     title = '해빛스쿨 심플형 앱',
     description = '처음엔 심플형으로 시작\n식단 운동 수면 마음 기록',
     appUrl = DEFAULT_APP_URL,
-    galleryUrl = DEFAULT_GALLERY_URL
+    galleryUrl = DEFAULT_GALLERY_URL,
+    thumbnailImageUrl = DEFAULT_CARD_THUMBNAIL_URL
 } = {}) {
     return {
         version: '2.0',
@@ -150,6 +152,9 @@ function buildKakaoAppCardResponse({
                     basicCard: {
                         title,
                         description,
+                        thumbnail: {
+                            imageUrl: thumbnailImageUrl
+                        },
                         buttons: [
                             {
                                 action: 'webLink',
@@ -174,7 +179,13 @@ function buildKakaoAppCardResponse({
     };
 }
 
-function buildKakaoConnectCardResponse({ title, description, webLinkUrl, buttonLabel = '앱에서 연결하기' }) {
+function buildKakaoConnectCardResponse({
+    title,
+    description,
+    webLinkUrl,
+    buttonLabel = '앱에서 연결하기',
+    thumbnailImageUrl = DEFAULT_CARD_THUMBNAIL_URL
+}) {
     return {
         version: '2.0',
         template: {
@@ -183,6 +194,9 @@ function buildKakaoConnectCardResponse({ title, description, webLinkUrl, buttonL
                     basicCard: {
                         title: title || '앱에서 연결 완료하기',
                         description: description || '버튼을 눌러 해빛스쿨 앱에서 연결을 마무리해 주세요.',
+                        thumbnail: {
+                            imageUrl: thumbnailImageUrl
+                        },
                         buttons: [
                             {
                                 action: 'webLink',

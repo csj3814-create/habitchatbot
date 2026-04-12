@@ -87,3 +87,11 @@
 ### Confirm existing in-app transition paths before proposing new CTA work
 - Mistake: I suggested adding a simple-to-basic app transition CTA before confirming whether that path already existed in the app.
 - Rule: Before proposing new onboarding or transition UI, verify whether the app already has that button or flow. If it already exists, prefer tightening external guidance copy instead of adding redundant navigation.
+
+### Platform message-length limits must shape the final operating copy
+- Mistake: I drafted reservation-message ideas before checking the real platform limit, and the final operating channel only allows about 30 characters.
+- Rule: For bot automation or scheduled-message copy, confirm the channel's actual character limit first and optimize the final wording to fit the tightest real constraint. When command triggers already do the heavy lifting, keep the operator-entered copy minimal.
+
+### Kakao BasicCard changes must be checked against schema-required fields
+- Mistake: I accepted a frontend/app-side explanation for `!연결` failure without re-checking the chatbot's final Kakao payload shape, and the direct cause was a chatbot `basicCard` missing `thumbnail.imageUrl`.
+- Rule: Whenever a Kakao response uses `basicCard`, verify required schema fields in the builder itself and add tests that assert those fields are present so console-only failures do not slip through.
