@@ -149,3 +149,96 @@ test('messengerbot always blocks connect and register commands in shared rooms',
     assert.equal(registerResponse.status, 200);
     assert.equal(registerResponse.json.reply, 'DIRECT_ONLY');
 });
+
+test('messengerbot freeform prompt uses student honorific guidance', async () => {
+    let capturedPrompt = null;
+
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        {
+            '../utils/apiKeyAuth': {
+                apiKeyAuth: (req, res, next) => next()
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender, room }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender,
+                    room
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/guide': {
+                handleGuide: async () => 'GUIDE',
+                handleApp: async () => 'APP'
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            },
+            '../modules/appFirebase': {
+                getUserRecords: async () => []
+            },
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasMind: () => false
+            }
+        }
+    );
+
+    const router = createMessengerbotRouter({
+        db: {
+            ref() {
+                throw new Error('db.ref should not be called for freeform prompts');
+            }
+        },
+        getChatSession() {
+            return {
+                async sendMessage(prompt) {
+                    capturedPrompt = prompt;
+                    return {
+                        response: {
+                            text: () => 'AI'
+                        }
+                    };
+                }
+            };
+        },
+        checkAndLogHabits: async () => {}
+    });
+
+    const response = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '안녕하세요',
+        sender: '최석재 코치',
+        isGroupChat: false
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.reply, 'AI');
+    assert.match(capturedPrompt, /해빛스쿨 학생/);
+    assert.match(capturedPrompt, /'최석재님'/);
+    assert.match(capturedPrompt, /절대 '최석재 코치님', '코치님', '선생님'이라고 부르지 마세요/);
+    assert.doesNotMatch(capturedPrompt, /이름을 부를 때는 '최석재 코치님'/);
+});

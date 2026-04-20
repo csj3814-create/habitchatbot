@@ -4,6 +4,7 @@
 
 const { Router } = require('express');
 const axios = require('axios');
+const { buildStudentAddressPrompt } = require('../utils/addressing');
 
 const {
     buildKakaoResponse,
@@ -174,7 +175,7 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         }
 
         const promptWithContext = `[현재 대화방 사용자 이름: ${user.displayName}]
-이름은 '${user.displayName}'이라고 자연스럽게 불러 주세요.
+${buildStudentAddressPrompt(user.displayName)}
 
 사용자 메시지: ${actualQuestion}`;
 

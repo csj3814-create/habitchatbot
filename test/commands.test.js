@@ -428,7 +428,7 @@ test('handleConnect explains when the user is already linked', async () => {
     assert.match(result.text, /!연결/);
 });
 
-test('handleGuide includes the web-app entry URL and short connect guidance', async () => {
+test('handleGuide explains the step-by-step participation flow', async () => {
     const { handleGuide } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'guide.js'),
         {}
@@ -436,12 +436,17 @@ test('handleGuide includes the web-app entry URL and short connect guidance', as
 
     const result = await handleGuide('테스트 사용자');
 
-    assert.match(result, /처음엔 여기서 시작하세요/);
-    assert.match(result, /심플형 앱/);
+    assert.match(result, /해빛코치 참여 안내/);
+    assert.match(result, /1\. 아래 링크를 눌러서 들어가세요/);
     assert.match(result, /https:\/\/habitschool\.web\.app\/simple\//);
-    assert.match(result, /식단 운동 수면 마음 기록/);
-    assert.match(result, /챗봇/);
-    assert.match(result, /!오늘 !내습관 !주간 !공유/);
+    assert.match(result, /2\. 구글 로그인을 하세요/);
+    assert.match(result, /3\. 맨 아래 해빛스쿨 앱 설치를 누르세요/);
+    assert.match(result, /4\. 매일의 식단 운동 마음을 기록하세요/);
+    assert.match(result, /챗봇에서 바로 써보세요/);
+    assert.match(result, /!오늘 - 오늘 기록 요약/);
+    assert.match(result, /!내습관 - 내 기록 보기/);
+    assert.match(result, /!주간 - 주간 리포트/);
+    assert.match(result, /!공유 - 인증 카드 만들기/);
     assert.doesNotMatch(result, /!연결/);
 });
 

@@ -164,3 +164,87 @@ test('kakao help commands return immediately without habit logging or Gemini ses
     assert.equal(guideCalls, 1);
     assert.equal(appCardCalls, 1);
 });
+
+test('kakao freeform prompt treats the user as a Habits School student', async () => {
+    let capturedPrompt = null;
+
+    const { createKakaoRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'kakao.js'),
+        {
+            '../utils/kakaoTemplate': {
+                buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
+                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
+                buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/guide': { handleGuide: async () => 'GUIDE' },
+            '../commands/register': { handleRegister: async () => 'REGISTER' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            }
+        }
+    );
+
+    const router = createKakaoRouter({
+        db: {},
+        getChatSession() {
+            return {
+                async sendMessage(prompt) {
+                    capturedPrompt = Array.isArray(prompt) ? prompt[0] : prompt;
+                    return {
+                        response: {
+                            text: () => 'AI'
+                        }
+                    };
+                }
+            };
+        },
+        checkAndLogHabits: async () => {},
+        isAllowedImageUrl: () => true
+    });
+
+    const response = await postJsonToRouter(router, {
+        userRequest: {
+            utterance: '!안녕하세요',
+            user: {
+                id: 'kakao-user-1',
+                properties: {
+                    nickname: '최석재 코치'
+                }
+            }
+        }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.template.outputs[0].simpleText.text, 'AI');
+    assert.match(capturedPrompt, /해빛스쿨 학생/);
+    assert.match(capturedPrompt, /'최석재님'/);
+    assert.match(capturedPrompt, /절대 '최석재 코치님', '코치님', '선생님'이라고 부르지 마세요/);
+    assert.doesNotMatch(capturedPrompt, /이름을 부를 때는 '최석재 코치님'/);
+});

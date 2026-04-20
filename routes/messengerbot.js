@@ -5,6 +5,7 @@
 const { Router } = require('express');
 
 const { apiKeyAuth } = require('../utils/apiKeyAuth');
+const { buildStudentAddressPrompt } = require('../utils/addressing');
 const { createChatIdentity } = require('../utils/chatIdentity');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
@@ -215,8 +216,9 @@ ${parts.join('\n')}
                 console.warn('[MessengerBot] Failed to inject app data context:', error.message);
             }
 
-            const prompt = `[현재 대화 사용자 이름: ${getDisplayName(user)}]
-이름은 '${getDisplayName(user)}'이라고 자연스럽게 불러 주세요.${appDataContext}
+            const displayName = getDisplayName(user);
+            const prompt = `[현재 대화 사용자 이름: ${displayName}]
+${buildStudentAddressPrompt(displayName)}${appDataContext}
 
 사용자 메시지: ${trimmed}`;
 
