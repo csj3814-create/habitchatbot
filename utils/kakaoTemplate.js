@@ -97,31 +97,37 @@ function buildKakaoResponse(text) {
     };
 }
 
-function buildKakaoShareCardResponse({ title, description, imageUrl, webLinkUrl }) {
+function buildKakaoShareCardResponse({ title, description, imageUrl, inviteUrl, webLinkUrl, shareCode }) {
+    const shareLink = inviteUrl || webLinkUrl || 'https://habitschool.web.app/';
+    const inviteText = truncateForKakao(
+        `공유 카드가 준비됐어요 🌞
+${description || '오늘의 해빛 흐름을 카드로 정리했어요.'}
+
+같이 시작할 분께 아래 링크를 보내 보세요.
+${shareLink}
+${shareCode ? `링크로 들어오면 ${shareCode} 코드가 함께 적용돼요.` : ''}`
+    );
+
     return {
         version: '2.0',
         template: {
             outputs: [
                 {
-                    basicCard: {
-                        title: title || '내 해빛 공유 카드',
-                        description: description || '오늘의 기록을 카드로 정리했어요.',
-                        thumbnail: {
-                            imageUrl
-                        },
-                        buttons: [
-                            {
-                                action: 'webLink',
-                                label: '앱에서 보기',
-                                webLinkUrl: webLinkUrl || 'https://habitschool.web.app/#gallery'
-                            }
-                        ]
+                    simpleImage: {
+                        imageUrl,
+                        altText: title || '내 해빛 공유 카드'
+                    }
+                },
+                {
+                    simpleText: {
+                        text: inviteText
                     }
                 }
             ],
             quickReplies: [
                 { label: '내습관 보기', action: 'message', messageText: '!내습관' },
-                { label: '주간 리포트', action: 'message', messageText: '!주간' }
+                { label: '주간 리포트', action: 'message', messageText: '!주간' },
+                { label: '내코드', action: 'message', messageText: '!내코드' }
             ]
         }
     };

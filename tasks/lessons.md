@@ -95,3 +95,23 @@
 ### Kakao BasicCard changes must be checked against schema-required fields
 - Mistake: I accepted a frontend/app-side explanation for `!연결` failure without re-checking the chatbot's final Kakao payload shape, and the direct cause was a chatbot `basicCard` missing `thumbnail.imageUrl`.
 - Rule: Whenever a Kakao response uses `basicCard`, verify required schema fields in the builder itself and add tests that assert those fields are present so console-only failures do not slip through.
+
+### School-role products need explicit role-safe honorific rules
+- Mistake: I let the AI prompt say users may call the assistant `코치님` without also forbidding the reverse, and the model started calling students `OOO 코치님`.
+- Rule: In products with named roles like school/coach/classroom, explicitly pin both sides of the relationship. State who the assistant is, who the user is, and which honorifics are forbidden so the model never mirrors the assistant's title back onto the user.
+
+### First-time onboarding help should prefer ordered steps over compressed summaries
+- Mistake: I optimized `!도움말` for brevity, but new users could not easily tell how to join and start participating.
+- Rule: When a help command is meant to start product participation, lead with a numbered click-by-click flow such as entry link -> login -> install -> first record. Keep shortcut summaries for secondary commands like `!앱`, not the main onboarding help.
+
+### Social share flows need direct image delivery and bundled typography
+- Mistake: I treated `!공유` like a thumbnail link card and relied on runtime font availability, which led to weak Kakao delivery and broken Korean text on the generated image.
+- Rule: For chat share features, send the image itself first when the platform supports it, then follow with the invite CTA/link. For generated Korean visuals, bundle a known font in the repo and render text from that asset instead of assuming the server OS font stack will work.
+
+### Square source thumbnails should stay square in social share cards
+- Mistake: I redesigned the `!공유` card around wide media slots even though the underlying habit thumbnails are produced as 1:1 assets, which made the card feel cropped and less intentional.
+- Rule: When a source media pipeline already emits square thumbnails, default the share layout to square frames too. Remove redundant explanatory header copy before sacrificing the native aspect ratio of the actual content.
+
+### Revised preview images should use a fresh filename when the client may cache local media
+- Mistake: I reused `share-card-preview.png` after changing the renderer, which made it easy for the chat client to keep showing an older cached preview and created confusion about whether the design actually changed.
+- Rule: When showing before/after image revisions in the desktop app, write the new render to a uniquely named file and share that exact path so the visible preview cannot be a stale cache hit.

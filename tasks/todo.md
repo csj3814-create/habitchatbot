@@ -363,3 +363,59 @@
 - Extended `test/kakao-template.test.js` to assert thumbnail presence for both the app card and connect card so the regression is caught locally.
 - Verification passed: `node --check utils/kakaoTemplate.js`, `node --check test/kakao-template.test.js`, `node --test test/kakao-template.test.js`, `npm test`.
 
+# 2026-04-15 Student Honorific Fix
+> Status: Completed
+
+## Tasks
+- [x] Find where AI replies are being primed to call the user `코치님`
+- [x] Change the prompt so Habits School users are treated as students and addressed as `이름+님` by default
+- [x] Add a small regression test and run verification
+
+## Review
+- Found two priming points that could push the model toward the wrong honorific: `utils/gemini.js` said users may call the bot `코치님` without forbidding the reverse, and both AI routes only said to call the user by name "naturally."
+- Added `utils/addressing.js` so Kakao and MessengerBot now treat the user as a Habits School student, default to `이름+님`, and explicitly forbid `코치님` / `선생님`. The helper also strips trailing `코치`-style titles from the name before building the AI prompt.
+- Updated `utils/gemini.js` so the system instruction explicitly says the user is a student and replaced the default starter history that previously used `안녕 코치님!`.
+- Verification passed: `node --check utils/addressing.js`, `node --check utils/gemini.js`, `node --check routes/kakao.js`, `node --check routes/messengerbot.js`, `node --test test/addressing.test.js`, `npm test`.
+
+# 2026-04-20 Step-by-Step Help Flow
+> Status: Completed
+
+## Tasks
+- [x] Review the current `!도움말` copy and identify why the participation flow is unclear
+- [x] Rewrite `!도움말` as a numbered onboarding flow with link, login, install, and first-record steps
+- [x] Update tests and re-run verification
+
+## Review
+- Rewrote `commands/guide.js` so `!도움말` now guides first-time participation in four explicit steps: entry link, Google login, app install, and daily habit recording.
+- Kept `!앱` as the shorter summary command so the main onboarding help and the quick app pointer now serve different roles.
+- Updated `test/commands.test.js` to lock in the new numbered onboarding copy and verified with `node --check commands/guide.js`, `node --check test/commands.test.js`, `node --test test/commands.test.js`, and `npm test`.
+
+# 2026-04-21 Share Card Delivery And Design Fix
+> Status: Completed
+
+## Tasks
+- [x] Inspect the current `!공유` response flow, image renderer, and app invite-link sources
+- [x] Change `!공유` so Kakao shows the image first and follows with a natural invite link containing the caller's share code
+- [x] Bundle a reliable Korean font and fix the share card text rendering
+- [x] Redesign the share card layout for a cleaner poster-style result
+- [x] Update tests, render a sample card, and verify the final response shape
+
+## Review
+- Added `utils/appLinks.js` and extended the share payload so `!공유` now carries the caller's own `?ref=` invite link and share code instead of only sending a gallery link.
+- Reworked `utils/kakaoTemplate.js` so the Kakao share response now sends the generated card as a `simpleImage` first, then follows with a natural invite message containing the caller's share link. `routes/messengerbot.js` share formatting now includes the same invite link in text.
+- Rebuilt `utils/shareCardRenderer.js` around bundled official Noto CJK Korean fonts and `fontkit` path rendering so Korean text no longer depends on server OS fonts. The card layout was refreshed into a cleaner poster-style composition with clearer header, stat pills, media grid, and quote panel.
+- Updated share-related tests in `test/commands.test.js`, `test/kakao-template.test.js`, and added `test/share-card-renderer.test.js`. Verified with `node --check utils/appLinks.js`, `node --check commands/share.js`, `node --check utils/kakaoTemplate.js`, `node --check utils/shareCardRenderer.js`, `node --check modules/appFirebase.js`, `node --check routes/messengerbot.js`, and `npm test`.
+
+# 2026-04-21 Share Card Square Thumbnail Follow-up
+> Status: Completed
+
+## Tasks
+- [x] Remove the verbose subtitle line from the generated share card header
+- [x] Rework the media layout so 1, 2, 3, and 4 thumbnails all render in square frames
+- [x] Re-render and verify the updated share card output
+
+## Review
+- Removed the header subtitle from `utils/shareCardRenderer.js` so the card leads with the title, stat pills, and media only.
+- Reworked the media panel into square-first layouts: one large square, two side-by-side squares, one large plus two stacked small squares, and a centered 2x2 square grid.
+- Verification passed with `node --check utils/shareCardRenderer.js`, `node --test test/share-card-renderer.test.js`, and `npm test`.
+

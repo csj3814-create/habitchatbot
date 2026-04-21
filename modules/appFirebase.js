@@ -6,6 +6,7 @@ const admin = require('firebase-admin');
 const crypto = require('node:crypto');
 
 const { hasDiet, hasExercise, hasMind } = require('./statsHelpers');
+const { buildHabitsSchoolInviteUrl, getHabitsSchoolGalleryUrl } = require('../utils/appLinks');
 
 const DEFAULT_SHARE_SETTINGS = {
     hideIdentity: false,
@@ -18,8 +19,6 @@ const DEFAULT_SHARE_SETTINGS = {
 
 const SHARE_CARD_TOKEN_TTL_MS = 5 * 60 * 1000;
 const MAX_SHARE_MEDIA_COUNT = 4;
-const DEFAULT_APP_GALLERY_URL = 'https://habitschool.web.app/#gallery';
-
 let appDb = null;
 
 function getHabitsSchoolApp() {
@@ -98,7 +97,7 @@ function formatShareDate(dateStr) {
 }
 
 function getAppGalleryUrl() {
-    return process.env.HABITSCHOOL_APP_URL || DEFAULT_APP_GALLERY_URL;
+    return getHabitsSchoolGalleryUrl();
 }
 
 function getShareDisplayName(userProfile, fallback = '해빛 학생') {
@@ -274,6 +273,8 @@ function buildShareCardPayloadFromRecord(googleUid, record, userProfile) {
         gratitudeText: settings.hideMind ? '' : getMindJournal(mergedRecord),
         meditationDone: !settings.hideMind && mergedRecord?.sleepAndMind?.meditationDone === true,
         currentStreak: streak,
+        referralCode: trimText(userProfile?.referralCode),
+        inviteUrl: trimText(userProfile?.referralCode) ? buildHabitsSchoolInviteUrl(userProfile.referralCode) : '',
         appUrl: getAppGalleryUrl()
     };
 }

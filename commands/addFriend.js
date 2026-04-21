@@ -7,11 +7,10 @@
 const admin = require('firebase-admin');
 const { initAppFirebase } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
+const { buildHabitsSchoolInviteUrl } = require('../utils/appLinks');
 
 const CODE_REGEX = /^[A-Z0-9]{6}$/i;
 const FRIEND_REQUEST_TTL_DAYS = 3;
-const DEFAULT_APP_URL = 'https://habitschool.web.app';
-
 function getUserLabel(userData, fallback = '친구') {
     return userData?.customDisplayName || userData?.displayName || fallback;
 }
@@ -21,15 +20,7 @@ function buildFriendshipId(uidA, uidB) {
 }
 
 function buildInviteUrl(referralCode) {
-    const baseUrl = process.env.HABITSCHOOL_APP_URL || DEFAULT_APP_URL;
-
-    try {
-        const url = new URL(baseUrl);
-        url.searchParams.set('ref', referralCode);
-        return url.toString();
-    } catch (_) {
-        return `${DEFAULT_APP_URL}/?ref=${encodeURIComponent(referralCode)}`;
-    }
+    return buildHabitsSchoolInviteUrl(referralCode);
 }
 
 function buildLinkFirstMessage(displayName) {

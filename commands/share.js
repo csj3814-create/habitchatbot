@@ -38,7 +38,10 @@ async function handleShare(user) {
         title: '내 해빛 공유 카드',
         description: description.length > 80 ? `${description.slice(0, 79).trimEnd()}…` : description,
         imageUrl: buildShareImageUrl(token),
-        webLinkUrl: payload.appUrl,
+        inviteUrl: payload.inviteUrl || payload.appUrl,
+        webLinkUrl: payload.inviteUrl || payload.appUrl,
+        shareCode: payload.referralCode || '',
+        galleryUrl: payload.appUrl,
         payload
     };
 }

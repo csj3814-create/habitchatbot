@@ -39,7 +39,8 @@ function formatShareReply(result) {
 ${result.description}
 
 이미지: ${result.imageUrl}
-앱에서 보기: ${result.webLinkUrl}`;
+같이 시작하는 링크: ${result.inviteUrl}
+${result.shareCode ? `링크로 들어오면 ${result.shareCode} 코드가 함께 적용돼요.` : ''}`;
 }
 
 function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {

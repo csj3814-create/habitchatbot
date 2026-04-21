@@ -359,7 +359,9 @@ test('handleShare returns a share-card payload with a tokenized image URL', asyn
             '../modules/appFirebase': {
                 getShareCardPayload: async () => ({
                     subtitle: '오늘의 해빛 요약을 카드로 정리했어요.',
-                    appUrl: 'https://habitschool.web.app/#gallery'
+                    appUrl: 'https://habitschool.web.app/#gallery',
+                    inviteUrl: 'https://habitschool.web.app/?ref=ABC123',
+                    referralCode: 'ABC123'
                 }),
                 createShareCardToken: async ({ googleUid, kakaoUserKey }) => {
                     assert.equal(googleUid, 'app-user-1');
@@ -374,7 +376,10 @@ test('handleShare returns a share-card payload with a tokenized image URL', asyn
 
     assert.equal(result.type, 'share-card');
     assert.equal(result.imageUrl, 'https://habitchatbot.example.com/api/share-card/share-token-1.png');
-    assert.equal(result.webLinkUrl, 'https://habitschool.web.app/#gallery');
+    assert.equal(result.inviteUrl, 'https://habitschool.web.app/?ref=ABC123');
+    assert.equal(result.shareCode, 'ABC123');
+    assert.equal(result.webLinkUrl, 'https://habitschool.web.app/?ref=ABC123');
+    assert.equal(result.galleryUrl, 'https://habitschool.web.app/#gallery');
 });
 
 test('handleConnect returns a deep-link card for an unlinked user', async () => {

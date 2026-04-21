@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const {
     buildKakaoGuideResponse,
     buildKakaoAppCardResponse,
-    buildKakaoConnectCardResponse
+    buildKakaoConnectCardResponse,
+    buildKakaoShareCardResponse
 } = require('../utils/kakaoTemplate');
 
 test('buildKakaoGuideResponse adds action-first quick replies', () => {
@@ -72,5 +73,27 @@ test('buildKakaoConnectCardResponse includes a public thumbnail image', () => {
     assert.deepEqual(
         card.buttons.map((button) => button.webLinkUrl),
         ['https://habitschool.web.app/connect']
+    );
+});
+
+test('buildKakaoShareCardResponse sends the image first and follows with an invite link', () => {
+    const result = buildKakaoShareCardResponse({
+        title: '내 해빛 공유 카드',
+        description: '오늘의 해빛 흐름을 카드로 정리했어요.',
+        imageUrl: 'https://habitchatbot.example.com/api/share-card/share-token-1.png',
+        inviteUrl: 'https://habitschool.web.app/?ref=ABC123',
+        shareCode: 'ABC123'
+    });
+
+    assert.equal(
+        result.template.outputs[0].simpleImage.imageUrl,
+        'https://habitchatbot.example.com/api/share-card/share-token-1.png'
+    );
+    assert.equal(result.template.outputs[0].simpleImage.altText, '내 해빛 공유 카드');
+    assert.match(result.template.outputs[1].simpleText.text, /https:\/\/habitschool\.web\.app\/\?ref=ABC123/);
+    assert.match(result.template.outputs[1].simpleText.text, /ABC123 코드가 함께 적용돼요/);
+    assert.deepEqual(
+        result.template.quickReplies.map((item) => item.messageText),
+        ['!내습관', '!주간', '!내코드']
     );
 });
