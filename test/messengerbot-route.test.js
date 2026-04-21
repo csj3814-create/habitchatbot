@@ -242,3 +242,90 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
     assert.match(capturedPrompt, /절대 '최석재 코치님', '코치님', '선생님'이라고 부르지 마세요/);
     assert.doesNotMatch(capturedPrompt, /이름을 부를 때는 '최석재 코치님'/);
 });
+
+test('messengerbot share command returns an image-first reply with follow-up invite text', async () => {
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        {
+            '../utils/apiKeyAuth': {
+                apiKeyAuth: (req, res, next) => next()
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender, room }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender,
+                    room
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/guide': {
+                handleGuide: async () => 'GUIDE',
+                handleApp: async () => 'APP'
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            },
+            '../commands/share': {
+                handleShare: async () => ({
+                    type: 'share-card',
+                    imageUrl: 'https://habitchatbot.onrender.com/api/share-card/token.png',
+                    inviteUrl: 'https://habitschool.web.app/?ref=ABC123',
+                    webLinkUrl: 'https://habitschool.web.app/?ref=ABC123',
+                    shareCode: 'ABC123'
+                })
+            },
+            '../modules/appFirebase': {
+                getUserRecords: async () => []
+            },
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasMind: () => false
+            }
+        }
+    );
+
+    const router = createMessengerbotRouter({
+        db: {
+            ref() {
+                throw new Error('db.ref should not be called for share command');
+            }
+        },
+        getChatSession() {
+            throw new Error('getChatSession should not be called for share command');
+        },
+        checkAndLogHabits: async () => {}
+    });
+
+    const response = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!공유',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.reply, 'https://habitchatbot.onrender.com/api/share-card/token.png');
+    assert.deepEqual(response.json.followups, [
+        '같이 시작하는 링크예요.\nhttps://habitschool.web.app/?ref=ABC123\n링크로 들어오면 ABC123 코드가 함께 적용돼요.'
+    ]);
+});

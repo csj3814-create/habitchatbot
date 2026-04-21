@@ -58,7 +58,10 @@ function loadMessengerbotScript() {
                                     body() {
                                         return {
                                             text() {
-                                                return JSON.stringify({ reply: 'SERVER_REPLY' });
+                                                return JSON.stringify({
+                                                    reply: 'SERVER_REPLY',
+                                                    followups: ['FOLLOWUP_REPLY']
+                                                });
                                             }
                                         };
                                     }
@@ -129,7 +132,7 @@ test('messengerbot script forwards open-chat bot scheduled !오늘 posts to the 
         sender: '오픈채팅봇',
         isGroupChat: false
     });
-    assert.deepEqual(replies, ['SERVER_REPLY']);
+    assert.deepEqual(replies, ['SERVER_REPLY', 'FOLLOWUP_REPLY']);
 });
 
 test('messengerbot script ignores non-command open-chat bot announcements that are not welcome messages', () => {
@@ -146,4 +149,19 @@ test('messengerbot script ignores non-command open-chat bot announcements that a
 
     assert.equal(requests.length, 0);
     assert.equal(replies.length, 0);
+});
+
+test('messengerbot script sends follow-up replies after the primary reply when the server returns them', () => {
+    const { response } = loadMessengerbotScript();
+    const { replier, replies } = createReplier();
+
+    response(
+        '최석재',
+        '!공유',
+        '테스트 사용자',
+        false,
+        replier
+    );
+
+    assert.deepEqual(replies, ['SERVER_REPLY', 'FOLLOWUP_REPLY']);
 });

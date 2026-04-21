@@ -119,3 +119,7 @@
 ### Share images and share CTAs should not compete in the same first Kakao bubble
 - Mistake: I initially bundled the `!공유` image and invite copy into one Kakao response, which made the first impression feel busy even after the image design itself improved.
 - Rule: For Kakao share flows, let the first bot response be media-only when the goal is visual sharing. Send referral or app CTA text as a separate follow-up callback message so the shared image lands cleanly first.
+
+### MessengerBot open-chat delivery has different constraints from Kakao skill delivery
+- Mistake: I fixed the Kakao skill path for `!공유` first, but I did not re-check that the live open-chat room was actually using the MessengerBot webhook path, which still serialized everything into one text bubble.
+- Rule: When a bot behavior is reported from the actual Kakao room, verify the transport first. If the room is powered by MessengerBot, shape the server response for MessengerBot's text-only relay constraints and update the local phone script when multi-message behavior is needed.

@@ -127,6 +127,18 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
             replier.reply(responseJson.reply);
         }
 
+        if (responseJson && responseJson.followups && responseJson.followups.length) {
+            for (var index = 0; index < responseJson.followups.length; index++) {
+                var followup = responseJson.followups[index];
+                if (!followup) {
+                    continue;
+                }
+
+                java.lang.Thread.sleep(150);
+                replier.reply(followup);
+            }
+        }
+
     } catch (e) {
         Log.e("서버 통신 에러: " + e.message);
         // 타임아웃 등 에러 시 사용자에게 알림

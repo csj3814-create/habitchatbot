@@ -432,3 +432,16 @@
 - Updated `routes/kakao.js` so `!공유` uses `callbackUrl` when available: the first response sends only the `simpleImage`, then a short follow-up callback sends the invite link text.
 - Added coverage in `test/kakao-template.test.js` and `test/kakao-route.test.js` to lock in the two-step delivery shape. Verified with `node --check utils/kakaoTemplate.js`, `node --check routes/kakao.js`, `node --test test/kakao-template.test.js test/kakao-route.test.js`, and `npm test`.
 
+# 2026-04-21 MessengerBot Share Message Split
+> Status: Completed
+
+## Tasks
+- [x] Confirm why `!공유` in the open chat still arrives as plain text instead of an image-first flow
+- [x] Change the MessengerBot webhook/script flow so the first bot message is only the share image URL and the invite copy is sent as a follow-up message
+- [x] Add route/script regression tests and re-run verification
+
+## Review
+- Found that `routes/messengerbot.js` still flattened `!공유` into one long text reply, while `messengerbot_script.js` only sent a single `replier.reply(...)` message.
+- Updated the MessengerBot route to return `reply + followups`, with the first reply set to the bare share image URL and the second message containing the invite link/share-code copy.
+- Updated `messengerbot_script.js` to send follow-up messages after the primary reply, and added regression coverage in `test/messengerbot-route.test.js` and `test/messengerbot-script.test.js`. Verified with `node --check routes/messengerbot.js`, `node --test test/messengerbot-route.test.js test/messengerbot-script.test.js`, and `npm test`.
+

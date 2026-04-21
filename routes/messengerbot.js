@@ -30,17 +30,24 @@ function normalizeCommand(rawMessage) {
     return { trimmed, command, args };
 }
 
-function formatShareReply(result) {
+function formatShareReplies(result) {
     if (result.type !== 'share-card') {
-        return result.text;
+        return [result.text];
     }
 
-    return `공유 카드를 만들었어요.
-${result.description}
+    const inviteLines = [
+        '같이 시작하는 링크예요.',
+        result.inviteUrl || result.webLinkUrl
+    ];
 
-이미지: ${result.imageUrl}
-같이 시작하는 링크: ${result.inviteUrl}
-${result.shareCode ? `링크로 들어오면 ${result.shareCode} 코드가 함께 적용돼요.` : ''}`;
+    if (result.shareCode) {
+        inviteLines.push(`링크로 들어오면 ${result.shareCode} 코드가 함께 적용돼요.`);
+    }
+
+    return [
+        result.imageUrl,
+        inviteLines.filter(Boolean).join('\n')
+    ];
 }
 
 function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
@@ -102,7 +109,11 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             }
 
             if (command === '공유' || command === '인증공유') {
-                return res.json({ reply: formatShareReply(await handleShare(user)) });
+                const replies = formatShareReplies(await handleShare(user));
+                return res.json({
+                    reply: replies[0] || '',
+                    followups: replies.slice(1)
+                });
             }
 
             if (command === '안내' || command === '시작' || command === '가이드') {
