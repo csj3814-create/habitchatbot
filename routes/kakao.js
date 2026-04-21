@@ -10,6 +10,8 @@ const {
     buildKakaoResponse,
     buildKakaoGuideResponse,
     buildKakaoAppCardResponse,
+    buildKakaoShareImageResponse,
+    buildKakaoShareInviteResponse,
     buildKakaoShareCardResponse,
     buildKakaoConnectCardResponse
 } = require('../utils/kakaoTemplate');
@@ -51,6 +53,10 @@ function cmdResponse(text) {
             quickReplies: [{ label: '내습관 보기', action: 'message', messageText: '!내습관' }]
         }
     };
+}
+
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }) {
@@ -130,6 +136,25 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         if (actualQuestion === '공유' || actualQuestion === '인증공유') {
             const result = await handleShare(user);
             if (result.type === 'share-card') {
+                if (callbackUrl) {
+                    res.status(200).json({
+                        ...buildKakaoShareImageResponse(result),
+                        useCallback: true
+                    });
+
+                    (async () => {
+                        try {
+                            // Let the image bubble land first, then follow with the invite link.
+                            await delay(200);
+                            await axios.post(callbackUrl, buildKakaoShareInviteResponse(result), { timeout: 5000 });
+                        } catch (error) {
+                            console.error('Error sending Kakao share callback:', error);
+                        }
+                    })();
+
+                    return undefined;
+                }
+
                 return res.status(200).json(buildKakaoShareCardResponse(result));
             }
             return res.status(200).json(cmdResponse(result.text));

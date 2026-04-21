@@ -5,6 +5,8 @@ const {
     buildKakaoGuideResponse,
     buildKakaoAppCardResponse,
     buildKakaoConnectCardResponse,
+    buildKakaoShareImageResponse,
+    buildKakaoShareInviteResponse,
     buildKakaoShareCardResponse
 } = require('../utils/kakaoTemplate');
 
@@ -92,6 +94,38 @@ test('buildKakaoShareCardResponse sends the image first and follows with an invi
     assert.equal(result.template.outputs[0].simpleImage.altText, '내 해빛 공유 카드');
     assert.match(result.template.outputs[1].simpleText.text, /https:\/\/habitschool\.web\.app\/\?ref=ABC123/);
     assert.match(result.template.outputs[1].simpleText.text, /ABC123 코드가 함께 적용돼요/);
+    assert.deepEqual(
+        result.template.quickReplies.map((item) => item.messageText),
+        ['!내습관', '!주간', '!내코드']
+    );
+});
+
+test('buildKakaoShareImageResponse keeps the first Kakao message image-only', () => {
+    const result = buildKakaoShareImageResponse({
+        title: '내 해빛 공유 카드',
+        imageUrl: 'https://habitchatbot.example.com/api/share-card/share-token-1.png'
+    });
+
+    assert.equal(result.template.outputs.length, 1);
+    assert.equal(
+        result.template.outputs[0].simpleImage.imageUrl,
+        'https://habitchatbot.example.com/api/share-card/share-token-1.png'
+    );
+    assert.equal(result.template.outputs[0].simpleImage.altText, '내 해빛 공유 카드');
+    assert.equal(result.template.quickReplies, undefined);
+});
+
+test('buildKakaoShareInviteResponse sends the invite link as a separate follow-up message', () => {
+    const result = buildKakaoShareInviteResponse({
+        description: '오늘의 해빛 흐름을 카드로 정리했어요.',
+        inviteUrl: 'https://habitschool.web.app/?ref=ABC123',
+        shareCode: 'ABC123'
+    });
+
+    assert.equal(result.template.outputs.length, 1);
+    assert.match(result.template.outputs[0].simpleText.text, /같이 시작하는 링크예요/);
+    assert.match(result.template.outputs[0].simpleText.text, /https:\/\/habitschool\.web\.app\/\?ref=ABC123/);
+    assert.match(result.template.outputs[0].simpleText.text, /ABC123 코드가 함께 적용돼요/);
     assert.deepEqual(
         result.template.quickReplies.map((item) => item.messageText),
         ['!내습관', '!주간', '!내코드']

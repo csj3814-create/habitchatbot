@@ -419,3 +419,16 @@
 - Reworked the media panel into square-first layouts: one large square, two side-by-side squares, one large plus two stacked small squares, and a centered 2x2 square grid.
 - Verification passed with `node --check utils/shareCardRenderer.js`, `node --test test/share-card-renderer.test.js`, and `npm test`.
 
+# 2026-04-21 Kakao Share Message Split
+> Status: Completed
+
+## Tasks
+- [x] Re-check how `!공유` is currently delivered in Kakao and whether image/link can be split
+- [x] Change Kakao share flow so the first bot reply is image-only and the invite link is sent as a follow-up callback message
+- [x] Add regression coverage for the split Kakao share flow and re-run verification
+
+## Review
+- Split the Kakao share builders in `utils/kakaoTemplate.js` into image-only and invite-only responses, while preserving the combined builder as a fallback path.
+- Updated `routes/kakao.js` so `!공유` uses `callbackUrl` when available: the first response sends only the `simpleImage`, then a short follow-up callback sends the invite link text.
+- Added coverage in `test/kakao-template.test.js` and `test/kakao-route.test.js` to lock in the two-step delivery shape. Verified with `node --check utils/kakaoTemplate.js`, `node --check routes/kakao.js`, `node --test test/kakao-template.test.js test/kakao-route.test.js`, and `npm test`.
+

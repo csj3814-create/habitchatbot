@@ -248,3 +248,103 @@ test('kakao freeform prompt treats the user as a Habits School student', async (
     assert.match(capturedPrompt, /절대 '최석재 코치님', '코치님', '선생님'이라고 부르지 마세요/);
     assert.doesNotMatch(capturedPrompt, /이름을 부를 때는 '최석재 코치님'/);
 });
+
+test('kakao share command sends the image first and follows with an invite callback', async () => {
+    const callbackPosts = [];
+
+    const { createKakaoRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'kakao.js'),
+        {
+            'axios': {
+                post: async (url, payload) => {
+                    callbackPosts.push({ url, payload });
+                    return { status: 200 };
+                }
+            },
+            '../utils/kakaoTemplate': {
+                buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
+                buildKakaoShareImageResponse: () => ({
+                    version: '2.0',
+                    template: {
+                        outputs: [{ simpleImage: { imageUrl: 'https://image.example/share.png', altText: 'CARD' } }]
+                    }
+                }),
+                buildKakaoShareInviteResponse: () => ({
+                    version: '2.0',
+                    template: {
+                        outputs: [{ simpleText: { text: 'INVITE_LINK' } }]
+                    }
+                }),
+                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SYNC_SHARE' } }] } }),
+                buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/guide': { handleGuide: async () => 'GUIDE' },
+            '../commands/register': { handleRegister: async () => 'REGISTER' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'share-card', imageUrl: 'https://image.example/share.png' })
+            }
+        }
+    );
+
+    const router = createKakaoRouter({
+        db: {},
+        getChatSession() {
+            throw new Error('getChatSession should not be called for share command');
+        },
+        checkAndLogHabits: async () => {
+            throw new Error('checkAndLogHabits should not be called for share command');
+        },
+        isAllowedImageUrl: () => true
+    });
+
+    const response = await postJsonToRouter(router, {
+        userRequest: {
+            utterance: '!공유',
+            callbackUrl: 'https://callback.example.com/reply',
+            user: {
+                id: 'kakao-user-1',
+                properties: {
+                    nickname: '테스트 사용자'
+                }
+            }
+        }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.useCallback, true);
+    assert.equal(response.json.template.outputs.length, 1);
+    assert.equal(response.json.template.outputs[0].simpleImage.imageUrl, 'https://image.example/share.png');
+
+    await new Promise((resolve) => setTimeout(resolve, 260));
+
+    assert.equal(callbackPosts.length, 1);
+    assert.equal(callbackPosts[0].url, 'https://callback.example.com/reply');
+    assert.equal(callbackPosts[0].payload.template.outputs[0].simpleText.text, 'INVITE_LINK');
+});

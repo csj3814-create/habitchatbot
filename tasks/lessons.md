@@ -115,3 +115,7 @@
 ### Revised preview images should use a fresh filename when the client may cache local media
 - Mistake: I reused `share-card-preview.png` after changing the renderer, which made it easy for the chat client to keep showing an older cached preview and created confusion about whether the design actually changed.
 - Rule: When showing before/after image revisions in the desktop app, write the new render to a uniquely named file and share that exact path so the visible preview cannot be a stale cache hit.
+
+### Share images and share CTAs should not compete in the same first Kakao bubble
+- Mistake: I initially bundled the `!공유` image and invite copy into one Kakao response, which made the first impression feel busy even after the image design itself improved.
+- Rule: For Kakao share flows, let the first bot response be media-only when the goal is visual sharing. Send referral or app CTA text as a separate follow-up callback message so the shared image lands cleanly first.
