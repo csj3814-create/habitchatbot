@@ -9,6 +9,7 @@
  *
  * [v2 업데이트] 해빛스쿨 앱 연동 명령어 추가
  * !오늘, !내습관, !주간, !우리반, !등록, !도움말, !랭킹, !안내
+ * 예약 집계: !지난주베스트, !지난달베스트
  *
  * [v4 업데이트] 신규 멤버 온보딩
  * 오픈채팅봇 환영 메세지 감지 → 10초 후 자기소개 유도 + 앱 사용방법 안내
@@ -18,7 +19,13 @@ const SERVER_URL = "https://habitchatbot.onrender.com/api/messengerbot";
 const OPEN_CHAT_BOT_NAME = "오픈채팅봇";
 const OPEN_CHAT_WELCOME_PREFIX = "식습관 운동습관 잠습관";
 const OPEN_CHAT_AUTO_COMMANDS = {
-    "오늘": true
+    "오늘": "오늘",
+    "지난주": "지난주베스트",
+    "지난주베스트": "지난주베스트",
+    "주간베스트": "지난주베스트",
+    "지난달": "지난달베스트",
+    "지난달베스트": "지난달베스트",
+    "월간베스트": "지난달베스트"
 };
 
 // ⚠️ 아래 값을 실제 단톡방 이름으로 변경하세요 (정확히 일치해야 함)
@@ -64,8 +71,9 @@ function extractCommandMessage(msg, sender) {
     var firstLine = withoutBang.split(/\r?\n/)[0].trim();
     var firstToken = firstLine.split(/\s+/)[0].trim();
 
-    if (OPEN_CHAT_AUTO_COMMANDS[firstToken]) {
-        return firstToken;
+    var autoCommand = OPEN_CHAT_AUTO_COMMANDS[firstToken];
+    if (autoCommand) {
+        return autoCommand;
     }
 
     return withoutBang;

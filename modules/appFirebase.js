@@ -439,6 +439,57 @@ async function getWeeklyStats() {
     }
 }
 
+function buildLeaderboardFromRecords(records) {
+    const userScores = {};
+
+    records.forEach((record) => {
+        const uid = record.userId;
+        if (!uid) return;
+
+        if (!userScores[uid]) {
+            userScores[uid] = {
+                uid,
+                diet: 0,
+                exercise: 0,
+                mind: 0,
+                totalRecords: 0,
+                activeDates: new Set(),
+                displayName: ''
+            };
+        }
+
+        const entry = userScores[uid];
+        const hasDietRecord = hasDiet(record);
+        const hasExerciseRecord = hasExercise(record);
+        const hasMindRecord = hasMind(record);
+
+        if (hasDietRecord) entry.diet += 1;
+        if (hasExerciseRecord) entry.exercise += 1;
+        if (hasMindRecord) entry.mind += 1;
+        if (hasDietRecord || hasExerciseRecord || hasMindRecord) {
+            entry.activeDates.add(record.date);
+        }
+
+        entry.totalRecords += 1;
+
+        if (!entry.displayName) {
+            entry.displayName = trimText(record.userName || record.displayName || record.userDisplayName);
+        }
+    });
+
+    return Object.values(userScores).map((entry) => ({
+        uid: entry.uid,
+        displayName: entry.displayName,
+        diet: entry.diet,
+        exercise: entry.exercise,
+        mind: entry.mind,
+        activeDays: entry.activeDates.size,
+        totalRecords: entry.totalRecords,
+        totalActivities: entry.diet + entry.exercise + entry.mind,
+        score: Math.round((entry.diet * 1 + entry.exercise * 1.5 + entry.mind) * 10) / 10
+    }));
+}
+
 async function getWeeklyLeaderboard() {
     const db = initAppFirebase();
     if (!db) return [];
@@ -456,31 +507,32 @@ async function getWeeklyLeaderboard() {
             .where('date', 'in', dates)
             .get();
 
-        const userScores = {};
-        snapshot.docs.forEach((doc) => {
-            const record = doc.data();
-            const uid = record.userId;
-            if (!uid) return;
-
-            if (!userScores[uid]) {
-                userScores[uid] = { diet: 0, exercise: 0, mind: 0 };
-            }
-
-            if (hasDiet(record)) userScores[uid].diet += 1;
-            if (hasExercise(record)) userScores[uid].exercise += 1;
-            if (hasMind(record)) userScores[uid].mind += 1;
-        });
-
-        return Object.entries(userScores).map(([uid, counts]) => ({
-            uid,
-            diet: counts.diet,
-            exercise: counts.exercise,
-            mind: counts.mind,
-            score: Math.round((counts.diet * 1 + counts.exercise * 1.5 + counts.mind) * 10) / 10
-        }));
+        return buildLeaderboardFromRecords(snapshot.docs.map((doc) => doc.data()));
     } catch (error) {
         console.error('[AppFirebase] Failed to load weekly leaderboard:', error.message);
         throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요.');
+    }
+}
+
+async function getLeaderboardByDateRange(startDate, endDate) {
+    const db = initAppFirebase();
+    if (!db) return [];
+
+    if (!startDate || !endDate || startDate > endDate) {
+        return [];
+    }
+
+    try {
+        const snapshot = await db.collection('daily_logs')
+            .where('date', '>=', startDate)
+            .where('date', '<=', endDate)
+            .orderBy('date', 'asc')
+            .get();
+
+        return buildLeaderboardFromRecords(snapshot.docs.map((doc) => doc.data()));
+    } catch (error) {
+        console.error(`[AppFirebase] Failed to load leaderboard (${startDate}~${endDate}):`, error.message);
+        throw new Error('앱 기록 순위를 확인하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.');
     }
 }
 
@@ -633,6 +685,7 @@ module.exports = {
     getActiveUserCount,
     getWeeklyStats,
     getWeeklyLeaderboard,
+    getLeaderboardByDateRange,
     consumeChatbotLinkCode,
     getLatestShareableRecord,
     extractShareMedia,

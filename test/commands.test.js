@@ -494,3 +494,89 @@ test('buildDirectChatOnlyMessage explains that connect commands are 1:1 only', a
     assert.match(result, /pf\.kakao\.com\/_QDZZX\/chat/);
     assert.doesNotMatch(result, /!등록/);
 });
+
+test('handleBestRecords summarizes the previous Monday-Sunday top 3', async () => {
+    const queriedRanges = [];
+    const { handleBestRecords } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'bestRecords.js'),
+        {
+            '../modules/appFirebase': {
+                getLeaderboardByDateRange: async (startDate, endDate) => {
+                    queriedRanges.push({ startDate, endDate });
+                    return [
+                        { uid: 'uid-b', displayName: '앱사용자B', diet: 5, exercise: 4, mind: 5, activeDays: 6, totalActivities: 14, score: 16 },
+                        { uid: 'uid-a', displayName: '앱사용자A', diet: 7, exercise: 5, mind: 6, activeDays: 7, totalActivities: 18, score: 20.5 },
+                        { uid: 'uid-c', displayName: '앱사용자C', diet: 4, exercise: 3, mind: 4, activeDays: 5, totalActivities: 11, score: 12.5 },
+                        { uid: 'uid-d', displayName: '앱사용자D', diet: 1, exercise: 1, mind: 1, activeDays: 1, totalActivities: 3, score: 3.5 }
+                    ];
+                }
+            },
+            '../modules/userMapping': {
+                getAllMappings: async () => ({
+                    a: { googleUid: 'uid-a', displayName: '김해빛' },
+                    b: { googleUid: 'uid-b', displayName: '이루틴' }
+                })
+            }
+        }
+    );
+
+    const result = await handleBestRecords('week', {
+        now: new Date('2026-05-25T08:00:00+09:00')
+    });
+
+    assert.deepEqual(queriedRanges, [{ startDate: '2026-05-18', endDate: '2026-05-24' }]);
+    assert.match(result, /지난 한 주 베스트 3 \(5\/18~5\/24\)/);
+    assert.match(result, /🥇 김해빛 - 20\.5점/);
+    assert.match(result, /🥈 이루틴 - 16점/);
+    assert.match(result, /🥉 앱사용자C - 12\.5점/);
+    assert.match(result, /총 4명 참여 \| 평균 13\.1점/);
+    assert.match(result, /만점 24\.5점/);
+});
+
+test('handleBestRecords summarizes the previous calendar month', async () => {
+    const queriedRanges = [];
+    const { handleBestRecords } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'bestRecords.js'),
+        {
+            '../modules/appFirebase': {
+                getLeaderboardByDateRange: async (startDate, endDate) => {
+                    queriedRanges.push({ startDate, endDate });
+                    return [
+                        { uid: 'uid-a', displayName: '월간왕', diet: 30, exercise: 28, mind: 29, activeDays: 30, totalActivities: 87, score: 101 }
+                    ];
+                }
+            },
+            '../modules/userMapping': {
+                getAllMappings: async () => ({})
+            }
+        }
+    );
+
+    const result = await handleBestRecords('month', {
+        now: new Date('2026-05-01T08:00:00+09:00')
+    });
+
+    assert.deepEqual(queriedRanges, [{ startDate: '2026-04-01', endDate: '2026-04-30' }]);
+    assert.match(result, /지난 한 달 베스트 3 \(2026년 4월\)/);
+    assert.match(result, /🥇 월간왕 - 101점/);
+    assert.match(result, /만점 105점/);
+});
+
+test('resolveBestRecordsPeriod accepts compact and spaced scheduled commands', async () => {
+    const { resolveBestRecordsPeriod } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'bestRecords.js'),
+        {
+            '../modules/appFirebase': {
+                getLeaderboardByDateRange: async () => []
+            },
+            '../modules/userMapping': {
+                getAllMappings: async () => ({})
+            }
+        }
+    );
+
+    assert.equal(resolveBestRecordsPeriod('지난주베스트'), 'week');
+    assert.equal(resolveBestRecordsPeriod('지난주 베스트'), 'week');
+    assert.equal(resolveBestRecordsPeriod('월간 베스트'), 'month');
+    assert.equal(resolveBestRecordsPeriod('오늘'), null);
+});

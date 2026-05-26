@@ -445,3 +445,25 @@
 - Updated the MessengerBot route to return `reply + followups`, with the first reply set to the bare share image URL and the second message containing the invite link/share-code copy.
 - Updated `messengerbot_script.js` to send follow-up messages after the primary reply, and added regression coverage in `test/messengerbot-route.test.js` and `test/messengerbot-script.test.js`. Verified with `node --check routes/messengerbot.js`, `node --test test/messengerbot-route.test.js test/messengerbot-script.test.js`, and `npm test`.
 
+# 2026-05-26 Scheduled Best Records
+> Status: Completed
+
+## Tasks
+- [x] Add previous-week and previous-month top-3 leaderboard aggregation from Habits School app records
+- [x] Add chat commands for scheduled posts: `!지난주베스트` and `!지난달베스트`
+- [x] Let OpenChatBot reservation messages forward those commands through MessengerBot
+- [x] Update route/script/command tests
+- [x] Document the operating schedule and verification result
+
+## Plan Notes
+- Server-side proactive Kakao room push is still out of scope for this repo. Use the existing production pattern: Kakao OpenChatBot scheduled message posts a command, MessengerBot forwards it, and this server replies with the summary.
+- Weekly post should summarize the previous Monday-Sunday range when run Monday morning.
+- Monthly post should summarize the previous calendar month when run on the 1st.
+
+## Review
+- Added `commands/bestRecords.js` for previous-week and previous-month top-3 summaries, using the same score rule as `!순위`: 식단 1 / 운동 1.5 / 마음 1.
+- Added `getLeaderboardByDateRange()` in `modules/appFirebase.js` and wired `!지난주베스트`, `!주간베스트`, `!지난달베스트`, and `!월간베스트` through Kakao and MessengerBot routes.
+- Updated `messengerbot_script.js` so OpenChatBot reservation messages can use `!지난주베스트`, `!지난주 베스트`, `!지난달베스트`, or `!월간베스트` and still send canonical commands to the server.
+- Documented the operating schedule in `README.md`: every Monday morning first line `!지난주베스트`, every 1st morning first line `!지난달베스트`.
+- Verification passed: `node --check` for changed JS files/tests and `npm test` (44 passed).
+

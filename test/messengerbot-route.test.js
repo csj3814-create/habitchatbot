@@ -329,3 +329,94 @@ test('messengerbot share command returns an image-first reply with follow-up inv
         '같이 시작하는 링크예요.\nhttps://habitschool.web.app/?ref=ABC123\n링크로 들어오면 ABC123 코드가 함께 적용돼요.'
     ]);
 });
+
+test('messengerbot routes scheduled best-record commands without Gemini', async () => {
+    let capturedPeriod = null;
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        {
+            '../utils/apiKeyAuth': {
+                apiKeyAuth: (req, res, next) => next()
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender, room }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender,
+                    room
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/bestRecords': {
+                resolveBestRecordsPeriod: (command) => (
+                    String(command).replace(/\s+/g, '') === '지난주베스트' ? 'week' : null
+                ),
+                handleBestRecords: async (period) => {
+                    capturedPeriod = period;
+                    return 'BEST_RECORDS';
+                }
+            },
+            '../commands/guide': {
+                handleGuide: async () => 'GUIDE',
+                handleApp: async () => 'APP'
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            },
+            '../modules/appFirebase': {
+                getUserRecords: async () => []
+            },
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasMind: () => false
+            }
+        }
+    );
+
+    const router = createMessengerbotRouter({
+        db: {
+            ref() {
+                throw new Error('db.ref should not be called for scheduled best commands');
+            }
+        },
+        getChatSession() {
+            throw new Error('getChatSession should not be called for scheduled best commands');
+        },
+        checkAndLogHabits: async () => {
+            throw new Error('checkAndLogHabits should not be called for scheduled best commands');
+        }
+    });
+
+    const response = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!지난주 베스트',
+        sender: '오픈채팅봇',
+        isGroupChat: false
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(capturedPeriod, 'week');
+    assert.equal(response.json.reply, 'BEST_RECORDS');
+});

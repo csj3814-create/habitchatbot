@@ -12,6 +12,7 @@ const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
 const { handleClassStatus } = require('../commands/classStatus');
 const { handleRanking } = require('../commands/ranking');
+const { handleBestRecords, resolveBestRecordsPeriod } = require('../commands/bestRecords');
 const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
@@ -130,6 +131,11 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
 
             if (command === '순위' || command === '주간순위') {
                 return res.json({ reply: await handleRanking() });
+            }
+
+            const bestRecordsPeriod = resolveBestRecordsPeriod(command);
+            if (bestRecordsPeriod) {
+                return res.json({ reply: await handleBestRecords(bestRecordsPeriod) });
             }
 
             if (command === '식단') {

@@ -23,6 +23,7 @@ const { handleClassStatus } = require('../commands/classStatus');
 const { handleGuide } = require('../commands/guide');
 const { handleRegister } = require('../commands/register');
 const { handleRanking } = require('../commands/ranking');
+const { handleBestRecords, resolveBestRecordsPeriod } = require('../commands/bestRecords');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { handleConnect } = require('../commands/connect');
@@ -119,6 +120,11 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
 
         if (actualQuestion === '순위' || actualQuestion === '주간순위') {
             return res.status(200).json(cmdResponse(await handleRanking()));
+        }
+
+        const bestRecordsPeriod = resolveBestRecordsPeriod(actualQuestion);
+        if (bestRecordsPeriod) {
+            return res.status(200).json(cmdResponse(await handleBestRecords(bestRecordsPeriod)));
         }
 
         if (actualQuestion === '식단') {

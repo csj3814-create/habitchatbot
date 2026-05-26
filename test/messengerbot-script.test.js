@@ -135,6 +135,31 @@ test('messengerbot script forwards open-chat bot scheduled !오늘 posts to the 
     assert.deepEqual(replies, ['SERVER_REPLY', 'FOLLOWUP_REPLY']);
 });
 
+test('messengerbot script forwards open-chat bot scheduled best-record posts as canonical commands', () => {
+    const { response, requests } = loadMessengerbotScript();
+    const { replier } = createReplier();
+
+    response(
+        '최석재',
+        '!지난주 베스트\n지난 한 주의 베스트 3를 발표합니다.',
+        '오픈채팅봇',
+        false,
+        replier
+    );
+
+    response(
+        '최석재',
+        '!월간베스트\n지난달 기록 성적입니다.',
+        '오픈채팅봇',
+        false,
+        replier
+    );
+
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].msg, '지난주베스트');
+    assert.equal(requests[1].msg, '지난달베스트');
+});
+
 test('messengerbot script ignores non-command open-chat bot announcements that are not welcome messages', () => {
     const { response, requests } = loadMessengerbotScript();
     const { replier, replies } = createReplier();

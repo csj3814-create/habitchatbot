@@ -348,3 +348,76 @@ test('kakao share command sends the image first and follows with an invite callb
     assert.equal(callbackPosts[0].url, 'https://callback.example.com/reply');
     assert.equal(callbackPosts[0].payload.template.outputs[0].simpleText.text, 'INVITE_LINK');
 });
+
+test('kakao routes best-record commands without habit logging or Gemini', async () => {
+    let capturedPeriod = null;
+
+    const { createKakaoRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'kakao.js'),
+        {
+            '../utils/kakaoTemplate': {
+                buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
+                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
+                buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/guide': { handleGuide: async () => 'GUIDE' },
+            '../commands/register': { handleRegister: async () => 'REGISTER' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/bestRecords': {
+                resolveBestRecordsPeriod: (command) => (
+                    String(command).replace(/\s+/g, '') === '지난달베스트' ? 'month' : null
+                ),
+                handleBestRecords: async (period) => {
+                    capturedPeriod = period;
+                    return 'BEST_RECORDS';
+                }
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            }
+        }
+    );
+
+    const router = createKakaoRouter({
+        db: {},
+        getChatSession() {
+            throw new Error('getChatSession should not be called for best-record commands');
+        },
+        checkAndLogHabits: async () => {
+            throw new Error('checkAndLogHabits should not be called for best-record commands');
+        },
+        isAllowedImageUrl: () => true
+    });
+
+    const response = await postJsonToRouter(router, buildKakaoBody('!지난달 베스트'));
+
+    assert.equal(response.status, 200);
+    assert.equal(capturedPeriod, 'month');
+    assert.equal(response.json.template.outputs[0].simpleText.text, 'BEST_RECORDS');
+});
