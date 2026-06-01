@@ -584,3 +584,109 @@ test('resolveBestRecordsPeriod accepts compact and spaced scheduled commands', a
     assert.equal(resolveBestRecordsPeriod('월간베스트\n지난달 기록 성적입니다.'), 'month');
     assert.equal(resolveBestRecordsPeriod('오늘'), null);
 });
+
+test('handleToday appends weekly best records on KST Mondays', async () => {
+    const queriedDates = [];
+    const bestCalls = [];
+    const { handleToday } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'today.js'),
+        {
+            '../modules/appFirebase': {
+                getGalleryByDate: async (dateStr) => {
+                    queriedDates.push(dateStr);
+                    return [];
+                }
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasSleep: () => false,
+                hasGratitude: () => false,
+                hasMeditation: () => false,
+                getKstDateStr: () => '2026-06-08'
+            },
+            './bestRecords': {
+                handleBestRecords: async (period, options) => {
+                    bestCalls.push({ period, now: options.now.toISOString() });
+                    return `BEST_${period}`;
+                }
+            }
+        }
+    );
+
+    const now = new Date('2026-06-08T22:30:00+09:00');
+    const result = await handleToday('테스트 사용자', { now });
+
+    assert.deepEqual(queriedDates, ['2026-06-08']);
+    assert.deepEqual(bestCalls, [{ period: 'week', now: now.toISOString() }]);
+    assert.match(result, /아직 오늘 기록이 없어요/);
+    assert.match(result, /BEST_week/);
+    assert.doesNotMatch(result, /BEST_month/);
+});
+
+test('handleToday appends monthly best records on KST first day of month', async () => {
+    const bestCalls = [];
+    const { handleToday } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'today.js'),
+        {
+            '../modules/appFirebase': {
+                getGalleryByDate: async () => []
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasSleep: () => false,
+                hasGratitude: () => false,
+                hasMeditation: () => false,
+                getKstDateStr: () => '2026-07-01'
+            },
+            './bestRecords': {
+                handleBestRecords: async (period) => {
+                    bestCalls.push(period);
+                    return `BEST_${period}`;
+                }
+            }
+        }
+    );
+
+    const result = await handleToday('테스트 사용자', {
+        now: new Date('2026-07-01T22:30:00+09:00')
+    });
+
+    assert.deepEqual(bestCalls, ['month']);
+    assert.match(result, /BEST_month/);
+    assert.doesNotMatch(result, /BEST_week/);
+});
+
+test('handleToday appends both weekly and monthly best records when KST date is Monday and the first', async () => {
+    const bestCalls = [];
+    const { handleToday } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'today.js'),
+        {
+            '../modules/appFirebase': {
+                getGalleryByDate: async () => []
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasSleep: () => false,
+                hasGratitude: () => false,
+                hasMeditation: () => false,
+                getKstDateStr: () => '2026-06-01'
+            },
+            './bestRecords': {
+                handleBestRecords: async (period) => {
+                    bestCalls.push(period);
+                    return `BEST_${period}`;
+                }
+            }
+        }
+    );
+
+    const result = await handleToday('테스트 사용자', {
+        now: new Date('2026-06-01T22:30:00+09:00')
+    });
+
+    assert.deepEqual(bestCalls, ['week', 'month']);
+    assert.match(result, /BEST_week\n\nBEST_month/);
+});

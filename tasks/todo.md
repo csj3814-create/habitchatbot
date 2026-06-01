@@ -488,3 +488,23 @@
 - Verification passed: `node --check commands/bestRecords.js test/commands.test.js test/messengerbot-route.test.js`, `node --test test/commands.test.js test/messengerbot-route.test.js test/messengerbot-script.test.js`, and `npm test`.
 - The MessengerBot phone script should still be updated in the Android app because the repo version canonicalizes `!지난주`, `!지난달`, `!주간베스트`, and `!월간베스트`; the server patch just makes the backend more forgiving.
 
+# 2026-06-01 Best Records On Today Command
+> Status: Completed
+
+## Tasks
+- [x] Reuse the existing nightly `!오늘` reservation trigger instead of adding more OpenChatBot reservation slots
+- [x] Append previous-week best records when KST today is Monday
+- [x] Append previous-month best records when KST today is the 1st
+- [x] Add tests for Monday, first-of-month, and combined Monday+1st behavior
+- [x] Re-run verification and deploy
+
+## Plan Notes
+- The phone MessengerBot script already forwards scheduled `!오늘`, so the safest change is server-side only.
+- If a date is both Monday and the 1st, the `!오늘` response should include both previous-week and previous-month summaries.
+
+## Review
+- Updated `commands/today.js` so `!오늘` appends previous-week best records on KST Mondays and previous-month best records on KST day 1.
+- If KST today is both Monday and the 1st, the response appends both summaries after the daily record summary.
+- Updated `README.md` to document that the existing nightly `!오늘` reservation is enough; no additional OpenChatBot reservation slots are needed.
+- Verification passed: `node --check commands/today.js test/commands.test.js`, `node --test test/commands.test.js`, and `npm test`.
+
