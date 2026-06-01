@@ -78,17 +78,23 @@ function getPreviousMonthRange(now = new Date()) {
 }
 
 function resolveBestRecordsPeriod(commandText) {
-    const compact = String(commandText || '')
+    const raw = String(commandText || '')
         .trim()
-        .replace(/^!/, '')
-        .replace(/\s+/g, '')
-        .toLowerCase();
+        .replace(/^!/, '');
 
-    if (['지난주베스트', '주간베스트', '지난주순위', '지난주'].includes(compact)) {
+    const firstLine = raw.split(/\r?\n/)[0].trim();
+    const firstToken = firstLine.split(/\s+/)[0].trim();
+    const candidates = [raw, firstLine, firstToken]
+        .filter(Boolean)
+        .map((value) => value.replace(/\s+/g, '').toLowerCase());
+
+    const hasCandidate = (aliases) => candidates.some((candidate) => aliases.includes(candidate));
+
+    if (hasCandidate(['지난주베스트', '주간베스트', '지난주순위', '지난주'])) {
         return 'week';
     }
 
-    if (['지난달베스트', '월간베스트', '지난달순위', '월간순위', '지난달'].includes(compact)) {
+    if (hasCandidate(['지난달베스트', '월간베스트', '지난달순위', '월간순위', '지난달'])) {
         return 'month';
     }
 

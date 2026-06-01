@@ -354,7 +354,7 @@ test('messengerbot routes scheduled best-record commands without Gemini', async 
             '../commands/ranking': { handleRanking: async () => 'RANK' },
             '../commands/bestRecords': {
                 resolveBestRecordsPeriod: (command) => (
-                    String(command).replace(/\s+/g, '') === '지난주베스트' ? 'week' : null
+                    String(command).split(/\r?\n/)[0].replace(/\s+/g, '') === '지난주베스트' ? 'week' : null
                 ),
                 handleBestRecords: async (period) => {
                     capturedPeriod = period;
@@ -411,7 +411,7 @@ test('messengerbot routes scheduled best-record commands without Gemini', async 
 
     const response = await postJsonToRouter(router, {
         room: 'open-chat',
-        msg: '!지난주 베스트',
+        msg: '!지난주베스트\n지난 한 주의 베스트 3를 발표합니다.',
         sender: '오픈채팅봇',
         isGroupChat: false
     });

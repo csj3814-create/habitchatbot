@@ -467,3 +467,24 @@
 - Documented the operating schedule in `README.md`: every Monday morning first line `!지난주베스트`, every 1st morning first line `!지난달베스트`.
 - Verification passed: `node --check` for changed JS files/tests and `npm test` (44 passed).
 
+# 2026-06-01 Scheduled Best Auto-Post Follow-up
+> Status: Completed
+
+## Tasks
+- [x] Check why scheduled weekly/monthly best posts did not appear automatically
+- [x] Make server command parsing tolerate OpenChatBot reservation copy after the first command line
+- [x] Add regression tests for multiline scheduled best commands
+- [x] Re-run verification and document whether the phone MessengerBot script needs updating
+
+## Plan Notes
+- The server-side handler is live, so a missing automatic post is most likely in the OpenChatBot reservation message -> MessengerBot script -> server command extraction chain.
+- The active phone script may still be older than the repo script; older scripts forwarded only `!오늘` reservations as a clean first-token command.
+
+## Review
+- Likely cause: automatic reservation messages included explanatory copy after the first command line, while older phone scripts only special-cased `!오늘`. That could forward `지난주베스트\n...` or `지난달베스트\n...` as one body, which the server previously did not match.
+- Hardened `commands/bestRecords.js` so it resolves weekly/monthly best commands from the full body, first line, or first token.
+- Added regression coverage for multiline scheduled messages in `test/commands.test.js` and `test/messengerbot-route.test.js`.
+- Captured the correction in `tasks/lessons.md`.
+- Verification passed: `node --check commands/bestRecords.js test/commands.test.js test/messengerbot-route.test.js`, `node --test test/commands.test.js test/messengerbot-route.test.js test/messengerbot-script.test.js`, and `npm test`.
+- The MessengerBot phone script should still be updated in the Android app because the repo version canonicalizes `!지난주`, `!지난달`, `!주간베스트`, and `!월간베스트`; the server patch just makes the backend more forgiving.
+

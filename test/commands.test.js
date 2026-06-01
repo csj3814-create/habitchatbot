@@ -578,5 +578,9 @@ test('resolveBestRecordsPeriod accepts compact and spaced scheduled commands', a
     assert.equal(resolveBestRecordsPeriod('지난주베스트'), 'week');
     assert.equal(resolveBestRecordsPeriod('지난주 베스트'), 'week');
     assert.equal(resolveBestRecordsPeriod('월간 베스트'), 'month');
+    assert.equal(resolveBestRecordsPeriod('지난주베스트\n지난 한 주의 베스트 3를 발표합니다.'), 'week');
+    assert.equal(resolveBestRecordsPeriod('지난주\n지난 한 주의 베스트 3를 발표합니다.'), 'week');
+    assert.equal(resolveBestRecordsPeriod('지난달베스트\n지난달 기록 성적입니다.'), 'month');
+    assert.equal(resolveBestRecordsPeriod('월간베스트\n지난달 기록 성적입니다.'), 'month');
     assert.equal(resolveBestRecordsPeriod('오늘'), null);
 });

@@ -123,3 +123,7 @@
 ### MessengerBot open-chat delivery has different constraints from Kakao skill delivery
 - Mistake: I fixed the Kakao skill path for `!공유` first, but I did not re-check that the live open-chat room was actually using the MessengerBot webhook path, which still serialized everything into one text bubble.
 - Rule: When a bot behavior is reported from the actual Kakao room, verify the transport first. If the room is powered by MessengerBot, shape the server response for MessengerBot's text-only relay constraints and update the local phone script when multi-message behavior is needed.
+
+### Scheduled OpenChatBot commands must tolerate operator copy
+- Mistake: I implemented weekly/monthly best commands assuming the scheduled message would be exactly the command, but real OpenChatBot reservations may use the first line as a trigger and include explanatory copy below it.
+- Rule: For scheduled OpenChatBot posts, parse and test the first line/first token as the command and ignore follow-up copy. Add regression cases for both the current phone script's canonical forwarding and older scripts that forward the whole reservation body.
