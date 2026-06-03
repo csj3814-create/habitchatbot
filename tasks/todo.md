@@ -508,3 +508,22 @@
 - Updated `README.md` to document that the existing nightly `!오늘` reservation is enough; no additional OpenChatBot reservation slots are needed.
 - Verification passed: `node --check commands/today.js test/commands.test.js`, `node --test test/commands.test.js`, and `npm test`.
 
+# 2026-06-03 Leaderboard User Labels
+> Status: Completed
+
+## Tasks
+- [x] Stop showing generic `참여자 N`/`사용자` labels in ranking-style outputs when an app account ID is available
+- [x] Resolve display labels from chat mappings, app user profiles, email/account fields, then short UID fallback
+- [x] Apply the label resolver to `!기록`, `!순위`, `!주간베스트`, and `!월간베스트`
+- [x] Add regression tests and run verification
+
+## Plan Notes
+- Prefer names from chat mappings or app profile fields.
+- If no name exists, show an account-style label such as email local-part or `ID <short uid>` rather than generic participant numbering.
+
+## Review
+- Added `modules/leaderboardLabels.js` to resolve leaderboard labels from app user profiles, chat mappings, account email local-parts, or short UID fallback.
+- Added `getUserProfilesByIds()` and preserved more record-side identity fields in `modules/appFirebase.js`.
+- Updated `commands/myHabits.js`, `commands/ranking.js`, and `commands/bestRecords.js` so linked-record and ranking-style outputs no longer fall back to generic labels.
+- Verification passed: `node --check` for changed JS/test files, `node --test test/commands.test.js`, and `npm test` (50 passed).
+

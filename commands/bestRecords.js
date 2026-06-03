@@ -4,7 +4,7 @@
  */
 
 const { getLeaderboardByDateRange } = require('../modules/appFirebase');
-const { getAllMappings } = require('../modules/userMapping');
+const { loadLeaderboardLabels } = require('../modules/leaderboardLabels');
 
 const SCORE_PER_DAY = 3.5;
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -101,24 +101,6 @@ function resolveBestRecordsPeriod(commandText) {
     return null;
 }
 
-async function loadUidToName() {
-    const uidToName = {};
-
-    try {
-        const mappings = await getAllMappings();
-        Object.values(mappings).forEach((mapping) => {
-            const name = mapping.displayName || mapping.sender;
-            if (mapping.googleUid && name) {
-                uidToName[mapping.googleUid] = name;
-            }
-        });
-    } catch (error) {
-        console.warn('[BestRecords] Failed to load mappings:', error.message);
-    }
-
-    return uidToName;
-}
-
 function sortLeaderboard(leaderboard) {
     return [...leaderboard]
         .filter((entry) => Number(entry.score || 0) > 0)
@@ -132,8 +114,8 @@ function sortLeaderboard(leaderboard) {
         });
 }
 
-function buildBestRecordsMessage(range, leaderboard, uidToName = {}) {
-    const ranked = sortLeaderboard(leaderboard);
+function buildBestRecordsMessage(range, leaderboard, uidToName = {}, options = {}) {
+    const ranked = options.sorted ? leaderboard : sortLeaderboard(leaderboard);
 
     if (ranked.length === 0) {
         return `${range.emptyLabel}(${range.label})에는 아직 집계할 기록이 없어요.\n\n앱에서 식단, 운동, 마음 기록을 남기면 다음 자동 집계에 반영돼요.`;
@@ -145,7 +127,7 @@ function buildBestRecordsMessage(range, leaderboard, uidToName = {}) {
     message += '━━━━━━━━━━━━━━━\n';
 
     ranked.slice(0, 3).forEach((entry, index) => {
-        const name = uidToName[entry.uid] || entry.displayName || `참여자 ${index + 1}`;
+        const name = uidToName[entry.uid] || entry.displayName || entry.uid;
         message += `${MEDALS[index]} ${name} - ${formatScore(entry.score)}점\n`;
         message += `   기록일 ${entry.activeDays || 0}일 · 식단 ${entry.diet || 0} · 운동 ${entry.exercise || 0} · 마음 ${entry.mind || 0}\n`;
     });
@@ -169,8 +151,9 @@ async function handleBestRecords(period, options = {}) {
         return `⚠️ ${error.message}`;
     }
 
-    const uidToName = await loadUidToName();
-    return buildBestRecordsMessage(range, leaderboard, uidToName);
+    const ranked = sortLeaderboard(leaderboard);
+    const uidToName = await loadLeaderboardLabels(ranked.slice(0, 3));
+    return buildBestRecordsMessage(range, ranked, uidToName, { sorted: true });
 }
 
 module.exports = {

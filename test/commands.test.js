@@ -495,6 +495,136 @@ test('buildDirectChatOnlyMessage explains that connect commands are 1:1 only', a
     assert.doesNotMatch(result, /!등록/);
 });
 
+test('loadLeaderboardLabels resolves app profile, mapping, account, and uid labels', async () => {
+    const { loadLeaderboardLabels } = loadWithMocks(
+        path.join(__dirname, '..', 'modules', 'leaderboardLabels.js'),
+        {
+            './appFirebase': {
+                getUserProfilesByIds: async (uids) => {
+                    assert.deepEqual(uids, ['profile-uid', 'mapping-uid', 'email-uid', 'fallback-uid']);
+                    return {
+                        'profile-uid': {
+                            customDisplayName: '프로필이름',
+                            email: 'profile@example.com'
+                        },
+                        'email-uid': {
+                            displayName: '사용자',
+                            email: 'emailuser@example.com'
+                        }
+                    };
+                }
+            },
+            './userMapping': {
+                getAllMappings: async () => ({
+                    one: {
+                        googleUid: 'mapping-uid',
+                        displayName: '매핑이름',
+                        googleEmail: 'mapping@example.com'
+                    }
+                })
+            }
+        }
+    );
+
+    const labels = await loadLeaderboardLabels([
+        { uid: 'profile-uid', displayName: '참여자 1' },
+        { uid: 'mapping-uid' },
+        { uid: 'email-uid' },
+        { uid: 'fallback-uid' }
+    ]);
+
+    assert.deepEqual(labels, {
+        'profile-uid': '프로필이름',
+        'mapping-uid': '매핑이름',
+        'email-uid': '계정 emailuser',
+        'fallback-uid': 'ID fallback'
+    });
+});
+
+test('handleRanking uses resolved labels instead of participant placeholders', async () => {
+    const { handleRanking } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'ranking.js'),
+        {
+            '../modules/appFirebase': {
+                getWeeklyLeaderboard: async () => [
+                    { uid: 'uid-name', diet: 7, exercise: 5, mind: 7, score: 21.5 },
+                    { uid: 'uid-account', diet: 5, exercise: 4, mind: 5, score: 16 },
+                    { uid: 'uid-fallback', diet: 3, exercise: 2, mind: 3, score: 9 }
+                ]
+            },
+            '../modules/leaderboardLabels': {
+                loadLeaderboardLabels: async (entries) => {
+                    assert.deepEqual(entries.map((entry) => entry.uid), ['uid-name', 'uid-account', 'uid-fallback']);
+                    return {
+                        'uid-name': '김해빛',
+                        'uid-account': '계정 routine',
+                        'uid-fallback': 'ID uid-fall'
+                    };
+                }
+            },
+            '../modules/statsHelpers': {
+                getKstDateStr: () => '2026-06-03'
+            }
+        }
+    );
+
+    const result = await handleRanking();
+
+    assert.match(result, /김해빛/);
+    assert.match(result, /계정 routine/);
+    assert.match(result, /ID uid-fall/);
+    assert.doesNotMatch(result, /참여자 \d+/);
+});
+
+test('handleMyHabits uses resolved account labels for linked users with generic chat names', async () => {
+    const { handleMyHabits } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'myHabits.js'),
+        {
+            '../modules/appFirebase': {
+                getUserRecords: async () => [
+                    {
+                        date: '2026-06-02',
+                        diet: { breakfastUrl: 'https://example.com/b.jpg' },
+                        exercise: { cardioList: [{ imageUrl: 'https://example.com/e.jpg' }] },
+                        sleepAndMind: { gratitude: '감사합니다' }
+                    }
+                ]
+            },
+            '../modules/userMapping': {
+                getMapping: async () => ({
+                    googleUid: 'app-user-1',
+                    googleEmail: 'routine@example.com'
+                }),
+                getDisplayName: () => '사용자'
+            },
+            '../modules/leaderboardLabels': {
+                loadLeaderboardLabels: async (entries) => {
+                    assert.deepEqual(entries, [{
+                        uid: 'app-user-1',
+                        displayName: '사용자',
+                        email: 'routine@example.com'
+                    }]);
+                    return { 'app-user-1': '계정 routine' };
+                }
+            },
+            '../modules/statsHelpers': {
+                hasDiet: (record) => Boolean(record.diet),
+                hasExercise: (record) => Boolean(record.exercise),
+                hasSleep: () => false,
+                hasGratitude: (record) => Boolean(record.sleepAndMind?.gratitude),
+                hasMeditation: () => false,
+                progressBar: (count) => `${count}/7일`,
+                calculateStreak: () => 1
+            }
+        }
+    );
+
+    const result = await handleMyHabits({ displayName: '사용자' });
+
+    assert.match(result, /계정 routine님의 습관 현황/);
+    assert.doesNotMatch(result, /사용자님의 습관 현황/);
+});
+
 test('handleBestRecords summarizes the previous Monday-Sunday top 3', async () => {
     const queriedRanges = [];
     const { handleBestRecords } = loadWithMocks(
@@ -511,11 +641,14 @@ test('handleBestRecords summarizes the previous Monday-Sunday top 3', async () =
                     ];
                 }
             },
-            '../modules/userMapping': {
-                getAllMappings: async () => ({
-                    a: { googleUid: 'uid-a', displayName: '김해빛' },
-                    b: { googleUid: 'uid-b', displayName: '이루틴' }
-                })
+            '../modules/leaderboardLabels': {
+                loadLeaderboardLabels: async (entries) => {
+                    assert.deepEqual(entries.map((entry) => entry.uid), ['uid-a', 'uid-b', 'uid-c']);
+                    return {
+                        'uid-a': '김해빛',
+                        'uid-b': '이루틴'
+                    };
+                }
             }
         }
     );
@@ -546,8 +679,8 @@ test('handleBestRecords summarizes the previous calendar month', async () => {
                     ];
                 }
             },
-            '../modules/userMapping': {
-                getAllMappings: async () => ({})
+            '../modules/leaderboardLabels': {
+                loadLeaderboardLabels: async () => ({})
             }
         }
     );
@@ -569,8 +702,8 @@ test('resolveBestRecordsPeriod accepts compact and spaced scheduled commands', a
             '../modules/appFirebase': {
                 getLeaderboardByDateRange: async () => []
             },
-            '../modules/userMapping': {
-                getAllMappings: async () => ({})
+            '../modules/leaderboardLabels': {
+                loadLeaderboardLabels: async () => ({})
             }
         }
     );

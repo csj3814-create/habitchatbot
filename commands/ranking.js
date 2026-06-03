@@ -4,7 +4,7 @@
  */
 
 const { getWeeklyLeaderboard } = require('../modules/appFirebase');
-const { getAllMappings } = require('../modules/userMapping');
+const { loadLeaderboardLabels } = require('../modules/leaderboardLabels');
 const { getKstDateStr } = require('../modules/statsHelpers');
 
 let rankingCache = null;
@@ -32,20 +32,9 @@ async function handleRanking() {
         return `이번 주에는 아직 기록이 없어요.\n\n앱에서 식단, 운동, 마음 기록을 남기면 순위가 집계돼요.\n지금 바로 해빛스쿨 앱을 열어볼까요?`;
     }
 
-    const uidToName = {};
-    try {
-        const allMappings = await getAllMappings();
-        Object.values(allMappings).forEach(mapping => {
-            const name = mapping.displayName || mapping.sender;
-            if (mapping.googleUid && name) {
-                uidToName[mapping.googleUid] = name;
-            }
-        });
-    } catch (error) {
-        console.warn('[Ranking] Failed to load mappings:', error.message);
-    }
-
     const sorted = [...leaderboard].sort((a, b) => b.score - a.score);
+    const visibleEntries = sorted.slice(0, 10);
+    const uidToName = await loadLeaderboardLabels(visibleEntries);
     const medals = ['🥇', '🥈', '🥉'];
 
     const todayStr = getKstDateStr();
@@ -57,8 +46,8 @@ async function handleRanking() {
     let msg = `이번 주 순위 (${startMD}~${endMD})\n`;
     msg += `──────────\n`;
 
-    sorted.slice(0, 10).forEach((entry, index) => {
-        const name = uidToName[entry.uid] || `참여자 ${index + 1}`;
+    visibleEntries.forEach((entry, index) => {
+        const name = uidToName[entry.uid] || entry.uid;
         const prefix = medals[index] || `${index + 1}위`;
         const filled = Math.min(Math.round((entry.score / WEEK_MAX_SCORE) * 8), 8);
         const bar = '■'.repeat(filled) + '□'.repeat(8 - filled);

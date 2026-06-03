@@ -473,7 +473,17 @@ function buildLeaderboardFromRecords(records) {
         entry.totalRecords += 1;
 
         if (!entry.displayName) {
-            entry.displayName = trimText(record.userName || record.displayName || record.userDisplayName);
+            entry.displayName = trimText(
+                record.customDisplayName
+                || record.userName
+                || record.displayName
+                || record.userDisplayName
+                || record.nickname
+            );
+        }
+
+        if (!entry.email) {
+            entry.email = trimText(record.email || record.userEmail || record.googleEmail);
         }
     });
 
@@ -486,8 +496,39 @@ function buildLeaderboardFromRecords(records) {
         activeDays: entry.activeDates.size,
         totalRecords: entry.totalRecords,
         totalActivities: entry.diet + entry.exercise + entry.mind,
+        email: entry.email || '',
         score: Math.round((entry.diet * 1 + entry.exercise * 1.5 + entry.mind) * 10) / 10
     }));
+}
+
+async function getUserProfilesByIds(uids = []) {
+    const db = initAppFirebase();
+    if (!db) return {};
+
+    const uniqueUids = [...new Set(uids.map((uid) => trimText(uid)).filter(Boolean))];
+    if (uniqueUids.length === 0) {
+        return {};
+    }
+
+    try {
+        const pairs = await Promise.all(uniqueUids.map(async (uid) => {
+            const docRef = await db.collection('users').doc(uid).get();
+            if (!docRef.exists) {
+                return [uid, null];
+            }
+            return [uid, { id: docRef.id, ...docRef.data() }];
+        }));
+
+        return pairs.reduce((profiles, [uid, profile]) => {
+            if (profile) {
+                profiles[uid] = profile;
+            }
+            return profiles;
+        }, {});
+    } catch (error) {
+        console.error('[AppFirebase] Failed to load user profiles:', error.message);
+        return {};
+    }
 }
 
 async function getWeeklyLeaderboard() {
@@ -682,6 +723,7 @@ module.exports = {
     getUserRecords,
     getUserRecordByDate,
     getUserProfile,
+    getUserProfilesByIds,
     getActiveUserCount,
     getWeeklyStats,
     getWeeklyLeaderboard,
