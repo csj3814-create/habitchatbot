@@ -127,3 +127,7 @@
 ### Scheduled OpenChatBot commands must tolerate operator copy
 - Mistake: I implemented weekly/monthly best commands assuming the scheduled message would be exactly the command, but real OpenChatBot reservations may use the first line as a trigger and include explanatory copy below it.
 - Rule: For scheduled OpenChatBot posts, parse and test the first line/first token as the command and ignore follow-up copy. Add regression cases for both the current phone script's canonical forwarding and older scripts that forward the whole reservation body.
+
+### Public share links should look like short links, not exposed auth tokens
+- Mistake: I first exposed the Haebit public gallery as `/h/:token`, which made the link look like a bearer token and feel longer/less trustworthy even though the page was intentionally public.
+- Rule: For no-login share pages, use a short, non-sequential public code in the shortest safe route, keep it distinct from auth/link tokens, and add rate limiting or equivalent brute-force friction on public code lookup routes.

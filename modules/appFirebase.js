@@ -19,6 +19,7 @@ const DEFAULT_SHARE_SETTINGS = {
 
 const SHARE_CARD_TOKEN_TTL_MS = 5 * 60 * 1000;
 const MAX_SHARE_MEDIA_COUNT = 4;
+const MAX_GALLERY_MEDIA_COUNT = 12;
 let appDb = null;
 
 function getHabitsSchoolApp() {
@@ -189,6 +190,227 @@ function extractShareMedia(log, settings = normalizeShareSettings(log?.shareSett
     return items.slice(0, MAX_SHARE_MEDIA_COUNT);
 }
 
+function getMediaType(url) {
+    return /\.(mp4|mov|webm)(\?|$)/i.test(trimText(url)) ? 'video' : 'image';
+}
+
+function addGalleryMedia(items, seen, { url, thumbUrl = '', category, label = '', type = '' }) {
+    const normalizedUrl = trimText(url);
+    const normalizedThumbUrl = trimText(thumbUrl);
+    const displayUrl = normalizedThumbUrl || normalizedUrl;
+
+    if (!displayUrl || seen.has(displayUrl)) {
+        return null;
+    }
+
+    seen.add(displayUrl);
+
+    const item = {
+        url: normalizedUrl || displayUrl,
+        thumbUrl: displayUrl,
+        category,
+        label,
+        type: type || getMediaType(normalizedUrl || displayUrl)
+    };
+
+    items.push(item);
+    return item;
+}
+
+function buildDietGalleryItems(log, settings = normalizeShareSettings(log?.shareSettings)) {
+    if (!log?.diet || settings.hideDiet) {
+        return [];
+    }
+
+    const items = [];
+    const seen = new Set();
+    const meals = [
+        ['breakfast', '아침'],
+        ['lunch', '점심'],
+        ['dinner', '저녁'],
+        ['snack', '간식']
+    ];
+
+    meals.forEach(([key, label]) => {
+        const media = addGalleryMedia(items, seen, {
+            url: log.diet[`${key}Url`],
+            thumbUrl: log.diet[`${key}ThumbUrl`],
+            category: '식단',
+            label
+        });
+
+        if (media) {
+            media.title = label;
+        }
+    });
+
+    return items;
+}
+
+function buildExerciseGalleryItems(log, settings = normalizeShareSettings(log?.shareSettings)) {
+    if (!log?.exercise || settings.hideExercise) {
+        return [];
+    }
+
+    const items = [];
+    const seen = new Set();
+    const cardioList = Array.isArray(log.exercise.cardioList) ? log.exercise.cardioList : [];
+    const strengthList = Array.isArray(log.exercise.strengthList) ? log.exercise.strengthList : [];
+
+    if (cardioList.length > 0) {
+        cardioList.forEach((entry, index) => {
+            const media = addGalleryMedia(items, seen, {
+                url: entry?.imageUrl,
+                thumbUrl: entry?.imageThumbUrl,
+                category: '운동',
+                label: entry?.name || `유산소 ${index + 1}`
+            });
+
+            if (media) {
+                media.title = media.label;
+            }
+        });
+    } else {
+        const media = addGalleryMedia(items, seen, {
+            url: log.exercise.cardioImageUrl,
+            thumbUrl: log.exercise.cardioImageThumbUrl,
+            category: '운동',
+            label: '유산소'
+        });
+
+        if (media) {
+            media.title = '유산소';
+        }
+    }
+
+    if (strengthList.length > 0) {
+        strengthList.forEach((entry, index) => {
+            const media = addGalleryMedia(items, seen, {
+                url: entry?.videoUrl,
+                thumbUrl: entry?.videoThumbUrl,
+                category: '운동',
+                label: entry?.name || `근력 ${index + 1}`,
+                type: 'video'
+            });
+
+            if (media) {
+                media.title = media.label;
+            }
+        });
+    } else {
+        const media = addGalleryMedia(items, seen, {
+            url: log.exercise.strengthVideoUrl,
+            thumbUrl: log.exercise.strengthVideoThumbUrl,
+            category: '운동',
+            label: '근력',
+            type: log.exercise.strengthVideoUrl || log.exercise.strengthVideoThumbUrl ? 'video' : ''
+        });
+
+        if (media) {
+            media.title = '근력';
+        }
+    }
+
+    return items;
+}
+
+function buildMindGalleryItems(log, settings = normalizeShareSettings(log?.shareSettings)) {
+    if (!log?.sleepAndMind || settings.hideMind) {
+        return [];
+    }
+
+    const items = [];
+    const seen = new Set();
+    const sleepMedia = addGalleryMedia(items, seen, {
+        url: log.sleepAndMind.sleepImageUrl,
+        thumbUrl: log.sleepAndMind.sleepImageThumbUrl,
+        category: '마음',
+        label: '수면'
+    });
+
+    if (sleepMedia) {
+        sleepMedia.title = '수면';
+    }
+
+    return items;
+}
+
+function buildShareGalleryMedia(log, settings = normalizeShareSettings(log?.shareSettings)) {
+    const items = [
+        ...buildDietGalleryItems(log, settings),
+        ...buildExerciseGalleryItems(log, settings),
+        ...buildMindGalleryItems(log, settings)
+    ];
+
+    return items.slice(0, MAX_GALLERY_MEDIA_COUNT);
+}
+
+function formatGalleryMetric(label, value, unit = '') {
+    const normalizedValue = trimText(value);
+    if (!normalizedValue) {
+        return null;
+    }
+
+    return {
+        label,
+        value: unit && !normalizedValue.endsWith(unit) ? `${normalizedValue}${unit}` : normalizedValue
+    };
+}
+
+function buildShareGallerySections(log, settings = normalizeShareSettings(log?.shareSettings)) {
+    const sections = [];
+
+    if (log?.diet && !settings.hideDiet) {
+        const media = buildDietGalleryItems(log, settings);
+        sections.push({
+            key: 'diet',
+            title: '식단',
+            summary: media.length > 0 ? `${media.length}개 식단 인증` : '식단 기록 완료',
+            ctaLabel: '나도 식단 기록하기',
+            media
+        });
+    }
+
+    if (log?.exercise && !settings.hideExercise) {
+        const media = buildExerciseGalleryItems(log, settings);
+        const cardioCount = Array.isArray(log.exercise.cardioList) ? log.exercise.cardioList.length : (log.exercise.cardioImageUrl ? 1 : 0);
+        const strengthCount = Array.isArray(log.exercise.strengthList) ? log.exercise.strengthList.length : (log.exercise.strengthVideoUrl ? 1 : 0);
+        const metrics = [
+            formatGalleryMetric('유산소', cardioCount || ''),
+            formatGalleryMetric('근력', strengthCount || '')
+        ].filter(Boolean);
+
+        sections.push({
+            key: 'exercise',
+            title: '운동',
+            summary: media.length > 0 ? `${media.length}개 운동 인증` : '운동 기록 완료',
+            ctaLabel: '나도 운동 인증하기',
+            metrics,
+            media
+        });
+    }
+
+    if (log?.sleepAndMind && !settings.hideMind) {
+        const media = buildMindGalleryItems(log, settings);
+        const gratitudeText = getMindJournal(log);
+        const metrics = [
+            log.sleepAndMind.meditationDone === true ? { label: '명상', value: '완료' } : null,
+            log.sleepAndMind.sleepHours ? formatGalleryMetric('수면', log.sleepAndMind.sleepHours, 'h') : null
+        ].filter(Boolean);
+
+        sections.push({
+            key: 'mind',
+            title: '마음',
+            summary: gratitudeText ? gratitudeText : '마음 기록 완료',
+            ctaLabel: '나도 마음 기록하기',
+            metrics,
+            media
+        });
+    }
+
+    return sections;
+}
+
 function getShareCategoryTags(log, settings = normalizeShareSettings(log?.shareSettings)) {
     if (!log) {
         return [];
@@ -281,6 +503,10 @@ function buildShareCardPayloadFromRecord(googleUid, record, userProfile) {
 
 function generateShareCardToken() {
     return crypto.randomBytes(18).toString('base64url');
+}
+
+function generateHaebitShareToken() {
+    return crypto.randomBytes(6).toString('base64url');
 }
 
 function initAppFirebase() {
@@ -673,6 +899,107 @@ async function getShareCardPayload(googleUid) {
     return buildShareCardPayloadFromRecord(googleUid, record, userProfile);
 }
 
+function buildHaebitSharePayloadFromRecord(googleUid, record, userProfile) {
+    const cardPayload = buildShareCardPayloadFromRecord(googleUid, record, userProfile);
+    if (!cardPayload) {
+        return null;
+    }
+
+    const settings = normalizeShareSettings(record.shareSettings);
+    const galleryMedia = buildShareGalleryMedia(record, settings);
+
+    return {
+        ...cardPayload,
+        pageTitle: `${cardPayload.userName}의 하루 해빛 기록`,
+        galleryMedia: galleryMedia.length > 0 ? galleryMedia : cardPayload.media,
+        sections: buildShareGallerySections(record, settings),
+        recordId: record.id || `${googleUid}_${record.date || ''}`
+    };
+}
+
+async function createHaebitShareToken({ googleUid, record, kakaoUserKey = '' }) {
+    const normalizedUid = trimText(googleUid);
+    const recordDate = trimText(record?.date);
+
+    if (!normalizedUid || !recordDate) {
+        throw new Error('Cannot create a Haebit share token without uid and record date.');
+    }
+
+    const now = Date.now();
+    const payload = {
+        googleUid: normalizedUid,
+        recordId: trimText(record?.id) || `${normalizedUid}_${recordDate}`,
+        recordDate,
+        kakaoUserKey: trimText(kakaoUserKey),
+        createdAt: new Date(now).toISOString(),
+        lastAccessedAt: null
+    };
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+        const token = generateHaebitShareToken();
+        const tokenRef = getRealtimeDb().ref(`haebit_share_tokens/${token}`);
+        const snapshot = await tokenRef.once('value');
+
+        if (!snapshot.val()) {
+            await tokenRef.set(payload);
+            return token;
+        }
+    }
+
+    throw new Error('Could not create a unique Haebit share code.');
+}
+
+async function getHaebitShareToken(token) {
+    const normalizedToken = trimText(token);
+    if (!normalizedToken) {
+        return null;
+    }
+
+    const tokenRef = getRealtimeDb().ref(`haebit_share_tokens/${normalizedToken}`);
+    const snapshot = await tokenRef.once('value');
+    const data = snapshot.val();
+
+    if (!data?.googleUid || !data?.recordDate) {
+        return null;
+    }
+
+    if (typeof tokenRef.update === 'function') {
+        Promise.resolve(tokenRef.update({ lastAccessedAt: new Date().toISOString() })).catch(() => {});
+    }
+
+    return {
+        token: normalizedToken,
+        googleUid: data.googleUid,
+        recordId: data.recordId || '',
+        recordDate: data.recordDate,
+        kakaoUserKey: data.kakaoUserKey || '',
+        createdAt: data.createdAt || null
+    };
+}
+
+async function getHaebitSharePagePayload(token) {
+    const tokenData = await getHaebitShareToken(token);
+    if (!tokenData) {
+        return null;
+    }
+
+    const [record, userProfile] = await Promise.all([
+        getUserRecordByDate(tokenData.googleUid, tokenData.recordDate),
+        getUserProfile(tokenData.googleUid)
+    ]);
+
+    const settings = normalizeShareSettings(record?.shareSettings);
+    if (!record || !isShareableRecord(record, settings)) {
+        return null;
+    }
+
+    return {
+        ...buildHaebitSharePayloadFromRecord(tokenData.googleUid, record, userProfile),
+        token: tokenData.token,
+        shareCreatedAt: tokenData.createdAt
+    };
+}
+
 async function createShareCardToken({ googleUid, kakaoUserKey = '' }) {
     const now = Date.now();
     const expiresAt = new Date(now + SHARE_CARD_TOKEN_TTL_MS).toISOString();
@@ -732,6 +1059,10 @@ module.exports = {
     getLatestShareableRecord,
     extractShareMedia,
     getShareCardPayload,
+    buildHaebitSharePayloadFromRecord,
+    createHaebitShareToken,
+    getHaebitShareToken,
+    getHaebitSharePagePayload,
     createShareCardToken,
     consumeShareCardToken,
     normalizeShareSettings,

@@ -133,7 +133,8 @@ test('kakao help commands return immediately without habit logging or Gemini ses
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
-            }
+            },
+            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
         }
     );
 
@@ -207,7 +208,8 @@ test('kakao freeform prompt treats the user as a Habits School student', async (
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
-            }
+            },
+            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
         }
     );
 
@@ -309,7 +311,8 @@ test('kakao share command sends the image first and follows with an invite callb
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'share-card', imageUrl: 'https://image.example/share.png' })
-            }
+            },
+            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
         }
     );
 
@@ -347,6 +350,70 @@ test('kakao share command sends the image first and follows with an invite callb
     assert.equal(callbackPosts.length, 1);
     assert.equal(callbackPosts[0].url, 'https://callback.example.com/reply');
     assert.equal(callbackPosts[0].payload.template.outputs[0].simpleText.text, 'INVITE_LINK');
+});
+
+test('kakao haebit command returns a public share link without habit logging or Gemini', async () => {
+    const { createKakaoRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'kakao.js'),
+        {
+            '../utils/kakaoTemplate': {
+                buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
+                buildKakaoShareImageResponse: () => ({ template: { outputs: [{ simpleImage: { imageUrl: 'SHARE_IMAGE' } }] } }),
+                buildKakaoShareInviteResponse: () => ({ template: { outputs: [{ simpleText: { text: 'INVITE' } }] } }),
+                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
+                buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/guide': { handleGuide: async () => 'GUIDE' },
+            '../commands/register': { handleRegister: async () => 'REGISTER' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            },
+            '../commands/haebit': { handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY' }
+        }
+    );
+
+    const router = createKakaoRouter({
+        db: {},
+        getChatSession() {
+            throw new Error('getChatSession should not be called for haebit command');
+        },
+        checkAndLogHabits: async () => {
+            throw new Error('checkAndLogHabits should not be called for haebit command');
+        },
+        isAllowedImageUrl: () => true
+    });
+
+    const response = await postJsonToRouter(router, buildKakaoBody('!해빛'));
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.template.outputs[0].simpleText.text, 'https://habitchatbot.onrender.com/abc123XY');
 });
 
 test('kakao routes best-record commands without habit logging or Gemini', async () => {
@@ -400,7 +467,8 @@ test('kakao routes best-record commands without habit logging or Gemini', async 
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
-            }
+            },
+            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
         }
     );
 

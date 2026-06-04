@@ -15,13 +15,15 @@ const { createMessengerbotRouter } = require('./routes/messengerbot');
 const {
     initAppFirebase,
     consumeShareCardToken,
-    getShareCardPayload
+    getShareCardPayload,
+    getHaebitSharePagePayload
 } = require('./modules/appFirebase');
 const {
     getChatbotConnectToken,
     completeChatbotConnect
 } = require('./modules/chatbotConnect');
 const { renderShareCardPng } = require('./utils/shareCardRenderer');
+const { renderHaebitSharePage } = require('./utils/haebitSharePage');
 
 if (!process.env.GEMINI_API_KEY) {
     console.error('[FATAL] GEMINI_API_KEY is not configured. Check your .env file.');
@@ -67,6 +69,16 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/', apiLimiter);
+
+const publicShareLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: '<h1>잠시 후 다시 시도해 주세요.</h1>'
+});
+
+const HAEBIT_SHARE_CODE_PATTERN = /^[A-Za-z0-9_-]{8,24}$/;
 
 function applyConnectCors(req, res) {
     const origin = req.headers.origin;
@@ -150,6 +162,31 @@ app.get('/api/share-card/:token.png', async (req, res) => {
         return res.status(500).send('error');
     }
 });
+
+async function handleHaebitSharePage(req, res, next) {
+    const shareCode = String(req.params.token || req.params.shareCode || '').trim();
+
+    if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
+        return next();
+    }
+
+    try {
+        const payload = await getHaebitSharePagePayload(shareCode);
+        if (!payload) {
+            return res.status(404).send('<h1>해빛 기록을 찾을 수 없어요.</h1><p>링크가 잘못되었거나 공유 기록이 더 이상 공개 상태가 아닙니다.</p>');
+        }
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        return res.status(200).send(renderHaebitSharePage(payload));
+    } catch (error) {
+        console.error('[HaebitShare] render error:', error);
+        return res.status(500).send('<h1>잠시 후 다시 시도해 주세요.</h1>');
+    }
+}
+
+app.get('/h/:token', publicShareLimiter, handleHaebitSharePage);
+app.get('/:shareCode', publicShareLimiter, handleHaebitSharePage);
 
 app.get('/api/chatbot-connect/:token', async (req, res) => {
     applyConnectCors(req, res);
@@ -239,6 +276,7 @@ const server = app.listen(config.PORT, () => {
     console.log(`Kakao Endpoint:            POST http://localhost:${config.PORT}/api/chat`);
     console.log(`MessengerBot Endpoint:     POST http://localhost:${config.PORT}/api/messengerbot`);
     console.log(`Share Card Endpoint:       GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
+    console.log(`Haebit Share Page:         GET  http://localhost:${config.PORT}/:shareCode`);
     console.log(`Chatbot Connect Lookup:    GET  http://localhost:${config.PORT}/api/chatbot-connect/:token`);
     console.log(`Chatbot Connect Complete:  POST http://localhost:${config.PORT}/api/chatbot-connect/complete`);
     console.log(`Health Check:              GET  http://localhost:${config.PORT}/health`);

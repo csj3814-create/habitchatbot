@@ -382,6 +382,83 @@ test('handleShare returns a share-card payload with a tokenized image URL', asyn
     assert.equal(result.galleryUrl, 'https://habitschool.web.app/#gallery');
 });
 
+test('handleHaebit asks the user to link their account first', async () => {
+    const { handleHaebit } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'haebit.js'),
+        {
+            '../config': { RENDER_URL: 'https://habitchatbot.example.com' },
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/appFirebase': {
+                getLatestShareableRecord: async () => null,
+                createHaebitShareToken: async () => 'unused'
+            }
+        }
+    );
+
+    const result = await handleHaebit({ displayName: '테스트 사용자', userId: 'kakao-1' });
+
+    assert.match(result, /계정이 연결되지/);
+    assert.match(result, /!등록/);
+});
+
+test('handleHaebit explains when no shareable record exists yet', async () => {
+    const { handleHaebit } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'haebit.js'),
+        {
+            '../config': { RENDER_URL: 'https://habitchatbot.example.com' },
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'app-user-1' }),
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/appFirebase': {
+                getLatestShareableRecord: async () => null,
+                createHaebitShareToken: async () => 'unused'
+            }
+        }
+    );
+
+    const result = await handleHaebit({ displayName: '테스트 사용자', userId: 'kakao-1' });
+
+    assert.match(result, /공유할 하루 기록/);
+    assert.match(result, /!해빛/);
+});
+
+test('handleHaebit returns a persistent public gallery link', async () => {
+    const record = { id: 'app-user-1_2026-06-04', date: '2026-06-04' };
+
+    const { handleHaebit } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'haebit.js'),
+        {
+            '../config': { RENDER_URL: 'https://habitchatbot.example.com/' },
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'app-user-1' }),
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/appFirebase': {
+                getLatestShareableRecord: async (googleUid) => {
+                    assert.equal(googleUid, 'app-user-1');
+                    return record;
+                },
+                createHaebitShareToken: async ({ googleUid, record: tokenRecord, kakaoUserKey }) => {
+                    assert.equal(googleUid, 'app-user-1');
+                    assert.equal(tokenRecord, record);
+                    assert.equal(kakaoUserKey, 'kakao-1');
+                    return 'abc123XY';
+                }
+            }
+        }
+    );
+
+    const result = await handleHaebit({ displayName: '테스트 사용자', userId: 'kakao-1' });
+
+    assert.match(result, /테스트 사용자님의 해빛 기록 공유 링크/);
+    assert.match(result, /https:\/\/habitchatbot\.example\.com\/abc123XY/);
+    assert.match(result, /댓글\/좋아요\/식단\/운동/);
+});
+
 test('handleConnect returns a deep-link card for an unlinked user', async () => {
     const { handleConnect } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'connect.js'),

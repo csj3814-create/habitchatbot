@@ -527,3 +527,47 @@
 - Updated `commands/myHabits.js`, `commands/ranking.js`, and `commands/bestRecords.js` so linked-record and ranking-style outputs no longer fall back to generic labels.
 - Verification passed: `node --check` for changed JS/test files, `node --test test/commands.test.js`, and `npm test` (50 passed).
 
+# 2026-06-04 Haebit Public Share Gallery
+> Status: Completed
+
+## Tasks
+- [x] Add a non-login public gallery page for one shareable daily habit record
+- [x] Add persistent short public links created by the `!해빛` command
+- [x] Make like, comment, diet, and exercise actions redirect to the Habits School login/app page
+- [x] Wire `!해빛` through Kakao and MessengerBot routes
+- [x] Add regression tests and update command documentation
+
+## Plan Notes
+- Reuse the existing app record/share settings logic so hidden diet, exercise, mind, identity, date, and point choices are respected.
+- Keep `!공유` image-card behavior unchanged; `!해빛` should create a separate public page code instead of using the 5-minute image token.
+- Store only the app uid, record date/id, sender key, and timestamps in Realtime Database; the page should fetch the current record and render only public share fields.
+
+## Review
+- Added `commands/haebit.js` so `!해빛` creates a public gallery link from the user's latest shareable daily record.
+- Added persistent `haebit_share_tokens` records in Realtime Database and public page rendering in `index.js`.
+- Added `utils/haebitSharePage.js` for a mobile-friendly public page; like, comment, diet, exercise, and record-start actions redirect to the Habits School app/login flow.
+- Reused share settings so hidden identity, date, diet, exercise, mind, and points stay hidden; health metrics such as weight/glucose are not exposed on the public page.
+- Wired `!해빛` and `!햇빛` through Kakao and MessengerBot routes and documented the command in `README.md`.
+- Verification passed: `node --check modules/appFirebase.js utils/haebitSharePage.js`, targeted route/command/page tests, and `npm test` (58 passed).
+
+# 2026-06-04 Haebit Short Public URL
+> Status: Completed
+
+## Tasks
+- [x] Replace visible `/h/:token` links with shortest safe root-level share codes
+- [x] Keep existing `/h/:token` route compatible during transition
+- [x] Add public share lookup rate limiting
+- [x] Update tests, docs, and lessons after the URL design correction
+
+## Plan Notes
+- A no-login public page still needs an identifier in the URL, but it should be a short public code, not something that looks like an account/auth token.
+- Use an 8-character random base64url code for a shorter URL while retaining high guess resistance.
+
+## Review
+- `!해빛` now replies with `https://habitchatbot.onrender.com/<8-char-code>` instead of `/h/<token>`.
+- `/h/:token` remains available as a compatibility alias, but new links use the root-level code route.
+- Reduced Haebit share codes to 8 random base64url characters and added collision checks on creation.
+- Added a 60 requests/minute limiter to public share page lookup routes.
+- Captured the correction in `tasks/lessons.md`.
+- Verification passed: `node --check commands/haebit.js modules/appFirebase.js index.js`, targeted route/command/page tests, and `npm test` (58 passed).
+

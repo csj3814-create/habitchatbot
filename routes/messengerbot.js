@@ -18,6 +18,7 @@ const { handleDiet, handleExercise, handleMind } = require('../commands/category
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { buildDirectChatOnlyMessage } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
+const { handleHaebit } = require('../commands/haebit');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
@@ -115,6 +116,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                     reply: replies[0] || '',
                     followups: replies.slice(1)
                 });
+            }
+
+            if (command === '해빛' || command === '햇빛') {
+                return res.json({ reply: await handleHaebit(user) });
             }
 
             if (command === '안내' || command === '시작' || command === '가이드') {

@@ -28,6 +28,7 @@ const { handleDiet, handleExercise, handleMind } = require('../commands/category
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { handleConnect } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
+const { handleHaebit } = require('../commands/haebit');
 
 const HELP_MSG = `명령어 안내
 !오늘 - 전체 기록 요약
@@ -43,6 +44,7 @@ const HELP_MSG = `명령어 안내
 !내코드 - 내 친구 코드 확인
 !친구 코드 - 친구 요청
 !공유 - 내 최신 인증 카드 공유
+!해빛 - 로그인 없이 볼 수 있는 내 하루 기록 링크
 
 그 외에는 자유롭게 질문해도 괜찮아요.`;
 
@@ -164,6 +166,10 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
                 return res.status(200).json(buildKakaoShareCardResponse(result));
             }
             return res.status(200).json(cmdResponse(result.text));
+        }
+
+        if (actualQuestion === '해빛' || actualQuestion === '햇빛') {
+            return res.status(200).json(cmdResponse(await handleHaebit(user)));
         }
 
         if (actualQuestion === '연결') {
