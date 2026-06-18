@@ -7,17 +7,26 @@ function buildHaebitShareUrl(token) {
     return `${baseUrl}/${encodeURIComponent(token)}`;
 }
 
-async function handleHaebit(user) {
+function buildHaebitVideoUrl(token) {
+    const baseUrl = String(config.RENDER_URL || '').replace(/\/+$/, '');
+    return `${baseUrl}/v/${encodeURIComponent(token)}.mp4`;
+}
+
+async function createHaebitShare(user) {
     const displayName = getDisplayName(user);
     const mapping = await getMapping(user);
 
     if (!mapping) {
-        return `${displayName}님, 아직 해빛스쿨 계정이 연결되지 않았어요.\n앱 프로필에서 연결 코드를 만든 뒤 !등록 코드로 먼저 연결해 주세요.`;
+        return {
+            error: `${displayName}님, 아직 해빛스쿨 계정이 연결되지 않았어요.\n앱 프로필에서 연결 코드를 만든 뒤 !등록 코드로 먼저 연결해 주세요.`
+        };
     }
 
     const record = await getLatestShareableRecord(mapping.googleUid);
     if (!record) {
-        return `공유할 하루 기록을 아직 찾지 못했어요.\n오늘 식단, 운동, 마음 기록 중 하나 이상 남긴 뒤 !해빛을 다시 입력해 주세요.`;
+        return {
+            error: '공유할 하루 기록을 아직 찾지 못했어요.\n오늘 식단, 운동, 마음 기록 중 하나 이상 남긴 뒤 !해빛 또는 !해빛영상을 다시 입력해 주세요.'
+        };
     }
 
     const token = await createHaebitShareToken({
@@ -26,6 +35,16 @@ async function handleHaebit(user) {
         kakaoUserKey: user?.userId || ''
     });
 
+    return { displayName, token };
+}
+
+async function handleHaebit(user) {
+    const result = await createHaebitShare(user);
+    if (result.error) {
+        return result.error;
+    }
+
+    const { displayName, token } = result;
     const shareUrl = buildHaebitShareUrl(token);
 
     return [
@@ -36,7 +55,23 @@ async function handleHaebit(user) {
     ].join('\n');
 }
 
+async function handleHaebitVideo(user) {
+    const result = await createHaebitShare(user);
+    if (result.error) {
+        return result.error;
+    }
+
+    return [
+        `${result.displayName}님의 하루 기록 영상 링크예요.`,
+        buildHaebitVideoUrl(result.token),
+        '',
+        '사진·운동 영상·감사일기와 에너지 넘치는 오리지널 BGM을 묶어 세로 영상으로 만들어요. 첫 실행은 몇 초 걸릴 수 있어요.'
+    ].join('\n');
+}
+
 module.exports = {
     handleHaebit,
-    buildHaebitShareUrl
+    handleHaebitVideo,
+    buildHaebitShareUrl,
+    buildHaebitVideoUrl
 };

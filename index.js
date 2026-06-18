@@ -24,6 +24,7 @@ const {
 } = require('./modules/chatbotConnect');
 const { renderShareCardPng } = require('./utils/shareCardRenderer');
 const { renderHaebitSharePage } = require('./utils/haebitSharePage');
+const { renderCachedHaebitVideo } = require('./utils/haebitVideoRenderer');
 
 if (!process.env.GEMINI_API_KEY) {
     console.error('[FATAL] GEMINI_API_KEY is not configured. Check your .env file.');
@@ -76,6 +77,14 @@ const publicShareLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     message: '<h1>잠시 후 다시 시도해 주세요.</h1>'
+});
+
+const publicVideoLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: '잠시 후 다시 영상을 만들어 주세요.'
 });
 
 const HAEBIT_SHARE_CODE_PATTERN = /^[A-Za-z0-9_-]{8,24}$/;
@@ -186,6 +195,32 @@ async function handleHaebitSharePage(req, res, next) {
 }
 
 app.get('/h/:token', publicShareLimiter, handleHaebitSharePage);
+
+app.get('/v/:shareCode.mp4', publicVideoLimiter, async (req, res) => {
+    const shareCode = String(req.params.shareCode || '').trim();
+    if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
+        return res.status(404).send('not-found');
+    }
+
+    try {
+        const payload = await getHaebitSharePagePayload(shareCode);
+        if (!payload) {
+            return res.status(404).send('not-found');
+        }
+
+        const video = await renderCachedHaebitVideo(shareCode, payload);
+        res.setHeader('Content-Type', 'video/mp4');
+        res.setHeader('Content-Length', video.length);
+        res.setHeader('Content-Disposition', `inline; filename="haebit-${payload.recordDate || 'day'}.mp4"`);
+        res.setHeader('Cache-Control', 'public, max-age=1800');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        return res.status(200).send(video);
+    } catch (error) {
+        console.error('[HaebitVideo] render error:', error);
+        return res.status(500).send('video-error');
+    }
+});
+
 app.get('/:shareCode', publicShareLimiter, handleHaebitSharePage);
 
 app.get('/api/chatbot-connect/:token', async (req, res) => {
@@ -277,6 +312,7 @@ const server = app.listen(config.PORT, () => {
     console.log(`MessengerBot Endpoint:     POST http://localhost:${config.PORT}/api/messengerbot`);
     console.log(`Share Card Endpoint:       GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
     console.log(`Haebit Share Page:         GET  http://localhost:${config.PORT}/:shareCode`);
+    console.log(`Haebit Share Video:        GET  http://localhost:${config.PORT}/v/:shareCode.mp4`);
     console.log(`Chatbot Connect Lookup:    GET  http://localhost:${config.PORT}/api/chatbot-connect/:token`);
     console.log(`Chatbot Connect Complete:  POST http://localhost:${config.PORT}/api/chatbot-connect/complete`);
     console.log(`Health Check:              GET  http://localhost:${config.PORT}/health`);

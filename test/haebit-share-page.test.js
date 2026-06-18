@@ -6,6 +6,7 @@ const { buildHaebitSharePayloadFromRecord } = require('../modules/appFirebase');
 
 test('renderHaebitSharePage escapes public record text and wires login actions', () => {
     const html = renderHaebitSharePage({
+        token: 'abc123XY',
         pageTitle: '민수 <script>alert(1)</script>의 하루 해빛 기록',
         subtitle: '식단과 운동을 정리했어요.',
         date: '2026.06.04',
@@ -35,6 +36,8 @@ test('renderHaebitSharePage escapes public record text and wires login actions',
     assert.match(html, /좋아요/);
     assert.match(html, /댓글 달기/);
     assert.match(html, /나도 식단 기록하기/);
+    assert.match(html, /\/v\/abc123XY\.mp4/);
+    assert.match(html, /하루 영상/);
 });
 
 test('safeHttpUrl rejects non-http links in public page media', () => {

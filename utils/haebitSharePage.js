@@ -72,6 +72,10 @@ function renderSection(section) {
 
 function renderHaebitSharePage(payload) {
     const loginUrl = safeHttpUrl(payload?.inviteUrl) || DEFAULT_LOGIN_URL;
+    const shareCode = /^[A-Za-z0-9_-]{8,24}$/.test(String(payload?.token || ''))
+        ? String(payload.token)
+        : '';
+    const videoUrl = shareCode ? `/v/${encodeURIComponent(shareCode)}.mp4` : '';
     const title = payload?.pageTitle || payload?.title || '해빛스쿨 하루 기록';
     const description = payload?.subtitle || '로그인 없이 볼 수 있는 해빛스쿨 하루 습관 기록입니다.';
     const media = Array.isArray(payload?.galleryMedia) ? payload.galleryMedia : [];
@@ -289,20 +293,28 @@ function renderHaebitSharePage(payload) {
 
         .actions {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 1px;
             margin: 18px 0;
             overflow: hidden;
             background: var(--line);
         }
 
-        .actions button {
+        .actions button, .actions a {
             border: 0;
             min-height: 58px;
             background: white;
             color: var(--navy);
             font-weight: 900;
             cursor: pointer;
+            display: grid;
+            place-items: center;
+            text-decoration: none;
+        }
+
+        .actions .video-action {
+            color: white;
+            background: var(--accent);
         }
 
         .sections {
@@ -453,6 +465,7 @@ function renderHaebitSharePage(payload) {
         </div>
 
         <section class="actions" aria-label="참여하기">
+            ${videoUrl ? `<a class="video-action" href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener noreferrer">하루 영상</a>` : ''}
             <button type="button" data-login-action>좋아요</button>
             <button type="button" data-login-action>댓글 달기</button>
             <button type="button" data-login-action>나도 기록하기</button>

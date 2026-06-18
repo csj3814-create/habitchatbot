@@ -102,7 +102,10 @@ test('messengerbot always blocks connect and register commands in shared rooms',
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            },
             '../modules/appFirebase': {
                 getUserRecords: async () => []
             },
@@ -193,7 +196,10 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            },
             '../modules/appFirebase': {
                 getUserRecords: async () => []
             },
@@ -291,7 +297,10 @@ test('messengerbot share command returns an image-first reply with follow-up inv
                     shareCode: 'ABC123'
                 })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            },
             '../modules/appFirebase': {
                 getUserRecords: async () => []
             },
@@ -373,7 +382,10 @@ test('messengerbot haebit command returns a public share link without Gemini', a
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY' },
+            '../commands/haebit': {
+                handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY',
+                handleHaebitVideo: async () => 'https://habitchatbot.onrender.com/v/abc123XY.mp4'
+            },
             '../modules/appFirebase': {
                 getUserRecords: async () => []
             },
@@ -412,6 +424,16 @@ test('messengerbot haebit command returns a public share link without Gemini', a
 
     assert.equal(response.status, 200);
     assert.equal(response.json.reply, 'https://habitchatbot.onrender.com/abc123XY');
+
+    const videoResponse = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!해빛영상',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(videoResponse.status, 200);
+    assert.equal(videoResponse.json.reply, 'https://habitchatbot.onrender.com/v/abc123XY.mp4');
 });
 
 test('messengerbot routes scheduled best-record commands without Gemini', async () => {
@@ -464,7 +486,10 @@ test('messengerbot routes scheduled best-record commands without Gemini', async 
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            },
             '../modules/appFirebase': {
                 getUserRecords: async () => []
             },

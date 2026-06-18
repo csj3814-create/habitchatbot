@@ -134,7 +134,10 @@ test('kakao help commands return immediately without habit logging or Gemini ses
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            }
         }
     );
 
@@ -209,7 +212,10 @@ test('kakao freeform prompt treats the user as a Habits School student', async (
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            }
         }
     );
 
@@ -312,7 +318,10 @@ test('kakao share command sends the image first and follows with an invite callb
             '../commands/share': {
                 handleShare: async () => ({ type: 'share-card', imageUrl: 'https://image.example/share.png' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            }
         }
     );
 
@@ -395,7 +404,10 @@ test('kakao haebit command returns a public share link without habit logging or 
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY' }
+            '../commands/haebit': {
+                handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY',
+                handleHaebitVideo: async () => 'https://habitchatbot.onrender.com/v/abc123XY.mp4'
+            }
         }
     );
 
@@ -414,6 +426,14 @@ test('kakao haebit command returns a public share link without habit logging or 
 
     assert.equal(response.status, 200);
     assert.equal(response.json.template.outputs[0].simpleText.text, 'https://habitchatbot.onrender.com/abc123XY');
+
+    const videoResponse = await postJsonToRouter(router, buildKakaoBody('!해빛영상'));
+
+    assert.equal(videoResponse.status, 200);
+    assert.equal(
+        videoResponse.json.template.outputs[0].simpleText.text,
+        'https://habitchatbot.onrender.com/v/abc123XY.mp4'
+    );
 });
 
 test('kakao routes best-record commands without habit logging or Gemini', async () => {
@@ -468,7 +488,10 @@ test('kakao routes best-record commands without habit logging or Gemini', async 
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
             },
-            '../commands/haebit': { handleHaebit: async () => 'HAEBIT' }
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            }
         }
     );
 

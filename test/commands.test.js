@@ -459,6 +459,31 @@ test('handleHaebit returns a persistent public gallery link', async () => {
     assert.match(result, /댓글\/좋아요\/식단\/운동/);
 });
 
+test('handleHaebitVideo returns a public MP4 link', async () => {
+    const record = { id: 'app-user-1_2026-06-18', date: '2026-06-18' };
+
+    const { handleHaebitVideo } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'haebit.js'),
+        {
+            '../config': { RENDER_URL: 'https://habitchatbot.example.com/' },
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'app-user-1' }),
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/appFirebase': {
+                getLatestShareableRecord: async () => record,
+                createHaebitShareToken: async () => 'video123'
+            }
+        }
+    );
+
+    const result = await handleHaebitVideo({ displayName: '테스트 사용자', userId: 'kakao-1' });
+
+    assert.match(result, /하루 기록 영상 링크/);
+    assert.match(result, /https:\/\/habitchatbot\.example\.com\/v\/video123\.mp4/);
+    assert.match(result, /첫 실행은 몇 초/);
+});
+
 test('handleConnect returns a deep-link card for an unlinked user', async () => {
     const { handleConnect } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'connect.js'),

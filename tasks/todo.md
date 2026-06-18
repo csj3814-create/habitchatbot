@@ -571,3 +571,49 @@
 - Captured the correction in `tasks/lessons.md`.
 - Verification passed: `node --check commands/haebit.js modules/appFirebase.js index.js`, targeted route/command/page tests, and `npm test` (58 passed).
 
+# 2026-06-18 Daily Record Video Montage
+> Status: Completed
+
+## Tasks
+- [x] Confirm a Render-compatible FFmpeg runtime and safe remote media download limits
+- [x] Build a vertical MP4 montage from the shared day's photos, exercise clips, and gratitude journal
+- [x] Add a video endpoint and expose it from the public Haebit gallery
+- [x] Add command/documentation support for creating or sharing the daily video
+- [x] Add focused tests and render a local sample MP4
+
+## Plan Notes
+- Generate a 720x1280 H.264 MP4 with a server-synthesized original soundtrack and no copyrighted source music.
+- Use short photo slides, trim uploaded exercise clips, and render the gratitude journal as a Korean text slide.
+- Reuse the existing public share code and privacy-filtered payload; never expose hidden categories or health metrics.
+- Download media with protocol, host, size, timeout, and count limits before passing local files to FFmpeg.
+
+## Review
+- Added `@ffmpeg-installer/ffmpeg` so Windows development and Render Linux deployment receive a bundled FFmpeg binary.
+- Added `utils/haebitVideoRenderer.js` to create 720x1280 H.264 montages from up to six public media items, a Korean gratitude slide, intro, and outro.
+- Remote inputs are limited to Firebase/Google Storage HTTPS hosts, 15 MB per image, 30 MB per video, and 30 MB final output; videos are trimmed to five seconds.
+- Added `GET /v/:shareCode.mp4` with generation rate limiting and a 30-minute in-memory result cache.
+- Added a `하루 영상` action to the public gallery and `!해빛영상`/`!하루영상` commands for Kakao and MessengerBot.
+- Verified Korean typography visually from extracted intro and gratitude frames.
+- Verification passed: syntax checks, focused command/route/page tests, real photo/video FFmpeg integration renders, and `npm test` (63 passed).
+
+# 2026-06-18 Energetic Generated BGM
+> Status: Completed
+
+## Tasks
+- [x] Generate an original energetic instrumental track matched to montage duration
+- [x] Add fade-in/out and AAC muxing without using copyrighted source music
+- [x] Verify the final MP4 contains a playable audio stream
+- [x] Update video documentation and regression tests
+
+## Plan Notes
+- Synthesize the music locally from kick, snare, hi-hat, bass, and bright lead tones at 124 BPM.
+- Keep uploaded exercise audio muted so the montage has one consistent soundtrack.
+
+## Review
+- Added a deterministic 124 BPM stereo soundtrack synthesized from kick, snare, hi-hat, bass, chords, and a bright lead melody.
+- Added 0.7-second fade-in and 1.1-second fade-out, soft clipping, and AAC 128 kbps muxing into the final MP4.
+- Source exercise audio remains muted so every montage has one consistent soundtrack.
+- Sample audio measured about -2.2 dB peak and -19.4 dB RMS without clipping.
+- Updated `!해빛영상` copy and `README.md` to describe the original energetic BGM.
+- Verification passed: WAV structure test, real MP4 AAC-track assertions, focused command tests, and `npm test` (64 passed).
+
