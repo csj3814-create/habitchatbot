@@ -290,7 +290,7 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
                 <p class="percent" id="percent">0%</p>
                 <p class="status" id="status">영상 제작을 시작하고 있어요.</p>
                 <div class="bar" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div>
-                <p class="wait-copy" id="waitCopy">사진과 영상 양에 따라 약 30초에서 2분 정도 걸릴 수 있어요.</p>
+                <p class="wait-copy" id="waitCopy">보통 1~3분 정도 걸리며, 기록이 많으면 조금 더 걸릴 수 있어요.</p>
                 <div class="actions" id="actions">
                     <a id="download" href="#">영상 저장</a>
                     <a href="/${encodeURIComponent(safeCode)}">기록으로 돌아가기</a>

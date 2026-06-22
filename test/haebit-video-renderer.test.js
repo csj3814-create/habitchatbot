@@ -27,17 +27,18 @@ test('buildEnergeticBgmWav creates a stereo PCM soundtrack', () => {
     assert.ok(wav.length > 300000);
 });
 
-test('buildVideoTimeline combines media and gratitude into a bounded montage', () => {
+test('buildVideoTimeline keeps all media and paginates gratitude text', () => {
+    const longJournal = '오늘 하루 함께해 준 사람들과 건강하게 움직일 수 있었던 시간에 감사합니다. '.repeat(5).trim();
     const timeline = buildVideoTimeline({
         date: '2026.06.18',
         pageTitle: '민수의 하루 해빛 기록',
         subtitle: '식단과 운동을 기록했어요.',
         tags: ['식단', '운동'],
         gratitudeEntries: [
-            { date: '2026.06.16', text: '첫째 날 감사일기' },
+            { date: '2026.06.16', text: longJournal },
             { date: '2026.06.18', text: '셋째 날 감사일기' }
         ],
-        galleryMedia: Array.from({ length: 10 }, (_, index) => ({
+        galleryMedia: Array.from({ length: 30 }, (_, index) => ({
             type: index === 1 ? 'video' : 'image',
             url: `https://firebasestorage.googleapis.com/v0/b/example/o/${index}`,
             category: '기록',
@@ -47,8 +48,18 @@ test('buildVideoTimeline combines media and gratitude into a bounded montage', (
     });
 
     assert.equal(timeline[0].kind, 'text');
-    assert.equal(timeline.filter((item) => item.kind === 'image' || item.kind === 'video').length, 9);
-    assert.equal(timeline.filter((item) => item.eyebrow?.includes('감사일기')).length, 2);
+    const mediaSlides = timeline.filter((item) => item.kind === 'image' || item.kind === 'video');
+    const gratitudeSlides = timeline.filter((item) => item.layout === 'gratitude');
+    assert.equal(mediaSlides.length, 30);
+    assert.ok(mediaSlides.filter((item) => item.kind === 'image').every((item) => item.duration < 2.5));
+    assert.ok(gratitudeSlides.length > 2);
+    assert.equal(
+        gratitudeSlides
+            .filter((item) => item.eyebrow.includes('2026.06.16'))
+            .map((item) => item.body)
+            .join(' '),
+        longJournal
+    );
     assert.equal(timeline.at(-1).eyebrow, '오늘도 해빛 완료');
 });
 

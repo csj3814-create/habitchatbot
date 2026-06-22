@@ -11,10 +11,10 @@ const sharp = require('sharp');
 const VIDEO_WIDTH = 720;
 const VIDEO_HEIGHT = 1280;
 const VIDEO_FPS = 30;
-const MAX_MEDIA_COUNT = 9;
+const MAX_MEDIA_COUNT = 36;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
-const MAX_OUTPUT_BYTES = 30 * 1024 * 1024;
+const MAX_OUTPUT_BYTES = 50 * 1024 * 1024;
 const VIDEO_CACHE_TTL_MS = 30 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 6;
 const BGM_SAMPLE_RATE = 44100;
@@ -36,7 +36,7 @@ function midiToFrequency(note) {
 }
 
 function buildEnergeticBgmWav(durationSeconds, sampleRate = BGM_SAMPLE_RATE) {
-    const duration = Math.max(1, Math.min(90, Number(durationSeconds) || 1));
+    const duration = Math.max(1, Math.min(180, Number(durationSeconds) || 1));
     const frameCount = Math.ceil(duration * sampleRate);
     const channelCount = 2;
     const bytesPerSample = 2;
@@ -188,6 +188,41 @@ function wrapTextLines(value, lineLength, maxLines) {
     ];
 }
 
+function wrapTextWords(value, lineLength, maxLines) {
+    const words = String(value || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    const lines = [];
+    let current = '';
+
+    const pushCurrent = () => {
+        if (current) {
+            lines.push(current);
+            current = '';
+        }
+    };
+
+    words.forEach((word) => {
+        const wordChars = [...word];
+        if (wordChars.length > lineLength) {
+            pushCurrent();
+            for (let index = 0; index < wordChars.length; index += lineLength) {
+                lines.push(wordChars.slice(index, index + lineLength).join(''));
+            }
+            return;
+        }
+
+        const candidate = current ? `${current} ${word}` : word;
+        if ([...candidate].length <= lineLength) {
+            current = candidate;
+        } else {
+            pushCurrent();
+            current = word;
+        }
+    });
+    pushCurrent();
+
+    return lines.slice(0, maxLines);
+}
+
 function getTextWidth(text, fontSize, weight = 'regular') {
     const font = getFont(weight);
     const run = font.layout(String(text || ''));
@@ -319,6 +354,130 @@ function buildSlideSvg({ eyebrow, title, body = '', tags = [], accent = '#1F8A70
     `;
 }
 
+function splitJournalText(value, maxChars = 120) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) {
+        return [];
+    }
+
+    const chunks = [];
+    let remaining = text;
+
+    while ([...remaining].length > maxChars) {
+        const chars = [...remaining];
+        const minimumBreak = Math.floor(maxChars * 0.65);
+        let breakAt = maxChars;
+
+        for (let index = maxChars; index >= minimumBreak; index -= 1) {
+            if (/[\s.!?。！？,，]/.test(chars[index - 1])) {
+                breakAt = index;
+                break;
+            }
+        }
+
+        chunks.push(chars.slice(0, breakAt).join('').trim());
+        remaining = chars.slice(breakAt).join('').trim();
+    }
+
+    if (remaining) {
+        chunks.push(remaining);
+    }
+
+    return chunks.filter(Boolean);
+}
+
+function buildGratitudeSlideSvg({
+    eyebrow,
+    body = '',
+    pageLabel = '',
+    accent = '#E44F36'
+}) {
+    const fontSize = [...body].length > 90 ? 27 : 31;
+    const lineLength = fontSize <= 27 ? 20 : 18;
+    const bodyLines = wrapTextWords(body, lineLength, 10);
+    const lineGap = fontSize + 19;
+    const bodyStartY = 630 - (((bodyLines.length - 1) * lineGap) / 2);
+
+    return `
+        <svg width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" viewBox="0 0 ${VIDEO_WIDTH} ${VIDEO_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" fill="#F7F3EF" />
+            <rect x="30" y="0" width="12" height="${VIDEO_HEIGHT}" fill="${accent}" />
+            <rect x="54" y="48" width="612" height="1184" rx="28" fill="#FFFFFF" stroke="#E9DDD7" stroke-width="2" />
+            <rect x="78" y="78" width="58" height="58" rx="14" fill="${accent}" />
+            ${buildTextPath('H', {
+                x: 107,
+                y: 120,
+                fontSize: 32,
+                fill: '#FFFFFF',
+                weight: 'bold',
+                align: 'center'
+            })}
+            ${buildTextPath(eyebrow || '감사일기', {
+                x: 360,
+                y: 210,
+                fontSize: 27,
+                fill: accent,
+                weight: 'bold',
+                align: 'center'
+            })}
+            ${buildTextPath('오늘 마음에 남은 감사', {
+                x: 360,
+                y: 286,
+                fontSize: 45,
+                fill: '#18202C',
+                weight: 'bold',
+                align: 'center'
+            })}
+            <rect x="82" y="350" width="556" height="594" rx="28" fill="#FFF8F5" stroke="#F2D9D2" stroke-width="2" />
+            ${buildTextPath('“', {
+                x: 126,
+                y: 448,
+                fontSize: 88,
+                fill: accent,
+                weight: 'bold'
+            })}
+            ${bodyLines.map((line, index) => buildTextPath(line, {
+                x: 360,
+                y: bodyStartY + (index * lineGap),
+                fontSize,
+                fill: '#424A55',
+                align: 'center'
+            })).join('')}
+            ${buildTextPath('”', {
+                x: 594,
+                y: 894,
+                fontSize: 88,
+                fill: accent,
+                weight: 'bold',
+                align: 'right'
+            })}
+            ${pageLabel ? buildTextPath(pageLabel, {
+                x: 360,
+                y: 1000,
+                fontSize: 21,
+                fill: '#9A6B5E',
+                weight: 'bold',
+                align: 'center'
+            }) : ''}
+            ${buildTextPath('감사한 마음도 꾸준한 습관이 됩니다.', {
+                x: 360,
+                y: 1128,
+                fontSize: 24,
+                fill: '#59616D',
+                align: 'center'
+            })}
+            ${buildTextPath('해빛스쿨', {
+                x: 360,
+                y: 1182,
+                fontSize: 25,
+                fill: '#24334F',
+                weight: 'bold',
+                align: 'center'
+            })}
+        </svg>
+    `;
+}
+
 function isAllowedMediaUrl(value) {
     try {
         const url = new URL(String(value || ''));
@@ -392,7 +551,9 @@ function runFfmpeg(args, {
 }
 
 async function renderTextSlide(filePath, options) {
-    const svg = buildSlideSvg(options);
+    const svg = options.layout === 'gratitude'
+        ? buildGratitudeSlideSvg(options)
+        : buildSlideSvg(options);
     await sharp(Buffer.from(svg)).png().toFile(filePath);
 }
 
@@ -524,6 +685,13 @@ function buildVideoTimeline(payload) {
     const media = Array.isArray(payload?.galleryMedia)
         ? payload.galleryMedia.slice(0, MAX_MEDIA_COUNT)
         : [];
+    const weightedMediaCount = media.reduce(
+        (sum, item) => sum + (item?.type === 'video' ? 2 : 1),
+        0
+    );
+    const durationUnit = weightedMediaCount > 0
+        ? Math.max(1.1, Math.min(2.5, 62 / weightedMediaCount))
+        : 2.5;
     const timeline = [{
         kind: 'text',
         duration: 2.4,
@@ -541,7 +709,9 @@ function buildVideoTimeline(payload) {
 
         timeline.push({
             kind,
-            duration: kind === 'video' ? 5 : 2.5,
+            duration: kind === 'video'
+                ? Math.min(5, durationUnit * 2)
+                : durationUnit,
             url: kind === 'video' ? item.url : (item?.thumbUrl || item?.url || ''),
             fallbackUrl: item?.thumbUrl || '',
             category: item?.category || '해빛 기록',
@@ -555,14 +725,18 @@ function buildVideoTimeline(payload) {
         : (payload?.gratitudeText ? [{ date: payload.date || '', text: payload.gratitudeText }] : []);
 
     gratitudeEntries.slice(0, 3).forEach((entry) => {
-        timeline.push({
-            kind: 'text',
-            duration: 4,
-            eyebrow: entry.date ? `${entry.date} 감사일기` : '감사일기',
-            title: '감사한 마음을 기록했어요',
-            body: `“${truncateText(entry.text, 150)}”`,
-            tags: ['마음 습관'],
-            accent: '#E44F36'
+        const chunks = splitJournalText(entry.text);
+
+        chunks.forEach((chunk, index) => {
+            timeline.push({
+                kind: 'text',
+                layout: 'gratitude',
+                duration: Math.min(6, 3.8 + ([...chunk].length / 60)),
+                eyebrow: entry.date ? `${entry.date} 감사일기` : '감사일기',
+                body: chunk,
+                pageLabel: chunks.length > 1 ? `${index + 1} / ${chunks.length}` : '',
+                accent: '#E44F36'
+            });
         });
     });
 

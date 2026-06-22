@@ -642,3 +642,28 @@
 - Browser plugin was unavailable; system Chrome headless QA verified desktop 1280x900 and mobile 390x844 progress states, including visible percentage, status text, progress bar, and responsive preview.
 - Verification passed: visual frame inspection, progress/job/page tests, real FFmpeg photo/video renders, and `npm test` (67 passed).
 
+# 2026-06-22 Complete Three-Day Media And Gratitude Layout
+> Status: Completed
+
+## Tasks
+- [x] Remove the nine-item position-based sampling that drops later exercise videos
+- [x] Include all normal public media from each of the three dates in chronological order
+- [x] Shorten photo/video scene durations dynamically to keep larger montages practical
+- [x] Paginate full gratitude journals into centered, visually balanced cards
+- [x] Add regression tests proving strength videos and full journal text are retained
+
+## Plan Notes
+- The selection was deterministic, not random, but favored early diet entries because each day's media array is diet-first.
+- Keep a high defensive ceiling for malformed/excessive records, while including the complete media set produced by the normal app workflow.
+- Preserve each record's share settings and hidden-date behavior.
+
+## Review
+- Root cause: selection was deterministic but capped at nine items and media arrays were diet-first, so later strength videos were omitted.
+- Video payloads now collect each date's complete public media set in chronological order, with a defensive ceiling of 36 items for malformed/excessive records.
+- Scene durations automatically scale from the normal 2.5-second photo/5-second video timing toward a roughly 62-second media budget when many sources exist.
+- Long gratitude journals are preserved in full, split into approximately 120-character pages, and rendered in centered quote cards with date and page numbering.
+- Updated creation guidance to a realistic `1~3분`, with a note that unusually large records may take longer.
+- Captured both correction patterns in `tasks/lessons.md`.
+- Visual QA confirmed the redesigned centered gratitude pages and natural word wrapping.
+- Verification passed: strength-video retention, 30-item complete timeline, full journal reconstruction, real MP4 renders, and `npm test` (67 passed).
+

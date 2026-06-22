@@ -139,3 +139,11 @@
 ### Montage media should be framed as product content, not raw letterboxed input
 - Mistake: I padded photos and videos against black, which made mixed aspect ratios look like unfinished source footage instead of a designed Habits School story.
 - Rule: For generated social video, place mixed-aspect media inside a branded scene with date/category context and intentional neutral framing. Treat letterbox space as layout, not empty black pixels.
+
+### Balanced sampling can still hide later categories
+- Mistake: I capped the three-day montage at nine items and selected each day's media by array position. Diet photos came first, so later strength-training videos were silently excluded even though the selection looked date-balanced.
+- Rule: When a user asks for a complete multi-day story, do not use position-based sampling that favors earlier categories. Include every normal product record item, preserve date/category order, and shorten scene durations dynamically when the source count grows.
+
+### Long journal text needs dedicated pagination and centered composition
+- Mistake: I reused the generic left-aligned title slide for gratitude journals and truncated the text, causing the journal to look pushed left and leaving parts undisplayed.
+- Rule: Give reflective long-form text its own centered card layout. Paginate the full text across multiple slides when needed instead of shrinking it excessively or truncating it.

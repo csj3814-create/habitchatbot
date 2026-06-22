@@ -481,7 +481,7 @@ test('handleHaebitVideo returns a public progress-page link', async () => {
 
     assert.match(result, /최근 3일 기록 영상 준비 링크/);
     assert.match(result, /https:\/\/habitchatbot\.example\.com\/video\/video123/);
-    assert.match(result, /30초에서 2분/);
+    assert.match(result, /1~3분/);
 });
 
 test('handleConnect returns a deep-link card for an unlinked user', async () => {

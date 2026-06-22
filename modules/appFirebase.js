@@ -335,14 +335,18 @@ function buildMindGalleryItems(log, settings = normalizeShareSettings(log?.share
     return items;
 }
 
-function buildShareGalleryMedia(log, settings = normalizeShareSettings(log?.shareSettings)) {
+function buildShareGalleryMedia(
+    log,
+    settings = normalizeShareSettings(log?.shareSettings),
+    limit = MAX_GALLERY_MEDIA_COUNT
+) {
     const items = [
         ...buildDietGalleryItems(log, settings),
         ...buildExerciseGalleryItems(log, settings),
         ...buildMindGalleryItems(log, settings)
     ];
 
-    return items.slice(0, MAX_GALLERY_MEDIA_COUNT);
+    return Number.isFinite(limit) ? items.slice(0, Math.max(0, limit)) : items;
 }
 
 function formatGalleryMetric(label, value, unit = '') {
@@ -936,33 +940,13 @@ function getDateRangeEndingAt(dateStr, count = 3) {
     return dates;
 }
 
-function selectBalancedThreeDayMedia(days, limit = 9) {
-    const selected = [];
-    let mediaIndex = 0;
-
-    while (selected.length < limit) {
-        let added = false;
-
-        days.forEach((day) => {
-            const media = day.media[mediaIndex];
-            if (!media || selected.length >= limit) {
-                return;
-            }
-
-            selected.push({
-                ...media,
-                dateLabel: day.date
-            });
-            added = true;
-        });
-
-        if (!added) {
-            break;
-        }
-        mediaIndex += 1;
-    }
-
-    return selected;
+function collectThreeDayMedia(days, limit = 36) {
+    return days
+        .flatMap((day) => day.media.map((media) => ({
+            ...media,
+            dateLabel: day.date
+        })))
+        .slice(0, limit);
 }
 
 function buildHaebitVideoPayloadFromRecords(googleUid, records, userProfile) {
@@ -979,7 +963,7 @@ function buildHaebitVideoPayloadFromRecords(googleUid, records, userProfile) {
             return {
                 date: payload.date,
                 recordDate: record.date || '',
-                media: payload.galleryMedia,
+                media: buildShareGalleryMedia(record, settings, Number.POSITIVE_INFINITY),
                 gratitudeText: payload.gratitudeText,
                 tags: payload.tags,
                 hideIdentity: payload.shareSettings.hideIdentity,
@@ -1008,7 +992,7 @@ function buildHaebitVideoPayloadFromRecords(googleUid, records, userProfile) {
             ? `${visibleDates[0]} ~ ${visibleDates.at(-1)}`
             : (visibleDates[0] || ''),
         tags,
-        galleryMedia: selectBalancedThreeDayMedia(days),
+        galleryMedia: collectThreeDayMedia(days),
         gratitudeEntries: days
             .filter((day) => day.gratitudeText)
             .map((day) => ({

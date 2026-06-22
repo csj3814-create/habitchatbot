@@ -10,7 +10,7 @@ test('renderHaebitVideoProgressPage shows progress immediately and polls job sta
     });
 
     assert.match(html, /id="percent">0%/);
-    assert.match(html, /30초에서 2분/);
+    assert.match(html, /1~3분/);
     assert.match(html, /\/video\/' \+ encodeURIComponent\(shareCode\) \+ '\/start/);
     assert.match(html, /\/video\/' \+ encodeURIComponent\(shareCode\) \+ '\/status/);
     assert.match(html, /\/v\/' \+ encodeURIComponent\(shareCode\) \+ '\.mp4/);

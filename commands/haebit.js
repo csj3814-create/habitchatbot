@@ -65,7 +65,7 @@ async function handleHaebitVideo(user) {
         `${result.displayName}님의 최근 3일 기록 영상 준비 링크예요.`,
         buildHaebitVideoUrl(result.token),
         '',
-        '링크를 열면 제작이 시작되고 진행률이 표시돼요. 사진·영상 양에 따라 약 30초에서 2분 정도 걸릴 수 있어요.'
+        '링크를 열면 제작이 시작되고 진행률이 표시돼요. 보통 1~3분 정도 걸리며, 기록이 많으면 조금 더 걸릴 수 있어요.'
     ].join('\n');
 }
 

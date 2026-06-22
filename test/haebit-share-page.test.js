@@ -81,13 +81,15 @@ test('buildHaebitSharePayloadFromRecord respects public share settings', () => {
     assert.equal(payload.inviteUrl, 'https://habitschool.web.app/?ref=ABC123');
 });
 
-test('buildHaebitVideoPayloadFromRecords balances public media across three days', () => {
+test('buildHaebitVideoPayloadFromRecords keeps all public media across three days', () => {
     const records = ['2026-06-16', '2026-06-17', '2026-06-18'].map((date, dayIndex) => ({
         id: `uid-1_${date}`,
         date,
         diet: {
             breakfastUrl: `https://firebasestorage.googleapis.com/day-${dayIndex}-breakfast.jpg`,
-            lunchUrl: `https://firebasestorage.googleapis.com/day-${dayIndex}-lunch.jpg`
+            lunchUrl: `https://firebasestorage.googleapis.com/day-${dayIndex}-lunch.jpg`,
+            dinnerUrl: `https://firebasestorage.googleapis.com/day-${dayIndex}-dinner.jpg`,
+            snackUrl: `https://firebasestorage.googleapis.com/day-${dayIndex}-snack.jpg`
         },
         exercise: {
             strengthList: [{
@@ -107,7 +109,7 @@ test('buildHaebitVideoPayloadFromRecords balances public media across three days
 
     assert.equal(payload.sourceDays.length, 3);
     assert.equal(payload.gratitudeEntries.length, 3);
-    assert.equal(payload.galleryMedia.length, 8);
+    assert.equal(payload.galleryMedia.length, 14);
     assert.deepEqual(
         [...new Set(payload.galleryMedia.map((item) => item.dateLabel))],
         ['2026.06.16', '2026.06.17', '2026.06.18']
@@ -115,6 +117,14 @@ test('buildHaebitVideoPayloadFromRecords balances public media across three days
     assert.equal(
         payload.galleryMedia.some((item) => item.url.includes('day-1-exercise.mp4')),
         false
+    );
+    assert.equal(
+        payload.galleryMedia.some((item) => item.url.includes('day-0-exercise.mp4')),
+        true
+    );
+    assert.equal(
+        payload.galleryMedia.some((item) => item.url.includes('day-2-exercise.mp4')),
+        true
     );
     assert.match(payload.pageTitle, /최근 3일/);
 });
