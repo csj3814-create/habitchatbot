@@ -384,7 +384,7 @@ test('messengerbot haebit command returns a public share link without Gemini', a
             },
             '../commands/haebit': {
                 handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY',
-                handleHaebitVideo: async () => 'https://habitchatbot.onrender.com/v/abc123XY.mp4'
+                handleHaebitVideo: async () => 'https://habitchatbot.onrender.com/video/abc123XY'
             },
             '../modules/appFirebase': {
                 getUserRecords: async () => []
@@ -433,7 +433,7 @@ test('messengerbot haebit command returns a public share link without Gemini', a
     });
 
     assert.equal(videoResponse.status, 200);
-    assert.equal(videoResponse.json.reply, 'https://habitchatbot.onrender.com/v/abc123XY.mp4');
+    assert.equal(videoResponse.json.reply, 'https://habitchatbot.onrender.com/video/abc123XY');
 });
 
 test('messengerbot routes scheduled best-record commands without Gemini', async () => {

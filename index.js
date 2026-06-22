@@ -16,7 +16,8 @@ const {
     initAppFirebase,
     consumeShareCardToken,
     getShareCardPayload,
-    getHaebitSharePagePayload
+    getHaebitSharePagePayload,
+    getHaebitVideoPayload
 } = require('./modules/appFirebase');
 const {
     getChatbotConnectToken,
@@ -24,7 +25,12 @@ const {
 } = require('./modules/chatbotConnect');
 const { renderShareCardPng } = require('./utils/shareCardRenderer');
 const { renderHaebitSharePage } = require('./utils/haebitSharePage');
-const { renderCachedHaebitVideo } = require('./utils/haebitVideoRenderer');
+const {
+    startHaebitVideoJob,
+    getHaebitVideoJobStatus,
+    getCompletedHaebitVideo
+} = require('./utils/haebitVideoRenderer');
+const { renderHaebitVideoProgressPage } = require('./utils/haebitVideoPage');
 
 if (!process.env.GEMINI_API_KEY) {
     console.error('[FATAL] GEMINI_API_KEY is not configured. Check your .env file.');
@@ -85,6 +91,14 @@ const publicVideoLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     message: '잠시 후 다시 영상을 만들어 주세요.'
+});
+
+const videoStatusLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 180,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { status: 'error', progress: 0, message: '잠시 후 다시 확인해 주세요.' }
 });
 
 const HAEBIT_SHARE_CODE_PATTERN = /^[A-Za-z0-9_-]{8,24}$/;
@@ -196,29 +210,68 @@ async function handleHaebitSharePage(req, res, next) {
 
 app.get('/h/:token', publicShareLimiter, handleHaebitSharePage);
 
-app.get('/v/:shareCode.mp4', publicVideoLimiter, async (req, res) => {
+app.get('/video/:shareCode', publicShareLimiter, (req, res) => {
+    const shareCode = String(req.params.shareCode || '').trim();
+    if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
+        return res.status(404).send('<h1>영상 링크를 확인해 주세요.</h1>');
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(renderHaebitVideoProgressPage({ shareCode }));
+});
+
+app.post('/video/:shareCode/start', publicVideoLimiter, async (req, res) => {
+    const shareCode = String(req.params.shareCode || '').trim();
+    if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
+        return res.status(404).json({ status: 'error', progress: 0, message: '영상 링크를 확인해 주세요.' });
+    }
+
+    const existingJob = getHaebitVideoJobStatus(shareCode);
+    if (existingJob.status === 'processing' || existingJob.status === 'ready') {
+        return res.status(202).json(existingJob);
+    }
+
+    try {
+        const payload = await getHaebitVideoPayload(shareCode);
+        if (!payload) {
+            return res.status(404).json({ status: 'error', progress: 0, message: '공개 가능한 최근 3일 기록을 찾지 못했어요.' });
+        }
+
+        return res.status(202).json(startHaebitVideoJob(shareCode, payload));
+    } catch (error) {
+        console.error('[HaebitVideo] start error:', error);
+        return res.status(500).json({ status: 'error', progress: 0, message: '영상 제작을 시작하지 못했어요.' });
+    }
+});
+
+app.get('/video/:shareCode/status', videoStatusLimiter, (req, res) => {
+    const shareCode = String(req.params.shareCode || '').trim();
+    if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
+        return res.status(404).json({ status: 'error', progress: 0, message: '영상 링크를 확인해 주세요.' });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json(getHaebitVideoJobStatus(shareCode));
+});
+
+app.get('/v/:shareCode.mp4', publicShareLimiter, (req, res) => {
     const shareCode = String(req.params.shareCode || '').trim();
     if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
         return res.status(404).send('not-found');
     }
 
-    try {
-        const payload = await getHaebitSharePagePayload(shareCode);
-        if (!payload) {
-            return res.status(404).send('not-found');
-        }
-
-        const video = await renderCachedHaebitVideo(shareCode, payload);
-        res.setHeader('Content-Type', 'video/mp4');
-        res.setHeader('Content-Length', video.length);
-        res.setHeader('Content-Disposition', `inline; filename="haebit-${payload.recordDate || 'day'}.mp4"`);
-        res.setHeader('Cache-Control', 'public, max-age=1800');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        return res.status(200).send(video);
-    } catch (error) {
-        console.error('[HaebitVideo] render error:', error);
-        return res.status(500).send('video-error');
+    const video = getCompletedHaebitVideo(shareCode);
+    if (!video) {
+        return res.redirect(302, `/video/${encodeURIComponent(shareCode)}`);
     }
+
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Length', video.length);
+    res.setHeader('Content-Disposition', 'inline; filename="haebit-3days.mp4"');
+    res.setHeader('Cache-Control', 'public, max-age=1800');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.status(200).send(video);
 });
 
 app.get('/:shareCode', publicShareLimiter, handleHaebitSharePage);
@@ -312,7 +365,7 @@ const server = app.listen(config.PORT, () => {
     console.log(`MessengerBot Endpoint:     POST http://localhost:${config.PORT}/api/messengerbot`);
     console.log(`Share Card Endpoint:       GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
     console.log(`Haebit Share Page:         GET  http://localhost:${config.PORT}/:shareCode`);
-    console.log(`Haebit Share Video:        GET  http://localhost:${config.PORT}/v/:shareCode.mp4`);
+    console.log(`Haebit Video Progress:     GET  http://localhost:${config.PORT}/video/:shareCode`);
     console.log(`Chatbot Connect Lookup:    GET  http://localhost:${config.PORT}/api/chatbot-connect/:token`);
     console.log(`Chatbot Connect Complete:  POST http://localhost:${config.PORT}/api/chatbot-connect/complete`);
     console.log(`Health Check:              GET  http://localhost:${config.PORT}/health`);

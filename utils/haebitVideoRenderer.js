@@ -11,7 +11,7 @@ const sharp = require('sharp');
 const VIDEO_WIDTH = 720;
 const VIDEO_HEIGHT = 1280;
 const VIDEO_FPS = 30;
-const MAX_MEDIA_COUNT = 6;
+const MAX_MEDIA_COUNT = 9;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 30 * 1024 * 1024;
@@ -29,14 +29,14 @@ const FONT_FILES = {
 };
 
 const loadedFonts = new Map();
-const videoCache = new Map();
+const videoJobs = new Map();
 
 function midiToFrequency(note) {
     return 440 * (2 ** ((note - 69) / 12));
 }
 
 function buildEnergeticBgmWav(durationSeconds, sampleRate = BGM_SAMPLE_RATE) {
-    const duration = Math.max(1, Math.min(60, Number(durationSeconds) || 1));
+    const duration = Math.max(1, Math.min(90, Number(durationSeconds) || 1));
     const frameCount = Math.ceil(duration * sampleRate);
     const channelCount = 2;
     const bytesPerSample = 2;
@@ -396,33 +396,89 @@ async function renderTextSlide(filePath, options) {
     await sharp(Buffer.from(svg)).png().toFile(filePath);
 }
 
-async function renderPhotoSlide(sourcePath, filePath, label) {
+function getCategoryAccent(category) {
+    if (category === '식단') return '#E44F36';
+    if (category === '운동') return '#2767B0';
+    if (category === '마음') return '#7A4EAB';
+    return '#1F8A70';
+}
+
+function buildMediaFrameSvg(item = {}) {
+    const accent = getCategoryAccent(item.category);
+    const dateLabel = item.dateLabel || '최근 3일';
+    const category = item.category || '해빛 기록';
+    const label = item.label || '오늘의 기록';
+
+    return `
+        <svg width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" viewBox="0 0 ${VIDEO_WIDTH} ${VIDEO_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" fill="#F3F6F1" />
+            <rect x="0" y="0" width="18" height="${VIDEO_HEIGHT}" fill="${accent}" />
+            <rect x="42" y="42" width="636" height="1196" rx="26" fill="#FFFFFF" stroke="#DDE5DD" stroke-width="2" />
+            <rect x="58" y="68" width="62" height="62" rx="14" fill="${accent}" />
+            ${buildTextPath('H', {
+                x: 89,
+                y: 113,
+                fontSize: 34,
+                fill: '#FFFFFF',
+                weight: 'bold',
+                align: 'center'
+            })}
+            ${buildTextPath(dateLabel, {
+                x: 646,
+                y: 106,
+                fontSize: 25,
+                fill: '#59616D',
+                weight: 'bold',
+                align: 'right'
+            })}
+            <rect x="60" y="174" width="600" height="864" rx="22" fill="#E7F0EA" />
+            <rect x="60" y="174" width="600" height="10" rx="5" fill="${accent}" />
+            <rect x="60" y="1058" width="136" height="42" rx="21" fill="${accent}" fill-opacity="0.12" />
+            ${buildTextPath(category, {
+                x: 128,
+                y: 1087,
+                fontSize: 21,
+                fill: accent,
+                weight: 'bold',
+                align: 'center'
+            })}
+            ${buildTextPath(label, {
+                x: 60,
+                y: 1152,
+                fontSize: 34,
+                fill: '#1D2939',
+                weight: 'bold'
+            })}
+            ${buildTextPath('최근 3일의 습관을 한 편의 이야기로', {
+                x: 60,
+                y: 1193,
+                fontSize: 21,
+                fill: '#7B828D'
+            })}
+            <rect x="624" y="1074" width="12" height="12" rx="3" fill="${accent}" />
+            <rect x="644" y="1074" width="12" height="12" rx="3" fill="#D9E2DA" />
+        </svg>
+    `;
+}
+
+async function renderMediaBackground(filePath, item) {
+    await sharp(Buffer.from(buildMediaFrameSvg(item))).png().toFile(filePath);
+}
+
+async function renderPhotoSlide(sourcePath, filePath, item) {
     const image = await sharp(sourcePath)
         .rotate()
-        .resize(636, 1040, {
+        .resize(600, 864, {
             fit: 'contain',
-            background: '#111827',
+            background: '#E7F0EA',
             withoutEnlargement: false
         })
         .png()
         .toBuffer();
-    const overlaySvg = `
-        <svg width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" viewBox="0 0 ${VIDEO_WIDTH} ${VIDEO_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" fill="#111827" />
-            <rect x="42" y="64" width="636" height="1040" rx="24" fill="#111827" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" />
-            <rect x="42" y="1124" width="636" height="92" rx="20" fill="#FFFFFF" />
-            ${buildTextPath(label || '오늘의 기록', {
-                x: 70,
-                y: 1183,
-                fontSize: 30,
-                fill: '#1D2939',
-                weight: 'bold'
-            })}
-        </svg>
-    `;
+    const background = await sharp(Buffer.from(buildMediaFrameSvg(item))).png().toBuffer();
 
-    await sharp(Buffer.from(overlaySvg))
-        .composite([{ input: image, left: 42, top: 64 }])
+    await sharp(background)
+        .composite([{ input: image, left: 60, top: 174 }])
         .png()
         .toFile(filePath);
 }
@@ -444,12 +500,17 @@ async function createImageSegment(imagePath, outputPath, durationSeconds) {
     ]);
 }
 
-async function createVideoSegment(inputPath, outputPath) {
+async function createVideoSegment(inputPath, backgroundPath, outputPath) {
     await runFfmpeg([
         '-y',
+        '-loop', '1',
+        '-framerate', String(VIDEO_FPS),
+        '-i', backgroundPath,
         '-i', inputPath,
         '-t', '5',
-        '-vf', `scale=${VIDEO_WIDTH}:${VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,pad=${VIDEO_WIDTH}:${VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=0x111827,fps=${VIDEO_FPS},setsar=1,format=yuv420p`,
+        '-filter_complex',
+        `[1:v]scale=600:864:force_original_aspect_ratio=decrease,pad=600:864:(ow-iw)/2:(oh-ih)/2:color=0xE7F0EA[clip];[0:v][clip]overlay=60:174:shortest=1,fps=${VIDEO_FPS},setsar=1,format=yuv420p[v]`,
+        '-map', '[v]',
         '-an',
         '-c:v', 'libx264',
         '-preset', 'veryfast',
@@ -483,21 +544,27 @@ function buildVideoTimeline(payload) {
             duration: kind === 'video' ? 5 : 2.5,
             url: kind === 'video' ? item.url : (item?.thumbUrl || item?.url || ''),
             fallbackUrl: item?.thumbUrl || '',
-            label: [item?.category, item?.label].filter(Boolean).join(' · ')
+            category: item?.category || '해빛 기록',
+            label: item?.label || '오늘의 기록',
+            dateLabel: item?.dateLabel || ''
         });
     });
 
-    if (payload?.gratitudeText) {
+    const gratitudeEntries = Array.isArray(payload?.gratitudeEntries) && payload.gratitudeEntries.length > 0
+        ? payload.gratitudeEntries
+        : (payload?.gratitudeText ? [{ date: payload.date || '', text: payload.gratitudeText }] : []);
+
+    gratitudeEntries.slice(0, 3).forEach((entry) => {
         timeline.push({
             kind: 'text',
             duration: 4,
-            eyebrow: '오늘의 감사일기',
+            eyebrow: entry.date ? `${entry.date} 감사일기` : '감사일기',
             title: '감사한 마음을 기록했어요',
-            body: `“${truncateText(payload.gratitudeText, 150)}”`,
+            body: `“${truncateText(entry.text, 150)}”`,
             tags: ['마음 습관'],
             accent: '#E44F36'
         });
-    }
+    });
 
     timeline.push({
         kind: 'text',
@@ -511,15 +578,26 @@ function buildVideoTimeline(payload) {
     return timeline;
 }
 
+function reportProgress(onProgress, progress, message) {
+    try {
+        onProgress(Math.max(0, Math.min(100, Math.round(progress))), message);
+    } catch (_) {
+        // Progress reporting must never interrupt rendering.
+    }
+}
+
 async function renderHaebitVideo(payload, {
-    downloadMedia = downloadRemoteMedia
+    downloadMedia = downloadRemoteMedia,
+    onProgress = () => {}
 } = {}) {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'haebit-video-'));
 
     try {
+        reportProgress(onProgress, 3, '최근 3일 기록을 정리하고 있어요.');
         const timeline = buildVideoTimeline(payload);
         const segmentPaths = [];
         const segmentDurations = [];
+        reportProgress(onProgress, 7, '사진과 영상 장면을 준비하고 있어요.');
 
         for (let index = 0; index < timeline.length; index += 1) {
             const item = timeline[index];
@@ -531,6 +609,13 @@ async function renderHaebitVideo(payload, {
                 await createImageSegment(slidePath, segmentPath, item.duration);
                 segmentPaths.push(segmentPath);
                 segmentDurations.push(item.duration);
+                reportProgress(
+                    onProgress,
+                    7 + (((index + 1) / timeline.length) * 66),
+                    item.eyebrow?.includes('감사일기')
+                        ? '감사일기 장면을 만들고 있어요.'
+                        : '이야기 장면을 만들고 있어요.'
+                );
                 continue;
             }
 
@@ -539,10 +624,12 @@ async function renderHaebitVideo(payload, {
                 await downloadMedia(item.url, sourcePath, item.kind);
 
                 if (item.kind === 'video') {
-                    await createVideoSegment(sourcePath, segmentPath);
+                    const backgroundPath = path.join(tempDir, `video-frame-${index}.png`);
+                    await renderMediaBackground(backgroundPath, item);
+                    await createVideoSegment(sourcePath, backgroundPath, segmentPath);
                 } else {
                     const slidePath = path.join(tempDir, `photo-${index}.png`);
-                    await renderPhotoSlide(sourcePath, slidePath, item.label);
+                    await renderPhotoSlide(sourcePath, slidePath, item);
                     await createImageSegment(slidePath, segmentPath, item.duration);
                 }
                 segmentPaths.push(segmentPath);
@@ -557,7 +644,7 @@ async function renderHaebitVideo(payload, {
                     const fallbackPath = path.join(tempDir, `fallback-${index}.jpg`);
                     const slidePath = path.join(tempDir, `fallback-slide-${index}.png`);
                     await downloadMedia(item.fallbackUrl, fallbackPath, 'image');
-                    await renderPhotoSlide(fallbackPath, slidePath, item.label);
+                    await renderPhotoSlide(fallbackPath, slidePath, item);
                     await createImageSegment(slidePath, segmentPath, 2.5);
                     segmentPaths.push(segmentPath);
                     segmentDurations.push(2.5);
@@ -565,6 +652,14 @@ async function renderHaebitVideo(payload, {
                     console.warn(`[HaebitVideo] Skipped fallback ${index}:`, fallbackError.message);
                 }
             }
+
+            reportProgress(
+                onProgress,
+                7 + (((index + 1) / timeline.length) * 66),
+                item.kind === 'video'
+                    ? '운동 영상을 편집하고 있어요.'
+                    : '기록 사진을 디자인하고 있어요.'
+            );
         }
 
         if (segmentPaths.length === 0) {
@@ -579,6 +674,7 @@ async function renderHaebitVideo(payload, {
             .map((segmentPath) => `file '${segmentPath.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`)
             .join('\n');
         await fs.writeFile(concatPath, concatBody, 'utf8');
+        reportProgress(onProgress, 76, '장면을 한 편의 영상으로 잇고 있어요.');
         await runFfmpeg([
             '-y',
             '-f', 'concat',
@@ -590,7 +686,9 @@ async function renderHaebitVideo(payload, {
         ]);
 
         const estimatedDuration = segmentDurations.reduce((sum, duration) => sum + duration, 0) + 0.5;
+        reportProgress(onProgress, 86, '에너지 넘치는 배경음악을 만들고 있어요.');
         await fs.writeFile(bgmPath, buildEnergeticBgmWav(estimatedDuration));
+        reportProgress(onProgress, 92, '영상과 음악을 합치고 있어요.');
         await runFfmpeg([
             '-y',
             '-i', videoOnlyPath,
@@ -609,58 +707,139 @@ async function renderHaebitVideo(payload, {
         if (output.length === 0 || output.length > MAX_OUTPUT_BYTES) {
             throw new Error('Generated video is empty or too large.');
         }
+        reportProgress(onProgress, 100, '하루 영상이 완성됐어요.');
         return output;
     } finally {
         await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
 }
 
-function pruneVideoCache(now = Date.now()) {
-    for (const [key, value] of videoCache.entries()) {
-        if (value.expiresAt <= now) {
-            videoCache.delete(key);
+function pruneVideoJobs(now = Date.now()) {
+    for (const [key, job] of videoJobs.entries()) {
+        if (job.status !== 'processing' && job.expiresAt <= now) {
+            videoJobs.delete(key);
         }
     }
 
-    while (videoCache.size > MAX_CACHE_ENTRIES) {
-        const oldestKey = videoCache.keys().next().value;
-        videoCache.delete(oldestKey);
+    while (videoJobs.size > MAX_CACHE_ENTRIES) {
+        const removable = [...videoJobs.entries()]
+            .find(([, job]) => job.status !== 'processing');
+        if (!removable) {
+            break;
+        }
+        videoJobs.delete(removable[0]);
     }
+}
+
+function getHaebitVideoJobStatus(shareCode) {
+    const key = String(shareCode || '').trim();
+    const now = Date.now();
+    pruneVideoJobs(now);
+    const job = videoJobs.get(key);
+
+    if (!job) {
+        return {
+            status: 'idle',
+            progress: 0,
+            message: '영상 제작을 시작할 준비가 됐어요.'
+        };
+    }
+
+    return {
+        status: job.status,
+        progress: job.progress,
+        message: job.message,
+        startedAt: job.startedAt,
+        updatedAt: job.updatedAt
+    };
+}
+
+function getCompletedHaebitVideo(shareCode) {
+    const key = String(shareCode || '').trim();
+    pruneVideoJobs();
+    const job = videoJobs.get(key);
+    return job?.status === 'ready' ? job.buffer : null;
+}
+
+function startHaebitVideoJob(shareCode, payload, {
+    renderVideo = renderHaebitVideo
+} = {}) {
+    const key = String(shareCode || '').trim();
+    const now = Date.now();
+    pruneVideoJobs(now);
+
+    const existing = videoJobs.get(key);
+    if (existing?.status === 'processing' || existing?.status === 'ready') {
+        return getHaebitVideoJobStatus(key);
+    }
+
+    const job = {
+        status: 'processing',
+        progress: 1,
+        message: '최근 3일 기록을 불러오고 있어요.',
+        startedAt: new Date(now).toISOString(),
+        updatedAt: new Date(now).toISOString(),
+        expiresAt: now + VIDEO_CACHE_TTL_MS,
+        buffer: null,
+        promise: null
+    };
+    videoJobs.set(key, job);
+
+    job.promise = renderVideo(payload, {
+        onProgress(progress, message) {
+            const activeJob = videoJobs.get(key);
+            if (!activeJob || activeJob.status !== 'processing') {
+                return;
+            }
+            activeJob.progress = Math.max(activeJob.progress, progress);
+            activeJob.message = message || activeJob.message;
+            activeJob.updatedAt = new Date().toISOString();
+        }
+    })
+        .then((buffer) => {
+            const activeJob = videoJobs.get(key);
+            if (!activeJob) {
+                return buffer;
+            }
+            activeJob.status = 'ready';
+            activeJob.progress = 100;
+            activeJob.message = '하루 영상이 완성됐어요.';
+            activeJob.buffer = buffer;
+            activeJob.updatedAt = new Date().toISOString();
+            activeJob.expiresAt = Date.now() + VIDEO_CACHE_TTL_MS;
+            pruneVideoJobs();
+            return buffer;
+        })
+        .catch((error) => {
+            const activeJob = videoJobs.get(key);
+            if (activeJob) {
+                activeJob.status = 'error';
+                activeJob.message = '영상 제작 중 문제가 생겼어요. 다시 시도해 주세요.';
+                activeJob.updatedAt = new Date().toISOString();
+                activeJob.expiresAt = Date.now() + (5 * 60 * 1000);
+                activeJob.error = error;
+            }
+            console.error('[HaebitVideo] background render error:', error);
+            return null;
+        });
+
+    return getHaebitVideoJobStatus(key);
 }
 
 async function renderCachedHaebitVideo(shareCode, payload) {
     const key = String(shareCode || '').trim();
-    const now = Date.now();
-    pruneVideoCache(now);
+    startHaebitVideoJob(key, payload);
+    const job = videoJobs.get(key);
 
-    const cached = videoCache.get(key);
-    if (cached?.buffer && cached.expiresAt > now) {
-        return cached.buffer;
-    }
-    if (cached?.promise) {
-        return cached.promise;
+    if (job.status === 'ready') {
+        return job.buffer;
     }
 
-    const promise = renderHaebitVideo(payload)
-        .then((buffer) => {
-            videoCache.delete(key);
-            videoCache.set(key, {
-                buffer,
-                expiresAt: Date.now() + VIDEO_CACHE_TTL_MS
-            });
-            pruneVideoCache();
-            return buffer;
-        })
-        .catch((error) => {
-            videoCache.delete(key);
-            throw error;
-        });
-
-    videoCache.set(key, {
-        promise,
-        expiresAt: now + VIDEO_CACHE_TTL_MS
-    });
-    return promise;
+    const buffer = await job.promise;
+    if (!buffer) {
+        throw job.error || new Error('Video generation failed.');
+    }
+    return buffer;
 }
 
 module.exports = {
@@ -668,5 +847,8 @@ module.exports = {
     buildVideoTimeline,
     isAllowedMediaUrl,
     renderHaebitVideo,
-    renderCachedHaebitVideo
+    renderCachedHaebitVideo,
+    startHaebitVideoJob,
+    getHaebitVideoJobStatus,
+    getCompletedHaebitVideo
 };

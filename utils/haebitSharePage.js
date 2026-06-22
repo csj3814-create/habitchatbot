@@ -75,7 +75,7 @@ function renderHaebitSharePage(payload) {
     const shareCode = /^[A-Za-z0-9_-]{8,24}$/.test(String(payload?.token || ''))
         ? String(payload.token)
         : '';
-    const videoUrl = shareCode ? `/v/${encodeURIComponent(shareCode)}.mp4` : '';
+    const videoUrl = shareCode ? `/video/${encodeURIComponent(shareCode)}` : '';
     const title = payload?.pageTitle || payload?.title || '해빛스쿨 하루 기록';
     const description = payload?.subtitle || '로그인 없이 볼 수 있는 해빛스쿨 하루 습관 기록입니다.';
     const media = Array.isArray(payload?.galleryMedia) ? payload.galleryMedia : [];

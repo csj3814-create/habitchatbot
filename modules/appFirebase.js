@@ -917,6 +917,114 @@ function buildHaebitSharePayloadFromRecord(googleUid, record, userProfile) {
     };
 }
 
+function getDateRangeEndingAt(dateStr, count = 3) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimText(dateStr));
+    if (!match) {
+        return [];
+    }
+
+    const [, year, month, day] = match;
+    const end = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+    const dates = [];
+
+    for (let offset = count - 1; offset >= 0; offset -= 1) {
+        const date = new Date(end);
+        date.setUTCDate(date.getUTCDate() - offset);
+        dates.push(date.toISOString().slice(0, 10));
+    }
+
+    return dates;
+}
+
+function selectBalancedThreeDayMedia(days, limit = 9) {
+    const selected = [];
+    let mediaIndex = 0;
+
+    while (selected.length < limit) {
+        let added = false;
+
+        days.forEach((day) => {
+            const media = day.media[mediaIndex];
+            if (!media || selected.length >= limit) {
+                return;
+            }
+
+            selected.push({
+                ...media,
+                dateLabel: day.date
+            });
+            added = true;
+        });
+
+        if (!added) {
+            break;
+        }
+        mediaIndex += 1;
+    }
+
+    return selected;
+}
+
+function buildHaebitVideoPayloadFromRecords(googleUid, records, userProfile) {
+    const days = (Array.isArray(records) ? records : [])
+        .filter(Boolean)
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+        .map((record) => {
+            const settings = normalizeShareSettings(record.shareSettings);
+            if (!isShareableRecord(record, settings)) {
+                return null;
+            }
+
+            const payload = buildHaebitSharePayloadFromRecord(googleUid, record, userProfile);
+            return {
+                date: payload.date,
+                recordDate: record.date || '',
+                media: payload.galleryMedia,
+                gratitudeText: payload.gratitudeText,
+                tags: payload.tags,
+                hideIdentity: payload.shareSettings.hideIdentity,
+                payload
+            };
+        })
+        .filter(Boolean);
+
+    if (days.length === 0) {
+        return null;
+    }
+
+    const latest = days.at(-1).payload;
+    const hideIdentity = days.some((day) => day.hideIdentity);
+    const userName = hideIdentity ? '익명 학생' : latest.userName;
+    const visibleDates = days.map((day) => day.date).filter(Boolean);
+    const tags = [...new Set(days.flatMap((day) => day.tags))].slice(0, 4);
+
+    return {
+        ...latest,
+        userName,
+        title: hideIdentity ? '최근 3일 해빛 루틴' : `${userName}의 3일 해빛 루틴`,
+        pageTitle: hideIdentity ? '최근 3일 해빛 기록' : `${userName}의 최근 3일 해빛 기록`,
+        subtitle: `${days.length}일 동안의 사진, 운동 영상, 감사일기를 한 편으로 모았어요.`,
+        date: visibleDates.length > 1
+            ? `${visibleDates[0]} ~ ${visibleDates.at(-1)}`
+            : (visibleDates[0] || ''),
+        tags,
+        galleryMedia: selectBalancedThreeDayMedia(days),
+        gratitudeEntries: days
+            .filter((day) => day.gratitudeText)
+            .map((day) => ({
+                date: day.date,
+                text: day.gratitudeText
+            })),
+        sourceDays: days.map((day) => ({
+            date: day.date,
+            recordDate: day.recordDate,
+            mediaCount: day.media.length,
+            hasGratitude: Boolean(day.gratitudeText)
+        })),
+        recordDate: days.at(-1).recordDate
+    };
+}
+
 async function createHaebitShareToken({ googleUid, record, kakaoUserKey = '' }) {
     const normalizedUid = trimText(googleUid);
     const recordDate = trimText(record?.date);
@@ -1000,6 +1108,30 @@ async function getHaebitSharePagePayload(token) {
     };
 }
 
+async function getHaebitVideoPayload(token) {
+    const tokenData = await getHaebitShareToken(token);
+    if (!tokenData) {
+        return null;
+    }
+
+    const dates = getDateRangeEndingAt(tokenData.recordDate, 3);
+    const [records, userProfile] = await Promise.all([
+        Promise.all(dates.map((date) => getUserRecordByDate(tokenData.googleUid, date))),
+        getUserProfile(tokenData.googleUid)
+    ]);
+    const payload = buildHaebitVideoPayloadFromRecords(tokenData.googleUid, records, userProfile);
+
+    if (!payload) {
+        return null;
+    }
+
+    return {
+        ...payload,
+        token: tokenData.token,
+        shareCreatedAt: tokenData.createdAt
+    };
+}
+
 async function createShareCardToken({ googleUid, kakaoUserKey = '' }) {
     const now = Date.now();
     const expiresAt = new Date(now + SHARE_CARD_TOKEN_TTL_MS).toISOString();
@@ -1060,9 +1192,11 @@ module.exports = {
     extractShareMedia,
     getShareCardPayload,
     buildHaebitSharePayloadFromRecord,
+    buildHaebitVideoPayloadFromRecords,
     createHaebitShareToken,
     getHaebitShareToken,
     getHaebitSharePagePayload,
+    getHaebitVideoPayload,
     createShareCardToken,
     consumeShareCardToken,
     normalizeShareSettings,

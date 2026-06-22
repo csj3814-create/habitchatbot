@@ -617,3 +617,28 @@
 - Updated `!해빛영상` copy and `README.md` to describe the original energetic BGM.
 - Verification passed: WAV structure test, real MP4 AAC-track assertions, focused command tests, and `npm test` (64 passed).
 
+# 2026-06-18 Video Progress And Three-Day Story
+> Status: Completed
+
+## Tasks
+- [x] Replace direct MP4 links with an immediate progress page and stage-based percentage
+- [x] Build video payloads from the token date plus the previous two calendar days
+- [x] Include balanced photos, exercise clips, and gratitude entries across the three days
+- [x] Replace black media padding with branded date/category frames
+- [x] Improve `!해빛영상` wait-time guidance and update tests
+
+## Plan Notes
+- The progress page should start generation asynchronously, poll status, and reveal the video only at 100%.
+- Existing `/v/:shareCode.mp4` links remain compatible by redirecting to the progress page until a completed buffer exists.
+- Each source record keeps its own share settings; hidden categories, identity, dates, points, and mind text must remain hidden.
+
+## Review
+- `!해빛영상` and `!하루영상` now return `/video/:shareCode`, which renders immediately and explains the expected 30-second to 2-minute wait.
+- Added asynchronous start/status endpoints and stage-based progress from record loading through scene rendering, BGM creation, and final muxing.
+- Existing direct `/v/:shareCode.mp4` links redirect to the progress page until the completed MP4 is available.
+- Added three-calendar-day payload aggregation with per-record privacy settings, date-balanced media selection, and up to three dated gratitude slides.
+- Replaced black photo/video padding with category-colored branded frames containing date, category, title, and Habits School story context.
+- Captured the blank-generation-page and raw-letterbox corrections in `tasks/lessons.md`.
+- Browser plugin was unavailable; system Chrome headless QA verified desktop 1280x900 and mobile 390x844 progress states, including visible percentage, status text, progress bar, and responsive preview.
+- Verification passed: visual frame inspection, progress/job/page tests, real FFmpeg photo/video renders, and `npm test` (67 passed).
+

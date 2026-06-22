@@ -406,7 +406,7 @@ test('kakao haebit command returns a public share link without habit logging or 
             },
             '../commands/haebit': {
                 handleHaebit: async () => 'https://habitchatbot.onrender.com/abc123XY',
-                handleHaebitVideo: async () => 'https://habitchatbot.onrender.com/v/abc123XY.mp4'
+                handleHaebitVideo: async () => 'https://habitchatbot.onrender.com/video/abc123XY'
             }
         }
     );
@@ -432,7 +432,7 @@ test('kakao haebit command returns a public share link without habit logging or 
     assert.equal(videoResponse.status, 200);
     assert.equal(
         videoResponse.json.template.outputs[0].simpleText.text,
-        'https://habitchatbot.onrender.com/v/abc123XY.mp4'
+        'https://habitchatbot.onrender.com/video/abc123XY'
     );
 });
 

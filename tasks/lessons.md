@@ -131,3 +131,11 @@
 ### Public share links should look like short links, not exposed auth tokens
 - Mistake: I first exposed the Haebit public gallery as `/h/:token`, which made the link look like a bearer token and feel longer/less trustworthy even though the page was intentionally public.
 - Rule: For no-login share pages, use a short, non-sequential public code in the shortest safe route, keep it distinct from auth/link tokens, and add rate limiting or equivalent brute-force friction on public code lookup routes.
+
+### Long media generation needs an immediate progress surface
+- Mistake: I linked directly to a dynamically rendered MP4, so the browser showed a blank white page while FFmpeg worked and users had no idea whether anything was happening.
+- Rule: Any generation task that can take more than a few seconds must return an immediate HTML/status surface, start work asynchronously, expose meaningful stage-based progress, and only attach the final media after the job is ready. Chat copy must set a realistic wait-time expectation before the user opens the link.
+
+### Montage media should be framed as product content, not raw letterboxed input
+- Mistake: I padded photos and videos against black, which made mixed aspect ratios look like unfinished source footage instead of a designed Habits School story.
+- Rule: For generated social video, place mixed-aspect media inside a branded scene with date/category context and intentional neutral framing. Treat letterbox space as layout, not empty black pixels.

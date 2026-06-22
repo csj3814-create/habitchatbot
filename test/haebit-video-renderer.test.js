@@ -9,7 +9,10 @@ const {
     buildEnergeticBgmWav,
     buildVideoTimeline,
     isAllowedMediaUrl,
-    renderHaebitVideo
+    renderHaebitVideo,
+    startHaebitVideoJob,
+    getHaebitVideoJobStatus,
+    getCompletedHaebitVideo
 } = require('../utils/haebitVideoRenderer');
 
 const execFileAsync = promisify(execFile);
@@ -30,19 +33,45 @@ test('buildVideoTimeline combines media and gratitude into a bounded montage', (
         pageTitle: '민수의 하루 해빛 기록',
         subtitle: '식단과 운동을 기록했어요.',
         tags: ['식단', '운동'],
-        gratitudeText: '오늘 함께 걸어준 친구에게 감사하다.',
+        gratitudeEntries: [
+            { date: '2026.06.16', text: '첫째 날 감사일기' },
+            { date: '2026.06.18', text: '셋째 날 감사일기' }
+        ],
         galleryMedia: Array.from({ length: 10 }, (_, index) => ({
             type: index === 1 ? 'video' : 'image',
             url: `https://firebasestorage.googleapis.com/v0/b/example/o/${index}`,
             category: '기록',
-            label: String(index + 1)
+            label: String(index + 1),
+            dateLabel: `2026.06.${16 + (index % 3)}`
         }))
     });
 
     assert.equal(timeline[0].kind, 'text');
-    assert.equal(timeline.filter((item) => item.kind === 'image' || item.kind === 'video').length, 6);
-    assert.equal(timeline.some((item) => item.eyebrow === '오늘의 감사일기'), true);
+    assert.equal(timeline.filter((item) => item.kind === 'image' || item.kind === 'video').length, 9);
+    assert.equal(timeline.filter((item) => item.eyebrow?.includes('감사일기')).length, 2);
     assert.equal(timeline.at(-1).eyebrow, '오늘도 해빛 완료');
+});
+
+test('video jobs expose monotonic progress and completed output', async () => {
+    const shareCode = 'job123XY';
+    const status = startHaebitVideoJob(shareCode, { title: '테스트' }, {
+        renderVideo: async (payload, { onProgress }) => {
+            assert.equal(payload.title, '테스트');
+            onProgress(20, '사진을 준비하고 있어요.');
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            onProgress(80, '영상과 음악을 합치고 있어요.');
+            return Buffer.from('video');
+        }
+    });
+
+    assert.equal(status.status, 'processing');
+    assert.ok(getHaebitVideoJobStatus(shareCode).progress >= 20);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const completed = getHaebitVideoJobStatus(shareCode);
+    assert.equal(completed.status, 'ready');
+    assert.equal(completed.progress, 100);
+    assert.deepEqual(getCompletedHaebitVideo(shareCode), Buffer.from('video'));
 });
 
 test('isAllowedMediaUrl only accepts configured HTTPS storage hosts', () => {
