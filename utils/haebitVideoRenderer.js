@@ -915,7 +915,7 @@ function getHaebitVideoJobStatus(shareCode) {
         return {
             status: 'idle',
             progress: 0,
-            message: '영상 제작을 시작할 준비가 됐어요.'
+            message: '아직 서버에서 만들고 있는 영상이 없어요. 채팅방에서 !하루영상 을 다시 입력해 주세요.'
         };
     }
 

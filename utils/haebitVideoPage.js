@@ -301,7 +301,6 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
     </main>
     <script>
         const shareCode = ${JSON.stringify(safeCode)};
-        const startUrl = '/video/' + encodeURIComponent(shareCode) + '/start';
         const statusUrl = '/video/' + encodeURIComponent(shareCode) + '/status';
         const videoUrl = '/v/' + encodeURIComponent(shareCode) + '.mp4';
         const percent = document.getElementById('percent');
@@ -315,11 +314,19 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
         const waitCopy = document.getElementById('waitCopy');
         let timer = null;
 
+        statusText.textContent = '영상 상태를 확인하고 있어요.';
+        waitCopy.textContent = '채팅 명령에서 영상 만들기를 시작했어요. 이 페이지는 진행 상황과 다운로드만 보여줘요.';
+        retry.textContent = '상태 다시 확인';
+
         function paint(job) {
             const value = Math.max(0, Math.min(100, Number(job.progress) || 0));
             percent.textContent = Math.round(value) + '%';
             barFill.style.width = Math.max(1, value) + '%';
             statusText.textContent = job.message || '영상을 만들고 있어요.';
+
+            if (job.status !== 'idle' && job.status !== 'error') {
+                retry.style.display = 'none';
+            }
 
             if (job.status === 'ready') {
                 clearInterval(timer);
@@ -344,22 +351,16 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
             if (!response.ok) throw new Error('status');
             const job = await response.json();
             if (job.status === 'idle') {
-                await start();
+                paint({
+                    status: 'idle',
+                    progress: 0,
+                    message: '아직 서버에서 만들고 있는 영상이 없어요. 채팅방에서 !하루영상 을 다시 입력해 주세요.'
+                });
+                clearInterval(timer);
+                retry.style.display = 'grid';
                 return;
             }
             paint(job);
-        }
-
-        async function start() {
-            retry.style.display = 'none';
-            const response = await fetch(startUrl, { method: 'POST' });
-            if (!response.ok) throw new Error('start');
-            const job = await response.json();
-            paint(job);
-            clearInterval(timer);
-            if (job.status !== 'ready' && job.status !== 'error') {
-                timer = setInterval(() => readStatus().catch(showError), 1200);
-            }
         }
 
         function showError() {
@@ -368,8 +369,9 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
             retry.style.display = 'grid';
         }
 
-        retry.addEventListener('click', () => start().catch(showError));
-        start().catch(showError);
+        retry.addEventListener('click', () => readStatus().catch(showError));
+        readStatus().catch(showError);
+        timer = setInterval(() => readStatus().catch(showError), 1200);
     </script>
 </body>
 </html>`;

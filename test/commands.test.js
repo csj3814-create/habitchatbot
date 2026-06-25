@@ -459,7 +459,7 @@ test('handleHaebit returns a persistent public gallery link', async () => {
     assert.match(result, /댓글\/좋아요\/식단\/운동/);
 });
 
-test('handleHaebitVideo returns a public progress-page link', async () => {
+test('handleHaebitVideo starts a background job and returns a public status link', async () => {
     const record = { id: 'app-user-1_2026-06-18', date: '2026-06-18' };
 
     const { handleHaebitVideo } = loadWithMocks(
@@ -472,18 +472,34 @@ test('handleHaebitVideo returns a public progress-page link', async () => {
             },
             '../modules/appFirebase': {
                 getLatestShareableRecord: async () => record,
-                createHaebitShareToken: async () => 'video123'
+                createHaebitShareToken: async () => 'video123',
+                getHaebitVideoPayload: async (token) => {
+                    assert.equal(token, 'video123');
+                    return { title: 'video payload' };
+                }
+            },
+            '../utils/haebitVideoRenderer': {
+                getHaebitVideoJobStatus: (token) => {
+                    assert.equal(token, 'video123');
+                    return { status: 'idle', progress: 0 };
+                },
+                startHaebitVideoJob: (token, payload) => {
+                    assert.equal(token, 'video123');
+                    assert.deepEqual(payload, { title: 'video payload' });
+                    return { status: 'processing', progress: 1 };
+                }
             }
         }
     );
 
     const result = await handleHaebitVideo({ displayName: '테스트 사용자', userId: 'kakao-1' });
 
-    assert.match(result, /최근 3일 기록 영상 준비 링크/);
+    assert.match(result, /최근 3일 해빛 영상 준비 링크/);
     assert.match(result, /https:\/\/habitchatbot\.example\.com\/video\/video123/);
+    assert.match(result, /백그라운드에서 영상을 만들기 시작/);
+    assert.match(result, /링크를 여러 번 열어도 새로 만들지 않아요/);
     assert.match(result, /1~3분/);
 });
-
 test('handleConnect returns a deep-link card for an unlinked user', async () => {
     const { handleConnect } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'connect.js'),

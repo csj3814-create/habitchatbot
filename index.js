@@ -16,8 +16,7 @@ const {
     initAppFirebase,
     consumeShareCardToken,
     getShareCardPayload,
-    getHaebitSharePagePayload,
-    getHaebitVideoPayload
+    getHaebitSharePagePayload
 } = require('./modules/appFirebase');
 const {
     getChatbotConnectToken,
@@ -26,7 +25,6 @@ const {
 const { renderShareCardPng } = require('./utils/shareCardRenderer');
 const { renderHaebitSharePage } = require('./utils/haebitSharePage');
 const {
-    startHaebitVideoJob,
     getHaebitVideoJobStatus,
     getCompletedHaebitVideo
 } = require('./utils/haebitVideoRenderer');
@@ -224,7 +222,11 @@ app.get('/video/:shareCode', publicShareLimiter, (req, res) => {
 app.post('/video/:shareCode/start', publicVideoLimiter, async (req, res) => {
     const shareCode = String(req.params.shareCode || '').trim();
     if (!HAEBIT_SHARE_CODE_PATTERN.test(shareCode)) {
-        return res.status(404).json({ status: 'error', progress: 0, message: '영상 링크를 확인해 주세요.' });
+        return res.status(404).json({
+            status: 'error',
+            progress: 0,
+            message: '영상 링크를 확인해 주세요.'
+        });
     }
 
     const existingJob = getHaebitVideoJobStatus(shareCode);
@@ -232,17 +234,11 @@ app.post('/video/:shareCode/start', publicVideoLimiter, async (req, res) => {
         return res.status(202).json(existingJob);
     }
 
-    try {
-        const payload = await getHaebitVideoPayload(shareCode);
-        if (!payload) {
-            return res.status(404).json({ status: 'error', progress: 0, message: '공개 가능한 최근 3일 기록을 찾지 못했어요.' });
-        }
-
-        return res.status(202).json(startHaebitVideoJob(shareCode, payload));
-    } catch (error) {
-        console.error('[HaebitVideo] start error:', error);
-        return res.status(500).json({ status: 'error', progress: 0, message: '영상 제작을 시작하지 못했어요.' });
-    }
+    return res.status(409).json({
+        status: 'idle',
+        progress: 0,
+        message: '아직 서버에서 만들고 있는 영상이 없어요. 채팅방에서 !하루영상 을 다시 입력해 주세요.'
+    });
 });
 
 app.get('/video/:shareCode/status', videoStatusLimiter, (req, res) => {

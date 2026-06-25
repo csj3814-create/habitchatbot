@@ -147,3 +147,7 @@
 ### Long journal text needs dedicated pagination and centered composition
 - Mistake: I reused the generic left-aligned title slide for gratitude journals and truncated the text, causing the journal to look pushed left and leaving parts undisplayed.
 - Rule: Give reflective long-form text its own centered card layout. Paginate the full text across multiple slides when needed instead of shrinking it excessively or truncating it.
+
+### Public links must not trigger expensive media generation
+- Mistake: The Haebit video status page started FFmpeg work when someone opened the shared link. Repeated opens, Render restarts, or cache expiry could turn ordinary viewing into repeated heavy generation.
+- Rule: Expensive media work must be started by an authenticated or intentional command path, not by public link viewing. Public pages should poll status and serve/download completed output only; if no job exists, tell the user how to request generation again.

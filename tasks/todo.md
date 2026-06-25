@@ -667,3 +667,24 @@
 - Visual QA confirmed the redesigned centered gratitude pages and natural word wrapping.
 - Verification passed: strength-video retention, 30-item complete timeline, full journal reconstruction, real MP4 renders, and `npm test` (67 passed).
 
+# 2026-06-25 Haebit Video Background Generation
+> Status: Completed
+
+## Tasks
+- [x] Move `!해빛영상` / `!하루영상` so the chat command starts the video job in the background
+- [x] Change the public video page to status/download only, without starting FFmpeg on page open
+- [x] Disable public start-on-open behavior on `/video/:shareCode/start`
+- [x] Update regression tests for the new flow
+- [x] Run syntax checks, focused tests, full `npm test`, and rendered-page QA
+
+## Plan Notes
+- Current behavior starts generation from the browser by calling `/video/:shareCode/start`.
+- The safer flow is `chat command -> server queues one background job -> page polls status -> completed page downloads `/v/:shareCode.mp4``.
+- If the server has no active job or cached result, the page should tell the user to request `!하루영상` again instead of silently generating a new video.
+
+## Review
+- `handleHaebitVideo()` now queues the render job immediately after creating the share code, then returns a status/download link.
+- The public page only polls `/video/:shareCode/status`; it no longer contains or calls `/video/:shareCode/start`.
+- `/video/:shareCode/start` now returns an existing processing/ready status or 409 idle guidance, so opening a link cannot trigger FFmpeg.
+- Browser QA passed on desktop and 390px mobile: the page was nonblank, showed 0% idle guidance, had no console errors, and contained no `/start` endpoint.
+- Verification passed: syntax checks, focused command/page/renderer tests, and `npm test` (67 passed).
