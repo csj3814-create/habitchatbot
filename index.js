@@ -264,7 +264,7 @@ app.get('/v/:shareCode.mp4', publicShareLimiter, (req, res) => {
 
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Length', video.length);
-    res.setHeader('Content-Disposition', 'inline; filename="haebit-3days.mp4"');
+    res.setHeader('Content-Disposition', 'inline; filename="haebit-2days.mp4"');
     res.setHeader('Cache-Control', 'public, max-age=1800');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     return res.status(200).send(video);

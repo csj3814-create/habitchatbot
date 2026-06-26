@@ -76,7 +76,7 @@ async function handleHaebitVideo(user) {
         try {
             const payload = await getHaebitVideoPayload(result.token);
             if (!payload) {
-                return '공개 가능한 최근 3일 기록을 찾지 못했어요.\n오늘 기록을 공개 설정으로 남긴 뒤 다시 !하루영상 을 입력해 주세요.';
+                return '공개 가능한 어제와 오늘 기록을 찾지 못했어요.\n오늘 기록을 공개 설정으로 남긴 뒤 다시 !하루영상 을 입력해 주세요.';
             }
             jobStatus = startHaebitVideoJob(result.token, payload);
         } catch (error) {
@@ -90,12 +90,12 @@ async function handleHaebitVideo(user) {
         : '서버가 백그라운드에서 영상을 만들기 시작했어요.';
 
     return [
-        `${result.displayName}님의 최근 3일 해빛 영상 준비 링크예요.`,
+        `${result.displayName}님의 어제와 오늘 해빛 영상 준비 링크예요.`,
         buildHaebitVideoUrl(result.token),
         '',
         statusCopy,
         '링크는 진행 상황과 완성된 영상 다운로드만 보여줘요. 링크를 여러 번 열어도 새로 만들지 않아요.',
-        '보통 1~3분 정도 걸리며, 기록이 많으면 조금 더 걸릴 수 있어요.'
+        '보통 1~2분 정도 걸리며, 기록이 많으면 조금 더 걸릴 수 있어요.'
     ].join('\n');
 }
 

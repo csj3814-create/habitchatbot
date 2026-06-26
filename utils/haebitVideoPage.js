@@ -7,7 +7,7 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 영상' }) {
+function renderHaebitVideoProgressPage({ shareCode, title = '어제와 오늘 해빛 영상' }) {
     const safeCode = /^[A-Za-z0-9_-]{8,24}$/.test(String(shareCode || ''))
         ? String(shareCode)
         : '';
@@ -18,7 +18,7 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${escapeHtml(title)}</title>
-    <meta name="description" content="최근 3일의 사진, 운동 영상, 감사일기를 한 편의 해빛 영상으로 만들고 있습니다.">
+    <meta name="description" content="어제와 오늘의 사진, 운동 영상, 감사일기를 한 편의 해빛 영상으로 만들고 있습니다.">
     <style>
         :root {
             color-scheme: light;
@@ -274,7 +274,7 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
         <section class="stage">
             <div class="preview" id="preview">
                 <div class="preview-inner" id="placeholder">
-                    <div class="date-strip"><span>최근 3일 기록</span><span>9:16 VIDEO</span></div>
+                    <div class="date-strip"><span>어제와 오늘 기록</span><span>9:16 VIDEO</span></div>
                     <div class="visual" aria-hidden="true">
                         <span class="tile"></span><span class="tile"></span><span class="tile"></span>
                     </div>
@@ -290,7 +290,7 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
                 <p class="percent" id="percent">0%</p>
                 <p class="status" id="status">영상 제작을 시작하고 있어요.</p>
                 <div class="bar" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div>
-                <p class="wait-copy" id="waitCopy">보통 1~3분 정도 걸리며, 기록이 많으면 조금 더 걸릴 수 있어요.</p>
+                <p class="wait-copy" id="waitCopy">보통 1~2분 정도 걸리며, 기록이 많으면 조금 더 걸릴 수 있어요.</p>
                 <div class="actions" id="actions">
                     <a id="download" href="#">영상 저장</a>
                     <a href="/${encodeURIComponent(safeCode)}">기록으로 돌아가기</a>
@@ -336,7 +336,7 @@ function renderHaebitVideoProgressPage({ shareCode, title = '최근 3일 해빛 
                 video.style.display = 'block';
                 video.src = videoUrl;
                 download.href = videoUrl;
-                download.setAttribute('download', 'haebit-3days.mp4');
+                download.setAttribute('download', 'haebit-2days.mp4');
                 actions.style.display = 'grid';
                 waitCopy.textContent = '재생하거나 기기에 저장할 수 있어요.';
             } else if (job.status === 'error') {

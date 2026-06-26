@@ -20,6 +20,8 @@ const DEFAULT_SHARE_SETTINGS = {
 const SHARE_CARD_TOKEN_TTL_MS = 5 * 60 * 1000;
 const MAX_SHARE_MEDIA_COUNT = 4;
 const MAX_GALLERY_MEDIA_COUNT = 12;
+const HAEBIT_VIDEO_DAY_COUNT = 2;
+const HAEBIT_VIDEO_MEDIA_LIMIT = 20;
 let appDb = null;
 
 function getHabitsSchoolApp() {
@@ -940,7 +942,7 @@ function getDateRangeEndingAt(dateStr, count = 3) {
     return dates;
 }
 
-function collectThreeDayMedia(days, limit = 36) {
+function collectHaebitVideoMedia(days, limit = HAEBIT_VIDEO_MEDIA_LIMIT) {
     return days
         .flatMap((day) => day.media.map((media) => ({
             ...media,
@@ -981,18 +983,19 @@ function buildHaebitVideoPayloadFromRecords(googleUid, records, userProfile) {
     const userName = hideIdentity ? '익명 학생' : latest.userName;
     const visibleDates = days.map((day) => day.date).filter(Boolean);
     const tags = [...new Set(days.flatMap((day) => day.tags))].slice(0, 4);
+    const dayLabel = days.length >= 2 ? `${days.length}일` : '하루';
 
     return {
         ...latest,
         userName,
-        title: hideIdentity ? '최근 3일 해빛 루틴' : `${userName}의 3일 해빛 루틴`,
-        pageTitle: hideIdentity ? '최근 3일 해빛 기록' : `${userName}의 최근 3일 해빛 기록`,
-        subtitle: `${days.length}일 동안의 사진, 운동 영상, 감사일기를 한 편으로 모았어요.`,
+        title: hideIdentity ? `최근 ${dayLabel} 해빛 루틴` : `${userName}의 ${dayLabel} 해빛 루틴`,
+        pageTitle: hideIdentity ? `최근 ${dayLabel} 해빛 기록` : `${userName}의 최근 ${dayLabel} 해빛 기록`,
+        subtitle: `${dayLabel} 동안의 사진, 운동 영상, 감사일기를 가볍게 한 편으로 모았어요.`,
         date: visibleDates.length > 1
             ? `${visibleDates[0]} ~ ${visibleDates.at(-1)}`
             : (visibleDates[0] || ''),
         tags,
-        galleryMedia: collectThreeDayMedia(days),
+        galleryMedia: collectHaebitVideoMedia(days),
         gratitudeEntries: days
             .filter((day) => day.gratitudeText)
             .map((day) => ({
@@ -1098,7 +1101,7 @@ async function getHaebitVideoPayload(token) {
         return null;
     }
 
-    const dates = getDateRangeEndingAt(tokenData.recordDate, 3);
+    const dates = getDateRangeEndingAt(tokenData.recordDate, HAEBIT_VIDEO_DAY_COUNT);
     const [records, userProfile] = await Promise.all([
         Promise.all(dates.map((date) => getUserRecordByDate(tokenData.googleUid, date))),
         getUserProfile(tokenData.googleUid)

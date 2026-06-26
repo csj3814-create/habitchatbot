@@ -6,7 +6,7 @@ const { renderHaebitVideoProgressPage } = require('../utils/haebitVideoPage');
 test('renderHaebitVideoProgressPage polls status without starting generation', () => {
     const html = renderHaebitVideoProgressPage({
         shareCode: 'abc123XY',
-        title: '최근 3일 해빛 영상'
+        title: '어제와 오늘 해빛 영상'
     });
 
     assert.match(html, /id="percent">0%/);

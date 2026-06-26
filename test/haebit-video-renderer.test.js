@@ -50,8 +50,9 @@ test('buildVideoTimeline keeps all media and paginates gratitude text', () => {
     assert.equal(timeline[0].kind, 'text');
     const mediaSlides = timeline.filter((item) => item.kind === 'image' || item.kind === 'video');
     const gratitudeSlides = timeline.filter((item) => item.layout === 'gratitude');
-    assert.equal(mediaSlides.length, 30);
-    assert.ok(mediaSlides.filter((item) => item.kind === 'image').every((item) => item.duration < 2.5));
+    assert.equal(mediaSlides.length, 20);
+    assert.ok(mediaSlides.filter((item) => item.kind === 'image').every((item) => item.duration < 2.2));
+    assert.ok(mediaSlides.filter((item) => item.kind === 'video').every((item) => item.duration < 5));
     assert.ok(gratitudeSlides.length > 2);
     assert.equal(
         gratitudeSlides

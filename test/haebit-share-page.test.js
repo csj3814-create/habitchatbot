@@ -81,8 +81,8 @@ test('buildHaebitSharePayloadFromRecord respects public share settings', () => {
     assert.equal(payload.inviteUrl, 'https://habitschool.web.app/?ref=ABC123');
 });
 
-test('buildHaebitVideoPayloadFromRecords keeps all public media across three days', () => {
-    const records = ['2026-06-16', '2026-06-17', '2026-06-18'].map((date, dayIndex) => ({
+test('buildHaebitVideoPayloadFromRecords keeps public media across yesterday and today', () => {
+    const records = ['2026-06-17', '2026-06-18'].map((date, dayIndex) => ({
         id: `uid-1_${date}`,
         date,
         diet: {
@@ -102,29 +102,25 @@ test('buildHaebitVideoPayloadFromRecords keeps all public media across three day
         }
     }));
 
-    records[1].shareSettings = { hideExercise: true };
+    records[0].shareSettings = { hideExercise: true };
     const payload = buildHaebitVideoPayloadFromRecords('uid-1', records, {
         displayName: '민수'
     });
 
-    assert.equal(payload.sourceDays.length, 3);
-    assert.equal(payload.gratitudeEntries.length, 3);
-    assert.equal(payload.galleryMedia.length, 14);
+    assert.equal(payload.sourceDays.length, 2);
+    assert.equal(payload.gratitudeEntries.length, 2);
+    assert.equal(payload.galleryMedia.length, 9);
     assert.deepEqual(
         [...new Set(payload.galleryMedia.map((item) => item.dateLabel))],
-        ['2026.06.16', '2026.06.17', '2026.06.18']
-    );
-    assert.equal(
-        payload.galleryMedia.some((item) => item.url.includes('day-1-exercise.mp4')),
-        false
+        ['2026.06.17', '2026.06.18']
     );
     assert.equal(
         payload.galleryMedia.some((item) => item.url.includes('day-0-exercise.mp4')),
-        true
+        false
     );
     assert.equal(
-        payload.galleryMedia.some((item) => item.url.includes('day-2-exercise.mp4')),
+        payload.galleryMedia.some((item) => item.url.includes('day-1-exercise.mp4')),
         true
     );
-    assert.match(payload.pageTitle, /최근 3일/);
+    assert.match(payload.pageTitle, /2/);
 });

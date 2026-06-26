@@ -688,3 +688,23 @@
 - `/video/:shareCode/start` now returns an existing processing/ready status or 409 idle guidance, so opening a link cannot trigger FFmpeg.
 - Browser QA passed on desktop and 390px mobile: the page was nonblank, showed 0% idle guidance, had no console errors, and contained no `/start` endpoint.
 - Verification passed: syntax checks, focused command/page/renderer tests, and `npm test` (67 passed).
+# 2026-06-26 Haebit Video Memory Reduction
+> Status: Completed
+
+## Tasks
+- [x] Reduce `!하루영상` source window from recent 3 days to yesterday+today
+- [x] Lower the defensive media cap so malformed or media-heavy records cannot create huge FFmpeg jobs
+- [x] Update user-facing copy, progress page text, renderer progress text, README, and regression tests
+- [x] Run syntax checks and focused/full tests
+
+## Plan Notes
+- Render reported a memory-limit restart after Haebit video generation was introduced.
+- The expensive part is likely FFmpeg processing many downloaded photos/videos and keeping the generated MP4 buffer in memory, not the Firestore date lookup itself.
+- Two days should preserve the “daily story” value while reducing media count, segment count, video duration, BGM length, temp files, and output buffer size.
+
+## Review
+- Video payloads now use the token date plus one previous calendar day, so `!하루영상` covers 어제와 오늘 instead of recent 3 days.
+- Defensive media caps were reduced from 36 to 20 items, video/image download size limits were lowered, output size was capped at 35 MB, and completed video cache entries were reduced from 6 to 2.
+- Remote media downloads now stream directly to temp files instead of buffering full images/videos in Node memory.
+- Video clips now honor the dynamically shortened scene duration instead of always rendering 5 seconds.
+- Verification passed: syntax checks, focused command/share/page/renderer tests, and `npm test` (67 passed).

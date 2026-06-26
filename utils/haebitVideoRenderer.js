@@ -1,7 +1,9 @@
 const { spawn } = require('node:child_process');
+const { createWriteStream } = require('node:fs');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { pipeline } = require('node:stream/promises');
 
 const axios = require('axios');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
@@ -11,12 +13,12 @@ const sharp = require('sharp');
 const VIDEO_WIDTH = 720;
 const VIDEO_HEIGHT = 1280;
 const VIDEO_FPS = 30;
-const MAX_MEDIA_COUNT = 36;
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
-const MAX_OUTPUT_BYTES = 50 * 1024 * 1024;
+const MAX_MEDIA_COUNT = 20;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+const MAX_OUTPUT_BYTES = 35 * 1024 * 1024;
 const VIDEO_CACHE_TTL_MS = 30 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 6;
+const MAX_CACHE_ENTRIES = 2;
 const BGM_SAMPLE_RATE = 44100;
 const BGM_BPM = 124;
 const ALLOWED_MEDIA_HOSTS = [
@@ -495,19 +497,26 @@ async function downloadRemoteMedia(url, filePath, type) {
 
     const maxBytes = type === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     const response = await axios.get(url, {
-        responseType: 'arraybuffer',
+        responseType: 'stream',
         timeout: 20000,
         maxContentLength: maxBytes,
         maxBodyLength: maxBytes,
         validateStatus: (status) => status >= 200 && status < 300
     });
-    const buffer = Buffer.from(response.data);
+    let downloadedBytes = 0;
 
-    if (buffer.length === 0 || buffer.length > maxBytes) {
-        throw new Error('Media file is empty or too large.');
+    response.data.on('data', (chunk) => {
+        downloadedBytes += chunk.length;
+        if (downloadedBytes > maxBytes) {
+            response.data.destroy(new Error('Media file is too large.'));
+        }
+    });
+
+    await pipeline(response.data, createWriteStream(filePath));
+
+    if (downloadedBytes === 0) {
+        throw new Error('Media file is empty.');
     }
-
-    await fs.writeFile(filePath, buffer);
     return filePath;
 }
 
@@ -566,7 +575,7 @@ function getCategoryAccent(category) {
 
 function buildMediaFrameSvg(item = {}) {
     const accent = getCategoryAccent(item.category);
-    const dateLabel = item.dateLabel || '최근 3일';
+    const dateLabel = item.dateLabel || '어제와 오늘';
     const category = item.category || '해빛 기록';
     const label = item.label || '오늘의 기록';
 
@@ -610,7 +619,7 @@ function buildMediaFrameSvg(item = {}) {
                 fill: '#1D2939',
                 weight: 'bold'
             })}
-            ${buildTextPath('최근 3일의 습관을 한 편의 이야기로', {
+            ${buildTextPath('어제와 오늘의 습관을 한 편의 이야기로', {
                 x: 60,
                 y: 1193,
                 fontSize: 21,
@@ -661,14 +670,14 @@ async function createImageSegment(imagePath, outputPath, durationSeconds) {
     ]);
 }
 
-async function createVideoSegment(inputPath, backgroundPath, outputPath) {
+async function createVideoSegment(inputPath, backgroundPath, outputPath, durationSeconds = 4) {
     await runFfmpeg([
         '-y',
         '-loop', '1',
         '-framerate', String(VIDEO_FPS),
         '-i', backgroundPath,
         '-i', inputPath,
-        '-t', '5',
+        '-t', String(durationSeconds),
         '-filter_complex',
         `[1:v]scale=600:864:force_original_aspect_ratio=decrease,pad=600:864:(ow-iw)/2:(oh-ih)/2:color=0xE7F0EA[clip];[0:v][clip]overlay=60:174:shortest=1,fps=${VIDEO_FPS},setsar=1,format=yuv420p[v]`,
         '-map', '[v]',
@@ -690,8 +699,8 @@ function buildVideoTimeline(payload) {
         0
     );
     const durationUnit = weightedMediaCount > 0
-        ? Math.max(1.1, Math.min(2.5, 62 / weightedMediaCount))
-        : 2.5;
+        ? Math.max(0.95, Math.min(2.2, 42 / weightedMediaCount))
+        : 2.2;
     const timeline = [{
         kind: 'text',
         duration: 2.4,
@@ -767,7 +776,7 @@ async function renderHaebitVideo(payload, {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'haebit-video-'));
 
     try {
-        reportProgress(onProgress, 3, '최근 3일 기록을 정리하고 있어요.');
+        reportProgress(onProgress, 3, '어제와 오늘 기록을 정리하고 있어요.');
         const timeline = buildVideoTimeline(payload);
         const segmentPaths = [];
         const segmentDurations = [];
@@ -800,7 +809,7 @@ async function renderHaebitVideo(payload, {
                 if (item.kind === 'video') {
                     const backgroundPath = path.join(tempDir, `video-frame-${index}.png`);
                     await renderMediaBackground(backgroundPath, item);
-                    await createVideoSegment(sourcePath, backgroundPath, segmentPath);
+                    await createVideoSegment(sourcePath, backgroundPath, segmentPath, item.duration);
                 } else {
                     const slidePath = path.join(tempDir, `photo-${index}.png`);
                     await renderPhotoSlide(sourcePath, slidePath, item);
@@ -950,7 +959,7 @@ function startHaebitVideoJob(shareCode, payload, {
     const job = {
         status: 'processing',
         progress: 1,
-        message: '최근 3일 기록을 불러오고 있어요.',
+        message: '어제와 오늘 기록을 불러오고 있어요.',
         startedAt: new Date(now).toISOString(),
         updatedAt: new Date(now).toISOString(),
         expiresAt: now + VIDEO_CACHE_TTL_MS,

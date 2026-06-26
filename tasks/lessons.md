@@ -151,3 +151,7 @@
 ### Public links must not trigger expensive media generation
 - Mistake: The Haebit video status page started FFmpeg work when someone opened the shared link. Repeated opens, Render restarts, or cache expiry could turn ordinary viewing into repeated heavy generation.
 - Rule: Expensive media work must be started by an authenticated or intentional command path, not by public link viewing. Public pages should poll status and serve/download completed output only; if no job exists, tell the user how to request generation again.
+
+### Video generation must budget memory, not just duration
+- Mistake: I treated a three-day montage as acceptable after shortening scene durations, but the service still had to download many source files, create many FFmpeg segments, synthesize BGM, and hold completed MP4 buffers in a small Render instance.
+- Rule: For server-side media generation on constrained instances, cap the source window and media count conservatively, stream remote media to disk instead of buffering it in Node memory, keep completed-result caches small, and make generated clip duration obey the timeline budget.
