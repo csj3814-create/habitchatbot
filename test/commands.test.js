@@ -43,6 +43,54 @@ function createSnapshot(id, data) {
     };
 }
 
+function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value || {}));
+}
+
+function getNestedValue(root, pathText) {
+    return String(pathText || '')
+        .split('/')
+        .filter(Boolean)
+        .reduce((node, key) => (node ? node[key] : undefined), root);
+}
+
+function setNestedValue(root, pathText, value) {
+    const keys = String(pathText || '').split('/').filter(Boolean);
+    let node = root;
+
+    keys.slice(0, -1).forEach((key) => {
+        if (!node[key] || typeof node[key] !== 'object') {
+            node[key] = {};
+        }
+        node = node[key];
+    });
+
+    node[keys.at(-1)] = value;
+}
+
+function createFakeRealtimeDb(initial = {}) {
+    const state = cloneJson(initial);
+
+    return {
+        state,
+        ref(pathText) {
+            return {
+                async once(eventName) {
+                    assert.equal(eventName, 'value');
+                    return {
+                        val: () => getNestedValue(state, pathText)
+                    };
+                },
+                async update(updates) {
+                    Object.entries(updates || {}).forEach(([childPath, value]) => {
+                        setNestedValue(state, `${pathText}/${childPath}`, value);
+                    });
+                }
+            };
+        }
+    };
+}
+
 function createFakeFriendDb({ myUid, myData, targetUid, targetData, friendshipData }) {
     const writes = [];
     let notificationId = 0;
@@ -836,6 +884,213 @@ test('resolveBestRecordsPeriod accepts compact and spaced scheduled commands', a
     assert.equal(resolveBestRecordsPeriod('오늘'), null);
 });
 
+test('parseYouTubePlaylistFeed extracts playlist video metadata in latest-first order', () => {
+    const { parseYouTubePlaylistFeed } = require('../utils/youtubePlaylist');
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <yt:videoId>older123456</yt:videoId>
+    <title>Older longform</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=older123456"/>
+    <author><name>Old Channel</name><uri>https://www.youtube.com/channel/old</uri></author>
+    <published>2025-01-01T00:00:00+00:00</published>
+    <updated>2025-01-02T00:00:00+00:00</updated>
+    <media:group>
+      <media:description>오래된 설명입니다.</media:description>
+      <media:thumbnail url="https://img.youtube.com/vi/older123456/hqdefault.jpg"/>
+    </media:group>
+  </entry>
+  <entry>
+    <yt:videoId>newer123456</yt:videoId>
+    <title>Newer longform</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=newer123456"/>
+    <author><name>New Channel</name><uri>https://www.youtube.com/channel/new</uri></author>
+    <published>2026-01-01T00:00:00+00:00</published>
+    <updated>2026-01-02T00:00:00+00:00</updated>
+    <media:group>
+      <media:description>최신 설명입니다. https://example.com #태그</media:description>
+      <media:thumbnail url="https://img.youtube.com/vi/newer123456/hqdefault.jpg"/>
+    </media:group>
+  </entry>
+</feed>`;
+
+    const videos = parseYouTubePlaylistFeed(xml);
+
+    assert.equal(videos.length, 2);
+    assert.equal(videos[0].videoId, 'newer123456');
+    assert.equal(videos[0].title, 'Newer longform');
+    assert.equal(videos[0].url, 'https://www.youtube.com/watch?v=newer123456');
+    assert.equal(videos[0].author, 'New Channel');
+    assert.equal(videos[0].published, '2026-01-01T00:00:00+00:00');
+    assert.equal(videos[0].description, '최신 설명입니다. https://example.com #태그');
+    assert.equal(videos[0].thumbnailUrl, 'https://img.youtube.com/vi/newer123456/hqdefault.jpg');
+});
+
+test('handleYoutubeRecommendation recommends the latest unseen video and reuses the same-day choice', async () => {
+    const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
+    const db = createFakeRealtimeDb();
+    const videos = [
+        {
+            videoId: 'newest12345',
+            title: '최신 응급실 이야기',
+            url: 'https://www.youtube.com/watch?v=newest12345',
+            author: '건방진 닥터스',
+            published: '2026-07-01T00:00:00+00:00',
+            description: '응급실에서 꼭 알아야 할 이야기를 정리합니다. https://example.com #응급'
+        },
+        {
+            videoId: 'older123456',
+            title: '이전 응급실 이야기',
+            url: 'https://www.youtube.com/watch?v=older123456',
+            author: '건방진 닥터스',
+            published: '2026-06-01T00:00:00+00:00',
+            description: '이전 영상 설명입니다.'
+        }
+    ];
+
+    const first = await handleYoutubeRecommendation({
+        db,
+        playlistId: 'PL_TEST',
+        dateStr: '2026-07-02',
+        fetchVideos: async () => videos
+    });
+    const second = await handleYoutubeRecommendation({
+        db,
+        playlistId: 'PL_TEST',
+        dateStr: '2026-07-02',
+        fetchVideos: async () => [...videos].reverse()
+    });
+
+    assert.match(first, /오늘의 추천 영상/);
+    assert.match(first, /최신 응급실 이야기/);
+    assert.match(first, /응급실에서 꼭 알아야 할 이야기를 정리합니다\./);
+    assert.doesNotMatch(first, /https:\/\/example\.com/);
+    assert.doesNotMatch(first, /#응급/);
+    assert.match(first, /https:\/\/www\.youtube\.com\/watch\?v=newest12345/);
+    assert.match(second, /최신 응급실 이야기/);
+    assert.equal(
+        db.state.daily_youtube_recommendations.PL_TEST.dates['2026-07-02'].videoId,
+        'newest12345'
+    );
+});
+
+test('handleYoutubeRecommendation skips videos that were already recommended before', async () => {
+    const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
+    const db = createFakeRealtimeDb({
+        daily_youtube_recommendations: {
+            PL_TEST: {
+                videos: {
+                    newest12345: { firstRecommendedDate: '2026-07-01' }
+                }
+            }
+        }
+    });
+
+    const result = await handleYoutubeRecommendation({
+        db,
+        playlistId: 'PL_TEST',
+        dateStr: '2026-07-02',
+        fetchVideos: async () => [
+            {
+                videoId: 'newest12345',
+                title: '이미 추천한 영상',
+                url: 'https://www.youtube.com/watch?v=newest12345',
+                published: '2026-07-01T00:00:00+00:00'
+            },
+            {
+                videoId: 'older123456',
+                title: '아직 추천하지 않은 영상',
+                url: 'https://www.youtube.com/watch?v=older123456',
+                published: '2026-06-01T00:00:00+00:00'
+            }
+        ]
+    });
+
+    assert.match(result, /아직 추천하지 않은 영상/);
+    assert.doesNotMatch(result, /이미 추천한 영상/);
+    assert.equal(
+        db.state.daily_youtube_recommendations.PL_TEST.dates['2026-07-02'].videoId,
+        'older123456'
+    );
+});
+
+test('handleYoutubeRecommendation does not repeat once every playlist video has been recommended', async () => {
+    const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
+    const db = createFakeRealtimeDb({
+        daily_youtube_recommendations: {
+            PL_TEST: {
+                videos: {
+                    newest12345: { firstRecommendedDate: '2026-07-01' },
+                    older123456: { firstRecommendedDate: '2026-07-02' }
+                }
+            }
+        }
+    });
+
+    const result = await handleYoutubeRecommendation({
+        db,
+        playlistId: 'PL_TEST',
+        dateStr: '2026-07-03',
+        fetchVideos: async () => [
+            {
+                videoId: 'newest12345',
+                title: '이미 추천한 영상',
+                url: 'https://www.youtube.com/watch?v=newest12345',
+                published: '2026-07-01T00:00:00+00:00'
+            },
+            {
+                videoId: 'older123456',
+                title: '이것도 추천한 영상',
+                url: 'https://www.youtube.com/watch?v=older123456',
+                published: '2026-06-01T00:00:00+00:00'
+            }
+        ]
+    });
+
+    assert.match(result, /아직 새로 추천할 영상이 없어요/);
+    assert.equal(db.state.daily_youtube_recommendations.PL_TEST.dates?.['2026-07-03'], undefined);
+});
+
+test('handleToday appends a YouTube recommendation on ordinary KST dates', async () => {
+    let recommendationCalls = 0;
+    const { handleToday } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'today.js'),
+        {
+            '../modules/appFirebase': {
+                getGalleryByDate: async () => []
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasSleep: () => false,
+                hasGratitude: () => false,
+                hasMeditation: () => false,
+                getKstDateStr: () => '2026-06-09'
+            },
+            './bestRecords': {
+                handleBestRecords: async () => {
+                    throw new Error('best records should not run on an ordinary date');
+                }
+            },
+            './youtubeRecommendation': {
+                handleYoutubeRecommendation: async (options) => {
+                    recommendationCalls += 1;
+                    assert.equal(options.now.toISOString(), '2026-06-09T13:30:00.000Z');
+                    return 'YOUTUBE_REC';
+                }
+            }
+        }
+    );
+
+    const result = await handleToday('테스트 사용자', {
+        now: new Date('2026-06-09T22:30:00+09:00')
+    });
+
+    assert.equal(recommendationCalls, 1);
+    assert.match(result, /YOUTUBE_REC/);
+    assert.doesNotMatch(result, /BEST_/);
+});
+
 test('handleToday appends weekly best records on KST Mondays', async () => {
     const queriedDates = [];
     const bestCalls = [];
@@ -861,6 +1116,9 @@ test('handleToday appends weekly best records on KST Mondays', async () => {
                     bestCalls.push({ period, now: options.now.toISOString() });
                     return `BEST_${period}`;
                 }
+            },
+            './youtubeRecommendation': {
+                handleYoutubeRecommendation: async () => 'YOUTUBE_REC'
             }
         }
     );
@@ -872,6 +1130,7 @@ test('handleToday appends weekly best records on KST Mondays', async () => {
     assert.deepEqual(bestCalls, [{ period: 'week', now: now.toISOString() }]);
     assert.match(result, /아직 오늘 기록이 없어요/);
     assert.match(result, /BEST_week/);
+    assert.match(result, /YOUTUBE_REC/);
     assert.doesNotMatch(result, /BEST_month/);
 });
 
@@ -896,6 +1155,9 @@ test('handleToday appends monthly best records on KST first day of month', async
                     bestCalls.push(period);
                     return `BEST_${period}`;
                 }
+            },
+            './youtubeRecommendation': {
+                handleYoutubeRecommendation: async () => 'YOUTUBE_REC'
             }
         }
     );
@@ -906,6 +1168,7 @@ test('handleToday appends monthly best records on KST first day of month', async
 
     assert.deepEqual(bestCalls, ['month']);
     assert.match(result, /BEST_month/);
+    assert.match(result, /YOUTUBE_REC/);
     assert.doesNotMatch(result, /BEST_week/);
 });
 
@@ -930,6 +1193,9 @@ test('handleToday appends both weekly and monthly best records when KST date is 
                     bestCalls.push(period);
                     return `BEST_${period}`;
                 }
+            },
+            './youtubeRecommendation': {
+                handleYoutubeRecommendation: async () => 'YOUTUBE_REC'
             }
         }
     );
@@ -939,5 +1205,5 @@ test('handleToday appends both weekly and monthly best records when KST date is 
     });
 
     assert.deepEqual(bestCalls, ['week', 'month']);
-    assert.match(result, /BEST_week\n\nBEST_month/);
+    assert.match(result, /BEST_week\n\nBEST_month\n\nYOUTUBE_REC/);
 });

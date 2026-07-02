@@ -19,6 +19,7 @@ const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { buildDirectChatOnlyMessage } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
+const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
@@ -30,6 +31,10 @@ function normalizeCommand(rawMessage) {
     const args = body.includes(' ') ? body.slice(body.indexOf(' ') + 1).trim() : '';
 
     return { trimmed, command, args };
+}
+
+function isYoutubeRecommendationCommand(command) {
+    return command === '영상추천' || command === '추천영상' || command === '유튜브추천';
 }
 
 function formatShareReplies(result) {
@@ -145,6 +150,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             const bestRecordsPeriod = resolveBestRecordsPeriod(command);
             if (bestRecordsPeriod) {
                 return res.json({ reply: await handleBestRecords(bestRecordsPeriod) });
+            }
+
+            if (isYoutubeRecommendationCommand(command)) {
+                return res.json({ reply: await handleYoutubeRecommendation() });
             }
 
             if (command === '식단') {

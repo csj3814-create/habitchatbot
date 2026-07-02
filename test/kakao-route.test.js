@@ -512,3 +512,81 @@ test('kakao routes best-record commands without habit logging or Gemini', async 
     assert.equal(capturedPeriod, 'month');
     assert.equal(response.json.template.outputs[0].simpleText.text, 'BEST_RECORDS');
 });
+
+test('kakao routes YouTube recommendation commands without habit logging or Gemini', async () => {
+    let recommendationCalls = 0;
+
+    const { createKakaoRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'kakao.js'),
+        {
+            '../utils/kakaoTemplate': {
+                buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
+                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
+                buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/guide': { handleGuide: async () => 'GUIDE' },
+            '../commands/register': { handleRegister: async () => 'REGISTER' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/bestRecords': {
+                resolveBestRecordsPeriod: () => null,
+                handleBestRecords: async () => 'BEST'
+            },
+            '../commands/youtubeRecommendation': {
+                handleYoutubeRecommendation: async () => {
+                    recommendationCalls += 1;
+                    return 'YOUTUBE_RECOMMENDATION';
+                }
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            }
+        }
+    );
+
+    const router = createKakaoRouter({
+        db: {},
+        getChatSession() {
+            throw new Error('getChatSession should not be called for YouTube recommendation commands');
+        },
+        checkAndLogHabits: async () => {
+            throw new Error('checkAndLogHabits should not be called for YouTube recommendation commands');
+        },
+        isAllowedImageUrl: () => true
+    });
+
+    const response = await postJsonToRouter(router, buildKakaoBody('!유튜브추천'));
+
+    assert.equal(response.status, 200);
+    assert.equal(recommendationCalls, 1);
+    assert.equal(response.json.template.outputs[0].simpleText.text, 'YOUTUBE_RECOMMENDATION');
+});

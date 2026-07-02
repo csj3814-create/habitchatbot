@@ -29,6 +29,7 @@ const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { handleConnect } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
+const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 
 const HELP_MSG = `명령어 안내
 !오늘 - 전체 기록 요약
@@ -57,6 +58,10 @@ function cmdResponse(text) {
             quickReplies: [{ label: '내습관 보기', action: 'message', messageText: '!내습관' }]
         }
     };
+}
+
+function isYoutubeRecommendationQuestion(question) {
+    return question === '영상추천' || question === '추천영상' || question === '유튜브추천';
 }
 
 function delay(ms) {
@@ -128,6 +133,10 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         const bestRecordsPeriod = resolveBestRecordsPeriod(actualQuestion);
         if (bestRecordsPeriod) {
             return res.status(200).json(cmdResponse(await handleBestRecords(bestRecordsPeriod)));
+        }
+
+        if (isYoutubeRecommendationQuestion(actualQuestion)) {
+            return res.status(200).json(buildKakaoResponse(await handleYoutubeRecommendation()));
         }
 
         if (actualQuestion === '식단') {

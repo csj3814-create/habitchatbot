@@ -530,3 +530,99 @@ test('messengerbot routes scheduled best-record commands without Gemini', async 
     assert.equal(capturedPeriod, 'week');
     assert.equal(response.json.reply, 'BEST_RECORDS');
 });
+
+test('messengerbot routes YouTube recommendation commands without Gemini', async () => {
+    let recommendationCalls = 0;
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        {
+            '../utils/apiKeyAuth': {
+                apiKeyAuth: (req, res, next) => next()
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender, room }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender,
+                    room
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/bestRecords': {
+                resolveBestRecordsPeriod: () => null,
+                handleBestRecords: async () => 'BEST'
+            },
+            '../commands/youtubeRecommendation': {
+                handleYoutubeRecommendation: async () => {
+                    recommendationCalls += 1;
+                    return 'YOUTUBE_RECOMMENDATION';
+                }
+            },
+            '../commands/guide': {
+                handleGuide: async () => 'GUIDE',
+                handleApp: async () => 'APP'
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            },
+            '../modules/appFirebase': {
+                getUserRecords: async () => []
+            },
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasMind: () => false
+            }
+        }
+    );
+
+    const router = createMessengerbotRouter({
+        db: {
+            ref() {
+                throw new Error('db.ref should not be called for YouTube recommendation commands');
+            }
+        },
+        getChatSession() {
+            throw new Error('getChatSession should not be called for YouTube recommendation commands');
+        },
+        checkAndLogHabits: async () => {
+            throw new Error('checkAndLogHabits should not be called for YouTube recommendation commands');
+        }
+    });
+
+    const response = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!추천영상',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(recommendationCalls, 1);
+    assert.equal(response.json.reply, 'YOUTUBE_RECOMMENDATION');
+});

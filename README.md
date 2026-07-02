@@ -45,6 +45,8 @@ utils/
 | `FIREBASE_DB_URL` | Firebase Realtime DB URL | 선택 |
 | `RENDER_URL` | Self-ping URL | 선택 |
 | `RATE_LIMIT_MAX` | 분당 최대 요청 수 | 선택 |
+| `DAILY_YOUTUBE_RECOMMENDATION_ENABLED` | `!오늘` 유튜브 추천 자동 첨부 여부 (`false`면 끔) | 선택 |
+| `DAILY_YOUTUBE_PLAYLIST_ID` | 매일 추천할 YouTube 플레이리스트 ID | 선택 |
 
 ---
 
@@ -88,6 +90,7 @@ const API_KEY = "Render의 MESSENGER_API_KEY와 같은 값";
 | `!친구 코드` | 친구 추가 |
 | `!해빛` | 로그인 없이 볼 수 있는 내 하루 기록 공유 링크 |
 | `!해빛영상` | 어제와 오늘의 공개 사진·운동 영상·감사일기를 묶는 영상 |
+| `!영상추천` / `!추천영상` / `!유튜브추천` | 외부 유튜브 롱폼 플레이리스트에서 아직 추천하지 않은 최신 영상 |
 | `!식단` | 식단 현황 + AI 코칭 |
 | `!운동` | 운동 현황 + AI 코칭 |
 | `!마음` | 수면/감사/명상 현황 + AI 코칭 |

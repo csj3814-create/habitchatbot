@@ -708,3 +708,27 @@
 - Remote media downloads now stream directly to temp files instead of buffering full images/videos in Node memory.
 - Video clips now honor the dynamically shortened scene duration instead of always rendering 5 seconds.
 - Verification passed: syntax checks, focused command/share/page/renderer tests, and `npm test` (67 passed).
+
+# 2026-07-02 Daily YouTube Longform Recommendation
+> Status: Completed
+
+## Tasks
+- [x] Add a YouTube playlist RSS parser and fetch helper
+- [x] Implement daily recommendation selection with Realtime DB history
+- [x] Append the recommendation to `!오늘`
+- [x] Add `!영상추천` / `!유튜브추천` command routes
+- [x] Add regression tests and run `npm test`
+
+## Plan Notes
+- The source is the provided YouTube playlist, not Habits School record media.
+- Use playlist RSS instead of YouTube Data API.
+- The scheduled open-chat flow should reuse the existing nightly `!오늘` reservation.
+
+## Review
+- Added direct `fast-xml-parser` dependency and RSS parsing for the configured YouTube playlist.
+- `!오늘` now appends a daily YouTube recommendation after any weekly/monthly best-record sections.
+- `!영상추천` and `!유튜브추천` now return the same recommendation directly in MessengerBot and Kakao.
+- Added the live-room alias `!추천영상` so the command does not fall through to Gemini.
+- Realtime DB history keeps date-level reuse and video-level "already recommended" skipping.
+- Live RSS check returned 15 playlist videos and parsed the current latest item successfully.
+- Verification passed: syntax checks, focused command/route tests, and full `npm test` (74 passed).

@@ -155,3 +155,11 @@
 ### Video generation must budget memory, not just duration
 - Mistake: I treated a three-day montage as acceptable after shortening scene durations, but the service still had to download many source files, create many FFmpeg segments, synthesize BGM, and hold completed MP4 buffers in a small Render instance.
 - Rule: For server-side media generation on constrained instances, cap the source window and media count conservatively, stream remote media to disk instead of buffering it in Node memory, keep completed-result caches small, and make generated clip duration obey the timeline budget.
+
+### Ambiguous media sources must be resolved before designing storage logic
+- Mistake: I interpreted "my videos" as Habits School record media even though the user meant external YouTube longform videos from other channels.
+- Rule: When a request mentions "my video", "my image", or another broad media source, identify the source system first (app records, generated assets, YouTube playlist/channel, manual list) before planning schemas, privacy rules, or automation behavior.
+
+### Chat commands need the user's natural word order as aliases
+- Mistake: I added `!영상추천` and `!유튜브추천`, but the user naturally typed `!추천영상`, which fell through to Gemini and produced an unrelated old recommendation.
+- Rule: For Korean compound chat commands, include the likely reversed word order and user-used wording as deterministic aliases before allowing the message to reach freeform AI handling.

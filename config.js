@@ -15,6 +15,10 @@ module.exports = {
     KAKAO_CHANNEL_URL: process.env.KAKAO_CHANNEL_URL || 'https://pf.kakao.com/_QDZZX',
     KAKAO_CHANNEL_CHAT_URL: process.env.KAKAO_CHANNEL_CHAT_URL || 'https://pf.kakao.com/_QDZZX/chat',
     RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX, 10) || 30,
+    DAILY_YOUTUBE_RECOMMENDATION_ENABLED:
+        process.env.DAILY_YOUTUBE_RECOMMENDATION_ENABLED !== 'false',
+    DAILY_YOUTUBE_PLAYLIST_ID:
+        process.env.DAILY_YOUTUBE_PLAYLIST_ID || 'PL5QXWTYoV_06Ui4wX9CcchtTeEb1Yky6w',
     FIREBASE_DB_URL:
         process.env.FIREBASE_DB_URL ||
         'https://habitchatbot-default-rtdb.asia-southeast1.firebasedatabase.app/'
