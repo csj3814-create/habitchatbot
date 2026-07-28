@@ -926,6 +926,31 @@ test('parseYouTubePlaylistFeed extracts playlist video metadata in latest-first 
     assert.equal(videos[0].thumbnailUrl, 'https://img.youtube.com/vi/newer123456/hqdefault.jpg');
 });
 
+test('config uses the current requested YouTube recommendation playlist by default', () => {
+    const configPath = require.resolve('../config');
+    const originalEnv = process.env.DAILY_YOUTUBE_PLAYLIST_ID;
+    const originalCache = require.cache[configPath];
+
+    delete process.env.DAILY_YOUTUBE_PLAYLIST_ID;
+    delete require.cache[configPath];
+
+    try {
+        const config = require('../config');
+        assert.equal(config.DAILY_YOUTUBE_PLAYLIST_ID, 'PLdVWJNYK0Cg8');
+    } finally {
+        if (originalEnv === undefined) {
+            delete process.env.DAILY_YOUTUBE_PLAYLIST_ID;
+        } else {
+            process.env.DAILY_YOUTUBE_PLAYLIST_ID = originalEnv;
+        }
+
+        delete require.cache[configPath];
+        if (originalCache) {
+            require.cache[configPath] = originalCache;
+        }
+    }
+});
+
 test('handleYoutubeRecommendation recommends the latest unseen video and reuses the same-day choice', async () => {
     const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
     const db = createFakeRealtimeDb();

@@ -18,7 +18,7 @@ module.exports = {
     DAILY_YOUTUBE_RECOMMENDATION_ENABLED:
         process.env.DAILY_YOUTUBE_RECOMMENDATION_ENABLED !== 'false',
     DAILY_YOUTUBE_PLAYLIST_ID:
-        process.env.DAILY_YOUTUBE_PLAYLIST_ID || 'PL5QXWTYoV_06Ui4wX9CcchtTeEb1Yky6w',
+        process.env.DAILY_YOUTUBE_PLAYLIST_ID || 'PLdVWJNYK0Cg8',
     FIREBASE_DB_URL:
         process.env.FIREBASE_DB_URL ||
         'https://habitchatbot-default-rtdb.asia-southeast1.firebasedatabase.app/'

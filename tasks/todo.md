@@ -732,3 +732,23 @@
 - Realtime DB history keeps date-level reuse and video-level "already recommended" skipping.
 - Live RSS check returned 15 playlist videos and parsed the current latest item successfully.
 - Verification passed: syntax checks, focused command/route tests, and full `npm test` (74 passed).
+
+# 2026-07-28 YouTube Recommendation Playlist Update
+> Status: Completed
+
+## Tasks
+- [x] Verify the new playlist RSS feed is reachable
+- [x] Update the default recommendation playlist ID
+- [x] Add a regression test for the configured default playlist
+- [x] Run focused and full tests
+- [x] Commit and push the playlist update
+
+## Plan Notes
+- New playlist: `https://www.youtube.com/playlist?list=PLdVWJNYK0Cg8`
+- Render may still override this with `DAILY_YOUTUBE_PLAYLIST_ID` if that environment variable is set in the dashboard.
+
+## Review
+- Updated the default YouTube recommendation playlist from `PL5QXWTYoV_06Ui4wX9CcchtTeEb1Yky6w` to `PLdVWJNYK0Cg8`.
+- Live RSS verification succeeded with 15 videos; latest parsed item was `xFCO2ukRjmM`.
+- Added a config regression test so the default playlist ID stays pinned to the requested source.
+- Verification passed: syntax checks, focused `test/commands.test.js`, and full `npm test` (75 passed).
