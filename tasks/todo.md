@@ -752,3 +752,25 @@
 - Live RSS verification succeeded with 15 videos; latest parsed item was `xFCO2ukRjmM`.
 - Added a config regression test so the default playlist ID stays pinned to the requested source.
 - Verification passed: syntax checks, focused `test/commands.test.js`, and full `npm test` (75 passed).
+
+# 2026-08-05 Static YouTube Command Links
+> Status: Completed
+
+## Tasks
+- [x] Add fixed YouTube responses for `!명상` and `!해빛`
+- [x] Preserve the old public record link behind a non-conflicting alias
+- [x] Update Kakao and MessengerBot command routing
+- [x] Update tests and README command table
+- [x] Run focused and full verification
+
+## Plan Notes
+- `!명상` should send the meditation/breathing practice video: `https://youtu.be/dcftmD1qVDs`
+- `!해빛` should send the 3-minute Haebit School explanation video: `https://youtu.be/kusU9zROdhc`
+- The old no-login daily record link remains useful, so route it through `!해빛기록` and `!하루기록`.
+
+## Review
+- Added `commands/staticVideos.js` for deterministic meditation and Haebit intro YouTube responses.
+- `!해빛`/`!햇빛` now sends the 3-minute Haebit School intro video, while the old public record gallery remains available as `!해빛기록`/`!하루기록`.
+- `!명상` now sends the meditation and breathing practice video in both MessengerBot and Kakao routes.
+- Kakao responses use the existing YouTube card builder, and tests cover short-link card conversion.
+- Verification passed: syntax checks, focused command/route/template tests, and `npm test` (77 passed).

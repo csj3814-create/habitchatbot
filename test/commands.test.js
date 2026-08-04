@@ -548,6 +548,19 @@ test('handleHaebitVideo starts a background job and returns a public status link
     assert.match(result, /링크를 여러 번 열어도 새로 만들지 않아요/);
     assert.match(result, /1~2분/);
 });
+
+test('static video commands return the requested YouTube links', () => {
+    const {
+        handleHaebitIntroVideo,
+        handleMeditationVideo
+    } = require('../commands/staticVideos');
+
+    assert.match(handleMeditationVideo(), /명상의 장점/);
+    assert.match(handleMeditationVideo(), /https:\/\/youtu\.be\/dcftmD1qVDs/);
+    assert.match(handleHaebitIntroVideo(), /해빛스쿨/);
+    assert.match(handleHaebitIntroVideo(), /https:\/\/youtu\.be\/kusU9zROdhc/);
+});
+
 test('handleConnect returns a deep-link card for an unlinked user', async () => {
     const { handleConnect } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'connect.js'),

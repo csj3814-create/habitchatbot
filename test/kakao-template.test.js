@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+    buildKakaoResponse,
     buildKakaoGuideResponse,
     buildKakaoAppCardResponse,
     buildKakaoConnectCardResponse,
@@ -9,6 +10,20 @@ const {
     buildKakaoShareInviteResponse,
     buildKakaoShareCardResponse
 } = require('../utils/kakaoTemplate');
+
+test('buildKakaoResponse turns short YouTube links into video cards', () => {
+    const result = buildKakaoResponse('명상 영상\nhttps://youtu.be/dcftmD1qVDs');
+
+    assert.equal(result.template.outputs.length, 2);
+    assert.equal(result.template.outputs[0].simpleText.text, '명상 영상');
+
+    const card = result.template.outputs[1].basicCard;
+    assert.equal(card.thumbnail.imageUrl, 'https://img.youtube.com/vi/dcftmD1qVDs/hqdefault.jpg');
+    assert.deepEqual(
+        card.buttons.map((button) => button.webLinkUrl),
+        ['https://www.youtube.com/watch?v=dcftmD1qVDs']
+    );
+});
 
 test('buildKakaoGuideResponse adds action-first quick replies', () => {
     const result = buildKakaoGuideResponse('GUIDE');

@@ -19,6 +19,7 @@ const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { buildDirectChatOnlyMessage } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
+const { handleHaebitIntroVideo, handleMeditationVideo } = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
@@ -124,6 +125,14 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             }
 
             if (command === '해빛' || command === '햇빛') {
+                return res.json({ reply: handleHaebitIntroVideo() });
+            }
+
+            if (command === '명상') {
+                return res.json({ reply: handleMeditationVideo() });
+            }
+
+            if (command === '해빛기록' || command === '하루기록') {
                 return res.json({ reply: await handleHaebit(user) });
             }
 

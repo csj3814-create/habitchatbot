@@ -361,7 +361,7 @@ test('kakao share command sends the image first and follows with an invite callb
     assert.equal(callbackPosts[0].payload.template.outputs[0].simpleText.text, 'INVITE_LINK');
 });
 
-test('kakao haebit command returns a public share link without habit logging or Gemini', async () => {
+test('kakao routes static video links and haebit record alias without habit logging or Gemini', async () => {
     const { createKakaoRouter } = loadWithMocks(
         path.join(__dirname, '..', 'routes', 'kakao.js'),
         {
@@ -414,10 +414,10 @@ test('kakao haebit command returns a public share link without habit logging or 
     const router = createKakaoRouter({
         db: {},
         getChatSession() {
-            throw new Error('getChatSession should not be called for haebit command');
+            throw new Error('getChatSession should not be called for static video or haebit commands');
         },
         checkAndLogHabits: async () => {
-            throw new Error('checkAndLogHabits should not be called for haebit command');
+            throw new Error('checkAndLogHabits should not be called for static video or haebit commands');
         },
         isAllowedImageUrl: () => true
     });
@@ -425,7 +425,17 @@ test('kakao haebit command returns a public share link without habit logging or 
     const response = await postJsonToRouter(router, buildKakaoBody('!해빛'));
 
     assert.equal(response.status, 200);
-    assert.equal(response.json.template.outputs[0].simpleText.text, 'https://habitchatbot.onrender.com/abc123XY');
+    assert.match(response.json.template.outputs[0].simpleText.text, /https:\/\/youtu\.be\/kusU9zROdhc/);
+
+    const meditationResponse = await postJsonToRouter(router, buildKakaoBody('!명상'));
+
+    assert.equal(meditationResponse.status, 200);
+    assert.match(meditationResponse.json.template.outputs[0].simpleText.text, /https:\/\/youtu\.be\/dcftmD1qVDs/);
+
+    const recordResponse = await postJsonToRouter(router, buildKakaoBody('!해빛기록'));
+
+    assert.equal(recordResponse.status, 200);
+    assert.equal(recordResponse.json.template.outputs[0].simpleText.text, 'https://habitchatbot.onrender.com/abc123XY');
 
     const videoResponse = await postJsonToRouter(router, buildKakaoBody('!해빛영상'));
 

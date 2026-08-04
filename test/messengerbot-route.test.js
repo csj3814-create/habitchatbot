@@ -342,7 +342,7 @@ test('messengerbot share command returns an image-first reply with follow-up inv
     ]);
 });
 
-test('messengerbot haebit command returns a public share link without Gemini', async () => {
+test('messengerbot routes static video links and haebit record alias without Gemini', async () => {
     const { createMessengerbotRouter } = loadWithMocks(
         path.join(__dirname, '..', 'routes', 'messengerbot.js'),
         {
@@ -404,14 +404,14 @@ test('messengerbot haebit command returns a public share link without Gemini', a
     const router = createMessengerbotRouter({
         db: {
             ref() {
-                throw new Error('db.ref should not be called for haebit command');
+                throw new Error('db.ref should not be called for static video or haebit commands');
             }
         },
         getChatSession() {
-            throw new Error('getChatSession should not be called for haebit command');
+            throw new Error('getChatSession should not be called for static video or haebit commands');
         },
         checkAndLogHabits: async () => {
-            throw new Error('checkAndLogHabits should not be called for haebit command');
+            throw new Error('checkAndLogHabits should not be called for static video or haebit commands');
         }
     });
 
@@ -423,7 +423,27 @@ test('messengerbot haebit command returns a public share link without Gemini', a
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.json.reply, 'https://habitchatbot.onrender.com/abc123XY');
+    assert.match(response.json.reply, /https:\/\/youtu\.be\/kusU9zROdhc/);
+
+    const meditationResponse = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!명상',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(meditationResponse.status, 200);
+    assert.match(meditationResponse.json.reply, /https:\/\/youtu\.be\/dcftmD1qVDs/);
+
+    const recordResponse = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!해빛기록',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(recordResponse.status, 200);
+    assert.equal(recordResponse.json.reply, 'https://habitchatbot.onrender.com/abc123XY');
 
     const videoResponse = await postJsonToRouter(router, {
         room: 'open-chat',

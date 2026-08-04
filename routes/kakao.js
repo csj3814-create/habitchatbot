@@ -29,6 +29,7 @@ const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { handleConnect } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
+const { handleHaebitIntroVideo, handleMeditationVideo } = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 
 const HELP_MSG = `명령어 안내
@@ -45,7 +46,9 @@ const HELP_MSG = `명령어 안내
 !내코드 - 내 친구 코드 확인
 !친구 코드 - 친구 요청
 !공유 - 내 최신 인증 카드 공유
-!해빛 - 로그인 없이 볼 수 있는 내 하루 기록 링크
+!해빛 - 해빛스쿨 소개 영상
+!명상 - 명상/호흡 실습 영상
+!해빛기록 - 로그인 없이 볼 수 있는 내 하루 기록 링크
 !해빛영상 - 사진·영상·감사일기 하루 영상
 
 그 외에는 자유롭게 질문해도 괜찮아요.`;
@@ -179,6 +182,14 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
         }
 
         if (actualQuestion === '해빛' || actualQuestion === '햇빛') {
+            return res.status(200).json(buildKakaoResponse(handleHaebitIntroVideo()));
+        }
+
+        if (actualQuestion === '명상') {
+            return res.status(200).json(buildKakaoResponse(handleMeditationVideo()));
+        }
+
+        if (actualQuestion === '해빛기록' || actualQuestion === '하루기록') {
             return res.status(200).json(cmdResponse(await handleHaebit(user)));
         }
 

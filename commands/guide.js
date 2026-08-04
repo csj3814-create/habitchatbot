@@ -20,7 +20,9 @@ ${SIMPLE_APP_URL}
 !오늘 - 오늘 기록 요약
 !내습관 - 내 기록 보기
 !주간 - 주간 리포트
-!공유 - 인증 카드 만들기`;
+!공유 - 인증 카드 만들기
+!해빛 - 해빛스쿨 소개 영상
+!명상 - 명상/호흡 실습 영상`;
 }
 
 async function handleApp() {
@@ -33,7 +35,7 @@ ${SIMPLE_APP_URL}
 식단 운동 수면 마음 기록
 
 챗봇
-!오늘 !내습관 !주간 !공유`;
+!오늘 !내습관 !주간 !공유 !해빛 !명상`;
 }
 
 module.exports = { handleGuide, handleApp, SIMPLE_APP_URL };
