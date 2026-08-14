@@ -4,6 +4,7 @@
 
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName, buildIdentityKey } = require('../modules/userMapping');
+const { buildUnlinkedMessage } = require('../modules/chatLink');
 const {
     hasDiet,
     hasExercise,
@@ -14,7 +15,7 @@ const {
 } = require('../modules/statsHelpers');
 
 function notRegistered(user) {
-    return `${getDisplayName(user)}님은 아직 해빛스쿨 계정이 연결되어 있지 않아요.\n앱 프로필에서 연결 코드를 만든 뒤 !등록 ABCD1234 로 먼저 연결해 주세요.`;
+    return buildUnlinkedMessage(user);
 }
 
 async function getAiCoaching(getChatSession, sessionKey, prompt) {

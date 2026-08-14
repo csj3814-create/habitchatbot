@@ -854,13 +854,24 @@ async function getLeaderboardByDateRange(startDate, endDate) {
     }
 }
 
+/**
+ * Consume an app-issued link code.
+ *
+ * Returns a verdict rather than a bare null so callers can tell the member what
+ * to actually fix. Note that a code which was already used is indistinguishable
+ * from one that never existed: a successful consume deletes the `chatbotLinkCode`
+ * field below, so there is nothing left to match on. Both surface as `not_found`.
+ *
+ * @returns {Promise<{ok: true, user: {uid, email, displayName}}
+ *                  | {ok: false, reason: 'not_found'|'expired'|'unavailable'}>}
+ */
 async function consumeChatbotLinkCode(linkCode) {
     const db = initAppFirebase();
-    if (!db) return null;
+    if (!db) return { ok: false, reason: 'unavailable' };
 
     const normalizedCode = normalizeChatbotLinkCode(linkCode);
     if (!normalizedCode) {
-        return null;
+        return { ok: false, reason: 'not_found' };
     }
 
     try {
@@ -870,7 +881,7 @@ async function consumeChatbotLinkCode(linkCode) {
             .get();
 
         if (snapshot.empty) {
-            return null;
+            return { ok: false, reason: 'not_found' };
         }
 
         const userDoc = snapshot.docs[0];
@@ -878,7 +889,9 @@ async function consumeChatbotLinkCode(linkCode) {
         const expiresAtMs = toEpochMs(userData.chatbotLinkCodeExpiresAt);
 
         if (Number.isNaN(expiresAtMs) || expiresAtMs < Date.now()) {
-            return null;
+            // Leave the stale fields in place; the app overwrites them when the
+            // member generates a replacement code.
+            return { ok: false, reason: 'expired' };
         }
 
         let authRecord = null;
@@ -899,13 +912,17 @@ async function consumeChatbotLinkCode(linkCode) {
         }, { merge: true });
 
         return {
-            uid: userDoc.id,
-            email: authRecord?.email || userData.email || null,
-            displayName: userData.customDisplayName || userData.displayName || authRecord?.displayName || null
+            ok: true,
+            user: {
+                uid: userDoc.id,
+                email: authRecord?.email || userData.email || null,
+                displayName: userData.customDisplayName || userData.displayName || authRecord?.displayName || null
+            }
         };
     } catch (error) {
+        // Never log the code itself.
         console.error('[AppFirebase] Failed to consume chatbot link code:', error.message);
-        return null;
+        return { ok: false, reason: 'unavailable' };
     }
 }
 

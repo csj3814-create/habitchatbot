@@ -4,6 +4,7 @@
 
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
+const { buildUnlinkedMessage } = require('../modules/chatLink');
 const { loadLeaderboardLabels } = require('../modules/leaderboardLabels');
 const {
     hasDiet,
@@ -20,7 +21,7 @@ async function handleMyHabits(user) {
     const mapping = await getMapping(user);
 
     if (!mapping) {
-        return `${displayName}님은 아직 해빛스쿨 계정이 연결되어 있지 않아요.\n\n연결 방법:\n앱 프로필에서 연결 코드를 만든 뒤\n!등록 ABCD1234`;
+        return buildUnlinkedMessage(user);
     }
 
     const labels = await loadLeaderboardLabels([{

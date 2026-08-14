@@ -10,6 +10,7 @@ const serviceAccount = require('./serviceAccountKey.json');
 const { createGeminiManager } = require('./utils/gemini');
 const { createHabitLogger, isAllowedImageUrl } = require('./utils/habitLogger');
 const { shouldRunSelfPing } = require('./utils/selfPingWindow');
+const { createRetentionRunner } = require('./modules/retention');
 const { createKakaoRouter } = require('./routes/kakao');
 const { createMessengerbotRouter } = require('./routes/messengerbot');
 const {
@@ -337,7 +338,17 @@ app.post('/api/chatbot-connect/complete', async (req, res) => {
 });
 
 app.use('/api/chat', createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }));
-app.use('/api/messengerbot', createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }));
+app.use('/api/messengerbot', createMessengerbotRouter({ getChatSession }));
+
+if (config.RETENTION_PURGE_ENABLED) {
+    const runRetention = createRetentionRunner(db, { retentionDays: config.RETENTION_DAYS });
+
+    // Give the process a moment to finish booting before the first sweep.
+    setTimeout(runRetention, 60 * 1000).unref?.();
+    setInterval(runRetention, config.RETENTION_INTERVAL_MS);
+} else {
+    console.warn('[Retention] RETENTION_PURGE_ENABLED=false. Unlinked chat data will NOT be deleted.');
+}
 
 setInterval(() => {
     const shouldPing = shouldRunSelfPing(new Date(), {

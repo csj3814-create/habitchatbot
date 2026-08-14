@@ -16,7 +16,7 @@ const { handleBestRecords, resolveBestRecordsPeriod } = require('../commands/bes
 const { handleGuide, handleApp } = require('../commands/guide');
 const { handleDiet, handleExercise, handleMind } = require('../commands/categoryHabits');
 const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
-const { buildDirectChatOnlyMessage } = require('../commands/connect');
+const { handleGroupLink, buildGroupLinkGuideMessage } = require('../commands/groupLink');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
 const { handleHaebitIntroVideo, handleMeditationVideo } = require('../commands/staticVideos');
@@ -36,6 +36,29 @@ function normalizeCommand(rawMessage) {
 
 function isYoutubeRecommendationCommand(command) {
     return command === '영상추천' || command === '추천영상' || command === '유튜브추천';
+}
+
+// `!연결` is the name members are told to use; `!등록` stays as an alias so
+// anyone following older guidance still works.
+const LINK_COMMAND_NAMES = ['연결', '등록'];
+
+function isLinkCommand(command) {
+    return LINK_COMMAND_NAMES.some(
+        (name) => command === name || command.startsWith(`${name} `)
+    );
+}
+
+/**
+ * Keep submitted link codes out of the logs.
+ */
+function redactForLog(message) {
+    const { command } = normalizeCommand(message);
+
+    if (!isLinkCommand(command)) {
+        return message;
+    }
+
+    return `!${command.split(' ')[0]} <redacted>`;
 }
 
 function formatShareReplies(result) {
@@ -58,7 +81,24 @@ function formatShareReplies(result) {
     ];
 }
 
-function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
+/**
+ * NOTE ON ROOM SCOPING — read before adding anything room-sensitive here.
+ *
+ * This endpoint cannot tell which chat room a message came from. MessengerBot R
+ * v0.7.29a reports `room` as the Android notification title, which for the
+ * production open chat is the *speaker's* nickname, so every participant
+ * produces a different `room` value. `isGroupChat` is false even for open-chat
+ * traffic, and the legacy `response()` API this version exposes has no stable
+ * channel id (no `BotManager`/`Event` API, so no `channelId`).
+ *
+ * Room separation is therefore an operating agreement, not something the code
+ * enforces: the 해빛스쿨 open chat uses `!`, and the other room the bot account
+ * sits in (해피닥터) agreed to use `~`. Any `!` command from any room reaches
+ * this handler.
+ *
+ * Do not add a `room`-based check here expecting it to hold.
+ */
+function createMessengerbotRouter({ getChatSession }) {
     const router = Router();
 
     router.post('/', apiKeyAuth, async (req, res) => {
@@ -76,7 +116,7 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             room
         });
 
-        console.log(`[MessengerBot] Room: ${room}, Sender: ${sender}, Message: ${msg}`);
+        console.log(`[MessengerBot] Room: ${room}, Sender: ${sender}, Message: ${redactForLog(msg)}`);
 
         try {
             const { command, args, trimmed } = normalizeCommand(msg);
@@ -97,10 +137,17 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                 return res.json({ reply: await handleClassStatus(getDisplayName(user)) });
             }
 
-            // MessengerBot rooms can surface shared/open chat traffic.
-            // Never emit account-link tokens or accept manual link codes here.
-            if (command === '등록' || command.startsWith('등록 ')) {
-                return res.json({ reply: buildDirectChatOnlyMessage() });
+            if (isLinkCommand(command)) {
+                const linkArg = command.includes(' ') ? args : '';
+
+                // A magic-link card would let anyone in the room click through and
+                // attach their own app account to this speaker's nickname. Codes
+                // only, and only ones the speaker already holds.
+                if (!linkArg) {
+                    return res.json({ reply: buildGroupLinkGuideMessage() });
+                }
+
+                return res.json({ reply: await handleGroupLink(user, linkArg) });
             }
 
             if (command === '내코드') {
@@ -110,10 +157,6 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
             if (command === '친구' || command.startsWith('친구 ')) {
                 const codeArg = command === '친구' ? '' : args;
                 return res.json({ reply: await handleAddFriend(user, codeArg) });
-            }
-
-            if (command === '연결') {
-                return res.json({ reply: buildDirectChatOnlyMessage() });
             }
 
             if (command === '공유' || command === '인증공유') {
@@ -177,16 +220,10 @@ function createMessengerbotRouter({ db, getChatSession, checkAndLogHabits }) {
                 return res.json({ reply: await handleMind(user, getChatSession) });
             }
 
-            if (command === '기록수') {
-                const snapshot = await db.ref(`users/messengerbot:${sender}/records`).once('value');
-                const data = snapshot.val();
-                const recordMsg = data
-                    ? `${sender}님은 지금까지 총 ${Object.keys(data).length}번 기록했어요.`
-                    : `${sender}님은 아직 자동 기록이 없어요.`;
-                return res.json({ reply: recordMsg });
-            }
-
-            await checkAndLogHabits(`messengerbot:${sender}`, trimmed);
+            // No habit-keyword logging on this path. The privacy policy for the
+            // group room says only the command itself is collected, and keyword
+            // extraction from free-form text goes beyond that. `!기록수` was the
+            // only reader of that store and went away with it.
             const chatSession = getChatSession(`messengerbot:${sender}`);
 
             let appDataContext = '';

@@ -56,20 +56,38 @@ async function readMappingByKey(key) {
     return snapshot.val();
 }
 
-async function registerUser(user, googleEmail, googleUid) {
+/**
+ * @param {object} [options]
+ * @param {string} [options.linkSource]         how the link was established
+ * @param {string} [options.previousIdentityKey] set when a link moved between identity keys
+ */
+async function registerUser(user, googleEmail, googleUid, options = {}) {
     const db = getDb();
     const key = buildIdentityKey(user);
     const displayName = getDisplayName(user);
+    const now = new Date().toISOString();
 
-    await db.ref(`user_mappings/${key}`).set({
+    const record = {
         identityKey: key,
         platform: typeof user === 'string' ? 'legacy' : (user.platform || 'legacy'),
         sender: displayName,
         displayName,
         googleEmail,
         googleUid,
-        registeredAt: new Date().toISOString()
-    });
+        registeredAt: now,
+        // Snapshot of the nickname at link time. The identity key is derived from
+        // a mutable display name, so this is what a future stable-id migration
+        // will need to reconcile against.
+        linkedDisplayName: displayName,
+        linkedAt: now,
+        linkSource: options.linkSource || 'unknown'
+    };
+
+    if (options.previousIdentityKey) {
+        record.previousIdentityKey = options.previousIdentityKey;
+    }
+
+    await db.ref(`user_mappings/${key}`).set(record);
 
     console.log(`[UserMapping] Registered: ${displayName} -> ${googleEmail} (uid: ${googleUid})`);
 }
@@ -152,12 +170,38 @@ async function removeMapping(user) {
     await Promise.all([...keys].map(key => db.ref(`user_mappings/${key}`).remove()));
 }
 
+async function removeMappingByKey(key) {
+    if (!key) {
+        return;
+    }
+
+    await getDb().ref(`user_mappings/${key}`).remove();
+}
+
+/**
+ * Reverse lookup: which identity keys already point at this app account?
+ * Used to tell a nickname change apart from a genuinely new link.
+ */
+async function findMappingsByGoogleUid(googleUid) {
+    if (!googleUid) {
+        return [];
+    }
+
+    const all = await getAllMappings();
+
+    return Object.entries(all)
+        .filter(([, mapping]) => mapping?.googleUid === googleUid)
+        .map(([key, mapping]) => ({ key, mapping }));
+}
+
 module.exports = {
     registerUser,
     getMapping,
     getAllMappings,
     findAppUserByEmail,
+    findMappingsByGoogleUid,
     removeMapping,
+    removeMappingByKey,
     getDisplayName,
     buildIdentityKey
 };

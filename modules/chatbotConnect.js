@@ -123,7 +123,8 @@ async function completeChatbotConnect(token, idToken) {
     await registerUser(
         tokenData.identity,
         appUser.email || '이메일 정보 없음',
-        appUser.uid
+        appUser.uid,
+        { linkSource: 'kakao-connect' }
     );
 
     await getDb().ref(`${TOKEN_PATH}/${tokenData.token}`).update({

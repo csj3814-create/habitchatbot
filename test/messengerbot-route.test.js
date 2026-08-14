@@ -62,6 +62,115 @@ async function postJsonToRouter(router, body) {
     }
 }
 
+function buildRouterMocks(overrides = {}) {
+    return {
+        '../utils/apiKeyAuth': {
+            apiKeyAuth: (req, res, next) => next()
+        },
+        '../utils/chatIdentity': {
+            createChatIdentity: ({ platform, userId, displayName, legacySender, room }) => ({
+                platform,
+                userId,
+                displayName,
+                legacySender,
+                room
+            })
+        },
+        '../commands/today': { handleToday: async () => 'TODAY' },
+        '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+        '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+        '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+        '../commands/ranking': { handleRanking: async () => 'RANK' },
+        '../commands/bestRecords': {
+            resolveBestRecordsPeriod: () => null,
+            handleBestRecords: async () => 'BEST'
+        },
+        '../commands/youtubeRecommendation': {
+            handleYoutubeRecommendation: async () => 'YOUTUBE'
+        },
+        '../commands/guide': {
+            handleGuide: async () => 'GUIDE',
+            handleApp: async () => 'APP'
+        },
+        '../commands/categoryHabits': {
+            handleDiet: async () => 'DIET',
+            handleExercise: async () => 'EXERCISE',
+            handleMind: async () => 'MIND'
+        },
+        '../commands/addFriend': {
+            handleAddFriend: async () => 'FRIEND',
+            handleMyCode: async () => 'MYCODE'
+        },
+        '../commands/groupLink': {
+            handleGroupLink: async () => 'GROUP_LINK',
+            buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
+        },
+        '../commands/share': {
+            handleShare: async () => ({ type: 'text', text: 'SHARE' })
+        },
+        '../commands/haebit': {
+            handleHaebit: async () => 'HAEBIT',
+            handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+        },
+        '../modules/appFirebase': {
+            getUserRecords: async () => []
+        },
+        '../modules/userMapping': {
+            getMapping: async () => null,
+            getDisplayName: (user) => user.displayName
+        },
+        '../modules/statsHelpers': {
+            hasDiet: () => false,
+            hasExercise: () => false,
+            hasMind: () => false
+        },
+        ...overrides
+    };
+}
+
+test('messengerbot dispatches commands from any room, by design', async () => {
+    // Documents accepted behavior, not an aspiration. MessengerBot R v0.7.29a
+    // reports `room` as the notification title, which is the speaker's nickname
+    // for this open chat, so `room` cannot identify a room and nothing here
+    // filters on it. Room separation is an operating agreement: 해빛스쿨 uses
+    // `!`, 해피닥터 uses `~`. If this test ever starts failing because a room
+    // check was added, confirm a stable room identifier exists first.
+    let dispatched = 0;
+
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        buildRouterMocks({
+            '../commands/today': {
+                handleToday: async () => {
+                    dispatched += 1;
+                    return 'TODAY';
+                }
+            }
+        })
+    );
+
+    const router = createMessengerbotRouter({
+        getChatSession() {
+            throw new Error('getChatSession should not be called for a fixed command');
+        }
+    });
+
+    // The same open chat reports a different `room` per speaker.
+    for (const room of ['릴리', 'Lemon', '최석재 응급의학과 전문의 유퀴즈 의사', '', undefined]) {
+        const response = await postJsonToRouter(router, {
+            room,
+            msg: '!오늘',
+            sender: '테스트 사용자',
+            isGroupChat: true
+        });
+
+        assert.equal(response.status, 200, `unexpected status for room ${JSON.stringify(room)}`);
+        assert.equal(response.json.reply, 'TODAY');
+    }
+
+    assert.equal(dispatched, 5);
+});
+
 test('messengerbot always blocks connect and register commands in shared rooms', async () => {
     const { createMessengerbotRouter } = loadWithMocks(
         path.join(__dirname, '..', 'routes', 'messengerbot.js'),
@@ -96,8 +205,9 @@ test('messengerbot always blocks connect and register commands in shared rooms',
                 handleAddFriend: async () => 'FRIEND',
                 handleMyCode: async () => 'MYCODE'
             },
-            '../commands/connect': {
-                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
@@ -133,6 +243,8 @@ test('messengerbot always blocks connect and register commands in shared rooms',
         checkAndLogHabits: async () => {}
     });
 
+    // `!연결` with no code must never emit a magic link into a shared room:
+    // anyone reading could click it and attach their own account to this nickname.
     const connectResponse = await postJsonToRouter(router, {
         room: 'open-chat',
         msg: '!연결',
@@ -141,17 +253,55 @@ test('messengerbot always blocks connect and register commands in shared rooms',
     });
 
     assert.equal(connectResponse.status, 200);
-    assert.equal(connectResponse.json.reply, 'DIRECT_ONLY');
+    assert.equal(connectResponse.json.reply, 'LINK_GUIDE');
+    assert.doesNotMatch(JSON.stringify(connectResponse.json), /http/);
 
-    const registerResponse = await postJsonToRouter(router, {
-        room: 'open-chat',
-        msg: '!등록 ABCD1234',
-        sender: '테스트 사용자',
-        isGroupChat: false
+    // A code, however, is proof the speaker already holds it.
+    for (const msg of ['!연결 ABCD1234', '!등록 ABCD1234', '!연결 해제', '!등록 해제']) {
+        const response = await postJsonToRouter(router, {
+            room: 'open-chat',
+            msg,
+            sender: '테스트 사용자',
+            isGroupChat: false
+        });
+
+        assert.equal(response.status, 200, `unexpected status for ${msg}`);
+        assert.equal(response.json.reply, 'GROUP_LINK', `unexpected reply for ${msg}`);
+    }
+});
+
+test('messengerbot never logs a submitted link code', async () => {
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        buildRouterMocks()
+    );
+
+    const router = createMessengerbotRouter({
+        getChatSession() {
+            throw new Error('getChatSession should not be called for link commands');
+        }
     });
 
-    assert.equal(registerResponse.status, 200);
-    assert.equal(registerResponse.json.reply, 'DIRECT_ONLY');
+    const logged = [];
+    const originalLog = console.log;
+    console.log = (...args) => logged.push(args.join(' '));
+
+    try {
+        await postJsonToRouter(router, {
+            room: 'open-chat',
+            msg: '!연결 SECRET12',
+            sender: '테스트 사용자',
+            isGroupChat: false
+        });
+    } finally {
+        console.log = originalLog;
+    }
+
+    assert.ok(logged.length > 0, 'the request should still be logged');
+    for (const line of logged) {
+        assert.doesNotMatch(line, /SECRET12/);
+    }
+    assert.ok(logged.some((line) => line.includes('<redacted>')));
 });
 
 test('messengerbot freeform prompt uses student honorific guidance', async () => {
@@ -190,8 +340,9 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
                 handleAddFriend: async () => 'FRIEND',
                 handleMyCode: async () => 'MYCODE'
             },
-            '../commands/connect': {
-                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
@@ -285,8 +436,9 @@ test('messengerbot share command returns an image-first reply with follow-up inv
                 handleAddFriend: async () => 'FRIEND',
                 handleMyCode: async () => 'MYCODE'
             },
-            '../commands/connect': {
-                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
                 handleShare: async () => ({
@@ -376,8 +528,9 @@ test('messengerbot routes static video links and haebit record alias without Gem
                 handleAddFriend: async () => 'FRIEND',
                 handleMyCode: async () => 'MYCODE'
             },
-            '../commands/connect': {
-                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
@@ -500,8 +653,9 @@ test('messengerbot routes scheduled best-record commands without Gemini', async 
                 handleAddFriend: async () => 'FRIEND',
                 handleMyCode: async () => 'MYCODE'
             },
-            '../commands/connect': {
-                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })
@@ -596,8 +750,9 @@ test('messengerbot routes YouTube recommendation commands without Gemini', async
                 handleAddFriend: async () => 'FRIEND',
                 handleMyCode: async () => 'MYCODE'
             },
-            '../commands/connect': {
-                buildDirectChatOnlyMessage: () => 'DIRECT_ONLY'
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
                 handleShare: async () => ({ type: 'text', text: 'SHARE' })

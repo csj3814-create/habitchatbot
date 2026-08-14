@@ -1,5 +1,6 @@
 const config = require('../config');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
+const { buildUnlinkedMessage } = require('../modules/chatLink');
 const {
     getLatestShareableRecord,
     createHaebitShareToken,
@@ -26,7 +27,7 @@ async function createHaebitShare(user) {
 
     if (!mapping) {
         return {
-            error: `${displayName}님, 아직 해빛스쿨 계정이 연결되지 않았어요.\n앱 프로필에서 연결 코드를 만든 뒤 !등록 코드로 먼저 연결해 주세요.`
+            error: buildUnlinkedMessage(user)
         };
     }
 

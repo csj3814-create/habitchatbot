@@ -216,9 +216,12 @@ test('handleRegister consumes a valid code and stores the mapping', async () => 
                 consumeChatbotLinkCode: async (code) => {
                     assert.equal(code, 'ABCD1234');
                     return {
-                        uid: 'app-user-1',
-                        email: 'linked@example.com',
-                        displayName: '연결 사용자'
+                        ok: true,
+                        user: {
+                            uid: 'app-user-1',
+                            email: 'linked@example.com',
+                            displayName: '연결 사용자'
+                        }
                     };
                 }
             },
@@ -237,7 +240,44 @@ test('handleRegister consumes a valid code and stores the mapping', async () => 
     const result = await handleRegister(user, 'abcd1234');
 
     assert.match(result, /!내습관/);
-    assert.deepEqual(capturedRegistration, [user, 'linked@example.com', 'app-user-1']);
+    assert.deepEqual(capturedRegistration.slice(0, 3), [user, 'linked@example.com', 'app-user-1']);
+    assert.equal(capturedRegistration[3].linkSource, 'kakao-code');
+});
+
+test('handleRegister distinguishes expired, unknown, and unavailable link codes', async () => {
+    const replies = new Map();
+
+    for (const reason of ['expired', 'not_found', 'unavailable']) {
+        const { handleRegister } = loadWithMocks(
+            path.join(__dirname, '..', 'commands', 'register.js'),
+            {
+                '../modules/appFirebase': {
+                    consumeChatbotLinkCode: async () => ({ ok: false, reason })
+                },
+                '../modules/userMapping': {
+                    registerUser: async () => {
+                        throw new Error(`must not register on a "${reason}" verdict`);
+                    },
+                    getMapping: async () => null,
+                    removeMapping: async () => {},
+                    getDisplayName: (user) => user.displayName
+                }
+            }
+        );
+
+        const reply = await handleRegister(
+            { displayName: '채팅 사용자', platform: 'kakao', userId: 'kakao-1' },
+            'ABCD1234'
+        );
+
+        assert.doesNotMatch(reply, /연결 완료/, `"${reason}" must not read as success`);
+        assert.doesNotMatch(reply, /ABCD1234/, `"${reason}" must not echo the code`);
+        replies.set(reason, reply);
+    }
+
+    assert.equal(new Set(replies.values()).size, 3, 'each reason needs its own guidance');
+    assert.match(replies.get('expired'), /만료/);
+    assert.match(replies.get('not_found'), /이미 사용했거나/);
 });
 
 test('handleMyCode returns an invite link and fallback friend code', async () => {
@@ -370,7 +410,7 @@ test('handleShare asks the user to link their account first', async () => {
     const result = await handleShare({ displayName: '테스트 사용자', userId: 'kakao-1' });
 
     assert.equal(result.type, 'text');
-    assert.match(result.text, /!등록/);
+    assert.match(result.text, /!연결 코드/);
 });
 
 test('handleShare explains when no shareable record exists yet', async () => {
@@ -448,8 +488,8 @@ test('handleHaebit asks the user to link their account first', async () => {
 
     const result = await handleHaebit({ displayName: '테스트 사용자', userId: 'kakao-1' });
 
-    assert.match(result, /계정이 연결되지/);
-    assert.match(result, /!등록/);
+    assert.match(result, /연결을 확인하지 못했어요/);
+    assert.match(result, /!연결 코드/);
 });
 
 test('handleHaebit explains when no shareable record exists yet', async () => {

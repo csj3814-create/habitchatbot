@@ -1,5 +1,6 @@
 const config = require('../config');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
+const { buildUnlinkedMessage } = require('../modules/chatLink');
 const { getShareCardPayload, createShareCardToken } = require('../modules/appFirebase');
 
 function buildShareImageUrl(token) {
@@ -14,7 +15,7 @@ async function handleShare(user) {
     if (!mapping) {
         return {
             type: 'text',
-            text: `${displayName}님은 아직 해빛스쿨 계정이 연결되지 않았어요.\n먼저 앱 프로필에서 연결 코드를 만든 뒤 !등록 코드 로 연결해 주세요.`
+            text: buildUnlinkedMessage(user)
         };
     }
 

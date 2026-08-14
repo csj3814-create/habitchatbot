@@ -19,6 +19,13 @@ module.exports = {
         process.env.DAILY_YOUTUBE_RECOMMENDATION_ENABLED !== 'false',
     DAILY_YOUTUBE_PLAYLIST_ID:
         process.env.DAILY_YOUTUBE_PLAYLIST_ID || 'PLdVWJNYK0Cg8',
+    // Privacy policy: unlinked MessengerBot chat data is deleted after 30 days.
+    RETENTION_DAYS: (() => {
+        const parsed = parseInt(process.env.RETENTION_DAYS, 10);
+        return Number.isNaN(parsed) ? 30 : parsed;
+    })(),
+    RETENTION_PURGE_ENABLED: process.env.RETENTION_PURGE_ENABLED !== 'false',
+    RETENTION_INTERVAL_MS: parseInt(process.env.RETENTION_INTERVAL_MS, 10) || 24 * 60 * 60 * 1000,
     FIREBASE_DB_URL:
         process.env.FIREBASE_DB_URL ||
         'https://habitchatbot-default-rtdb.asia-southeast1.firebasedatabase.app/'

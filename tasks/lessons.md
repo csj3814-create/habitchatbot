@@ -162,6 +162,18 @@
 
 ## 2026-08-15
 
+### Verify the platform's data before designing a filter around it
+- Mistake: I built, tested, and "verified" a room-name allowlist without reading one real production log line. MessengerBot R v0.7.29a reports `room` as the notification title, which for this open chat is the *speaker's* nickname, so five people in one room produced five different `room` values. Every test passed because every fixture used room names I invented.
+- Rule: For any filter over external data, read real samples first. Two log lines would have prevented the whole design.
+- Rule: A green suite proves the comparison works, not that the input means what you assumed. Verify input semantics separately from gate behavior.
+- Warning sign I ignored: the repo already recorded that `isGroupChat` is false for open-chat traffic. Untrustworthy metadata on one field should have made me suspect the others.
+- Platform note: v0.7.29a has no `BotManager`/`Event` API, so no `channelId`. The legacy `response(room, msg, sender, isGroupChat, ...)` signature exposes no reliable room identifier at all. Room scoping on this version can only be operational.
+
+### A dead constant reads as a working feature
+- `GROUP_ROOM_NAME` sat in the phone script for months, declared and never referenced. It made the script look room-scoped, and a past session even "fixed" its value — which could not have changed anything, because nothing read it. It also made the owner reasonably believe rooms were filtered.
+- Rule: Delete unused configuration rather than leaving it as documentation. A constant that looks like a setting is a claim about behavior; if nothing reads it, the claim is false.
+- Rule: When someone says a filter "works", confirm the code path actually runs before agreeing. Here "it works" meant "nothing is filtered", which looks identical from inside the room.
+
 ### Firestore Timestamps do not survive `new Date(value)`
 - Mistake: this repo read `chatbotLinkCodeExpiresAt` with `new Date(expiresAt)`, but the app writes it with `admin.firestore.Timestamp.fromDate(...)`. `new Date(<Timestamp>)` is Invalid Date, so every valid link code was judged expired and `!등록 <코드>` never once succeeded.
 - Rule: When reading a field another system writes, grep the writer to see the actual type. Do not assume ISO strings.

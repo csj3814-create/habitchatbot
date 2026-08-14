@@ -62,21 +62,34 @@ ${config.KAKAO_CHANNEL_CHAT_URL}
         return `연결 코드는 영문 대문자와 숫자 8자리예요.\n예시: !등록 ABCD1234`;
     }
 
-    const appUser = await consumeChatbotLinkCode(linkCode);
-    if (!appUser) {
-        return `연결 코드를 확인하지 못했어요.
+    const verdict = await consumeChatbotLinkCode(linkCode);
+    if (!verdict.ok) {
+        if (verdict.reason === 'expired') {
+            return `연결 코드가 만료됐어요.
+코드는 만든 뒤 10분 동안만 쓸 수 있어요.
 
-확인해 주세요.
-1. 앱 프로필에서 방금 생성한 코드인지
-2. 10분이 지나 만료되지 않았는지
-3. 이미 한 번 사용한 코드는 아닌지
+앱 프로필에서 새 코드를 만든 뒤 다시 !등록 코드 를 입력해 주세요.`;
+        }
 
+        if (verdict.reason === 'unavailable') {
+            return `지금은 계정 연결을 처리할 수 없어요.
+잠시 후 다시 시도해 주세요.`;
+        }
+
+        return `연결 코드를 찾지 못했어요.
+이미 사용했거나 잘못 입력한 코드일 수 있어요.
+
+앱 프로필에서 새 코드를 만들어 주세요.
 더 쉬운 방법을 원하면 해빛코치 1:1 바로가기
 ${config.KAKAO_CHANNEL_CHAT_URL}
 에서 !연결 을 입력해 주세요.`;
     }
 
-    await registerUser(user, appUser.email || '이메일 정보 없음', appUser.uid);
+    const appUser = verdict.user;
+
+    await registerUser(user, appUser.email || '이메일 정보 없음', appUser.uid, {
+        linkSource: 'kakao-code'
+    });
 
     const appDisplayName = appUser.displayName ? ` (${appUser.displayName})` : '';
     const emailLine = appUser.email ? `이메일: ${appUser.email}\n` : '';

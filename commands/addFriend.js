@@ -7,6 +7,7 @@
 const admin = require('firebase-admin');
 const { initAppFirebase } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
+const { buildUnlinkedMessage } = require('../modules/chatLink');
 const { buildHabitsSchoolInviteUrl } = require('../utils/appLinks');
 
 const CODE_REGEX = /^[A-Z0-9]{6}$/i;
@@ -23,8 +24,8 @@ function buildInviteUrl(referralCode) {
     return buildHabitsSchoolInviteUrl(referralCode);
 }
 
-function buildLinkFirstMessage(displayName) {
-    return `${displayName}님은 아직 해빛스쿨 계정이 연결되지 않았어요.\n먼저 카카오 1:1 채팅에서 !연결을 입력해 주세요.\n수동 방식이 필요하면 앱에서 연결 코드를 만든 뒤 !등록 코드도 사용할 수 있어요.`;
+function buildLinkFirstMessage(user) {
+    return buildUnlinkedMessage(user);
 }
 
 async function handleMyCode(user) {
@@ -32,7 +33,7 @@ async function handleMyCode(user) {
     const mapping = await getMapping(user);
 
     if (!mapping) {
-        return buildLinkFirstMessage(displayName);
+        return buildLinkFirstMessage(user);
     }
 
     const db = initAppFirebase();
@@ -96,7 +97,7 @@ async function handleAddFriend(user, args) {
 
     const myMapping = await getMapping(user);
     if (!myMapping) {
-        return buildLinkFirstMessage(displayName);
+        return buildLinkFirstMessage(user);
     }
 
     const db = initAppFirebase();
