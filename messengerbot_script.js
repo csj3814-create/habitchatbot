@@ -38,8 +38,13 @@ const OPEN_CHAT_AUTO_COMMANDS = {
     "월간베스트": "지난달베스트"
 };
 
-// ⚠️ 서버의 MESSENGER_API_KEY 환경변수와 동일한 값으로 변경하세요
-const API_KEY = "abde0e8382bc4d8c4f22504217e8a3d1";
+// ⚠️ 폰에 붙여넣은 뒤 이 줄만 실제 값으로 바꾸세요.
+// Render의 MESSENGER_API_KEY와 같은 값이어야 합니다.
+//
+// 실제 키를 이 파일에 커밋하지 마세요. 저장소에 들어간 키는 히스토리에 영구히 남고,
+// 키를 아는 사람은 방에 없어도 /api/messengerbot에 직접 POST하면서 sender를 마음대로
+// 지정할 수 있습니다(예: 남의 대화명으로 `!연결 해제`).
+const API_KEY = "PUT_YOUR_MESSENGER_API_KEY_HERE";
 
 function normalizeMessageText(text) {
     return String(text || "").replace(/\s+/g, " ").trim();

@@ -55,16 +55,28 @@ utils/
 
 ## MessengerBot 설정
 
-1. [messengerbot_script.js](/C:/SJ/antigravity/habitchatbot/messengerbot_script.js)의 내용을 MessengerBot 스크립트에 붙여 넣습니다.
-2. `SERVER_URL`, `API_KEY`를 실제 값으로 바꿉니다.
+1. [messengerbot_script.js](messengerbot_script.js)의 내용을 MessengerBot 스크립트에 붙여 넣습니다.
+2. 폰에서 `API_KEY`를 실제 값으로 바꿉니다. Render의 `MESSENGER_API_KEY`와 같아야 합니다.
 3. MessengerBot 앱에서 카카오톡 알림 접근 권한을 허용합니다.
 
-예시:
-
 ```javascript
-const SERVER_URL = "https://habitchatbot.onrender.com/api/messengerbot";
-const API_KEY = "Render의 MESSENGER_API_KEY와 같은 값";
+const API_KEY = "PUT_YOUR_MESSENGER_API_KEY_HERE";  // ← 폰에서만 바꾸세요
 ```
+
+### 🔑 실제 키를 이 저장소에 커밋하지 마세요
+
+키는 폰과 Render에만 두고, 저장소 파일은 플레이스홀더로 유지합니다.
+`test/messengerbot-script.test.js`가 이 파일에 실제 키가 들어오면 실패합니다.
+
+키를 아는 사람은 방에 없어도 `/api/messengerbot`에 직접 POST할 수 있고, `sender`를
+원하는 값으로 지정할 수 있습니다. 닉네임만 알면 `!연결 해제`로 남의 계정 연결을 끊는
+것도 가능합니다(연결 *생성*은 앱이 발급한 코드가 필요하므로 막혀 있습니다).
+
+키를 교체할 때는 순서를 지키세요. 2번과 3번 사이에는 봇이 401을 받습니다.
+
+1. 새 키 생성: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`
+2. Render 환경변수 `MESSENGER_API_KEY`를 새 값으로 변경
+3. 폰 스크립트의 `API_KEY`를 같은 값으로 변경
 
 ### ⚠️ 방 구분은 코드가 아니라 운영 약속입니다
 

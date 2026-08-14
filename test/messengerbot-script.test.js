@@ -179,6 +179,31 @@ test('messengerbot script ignores non-command open-chat bot announcements that a
     assert.equal(replies.length, 0);
 });
 
+test('the tracked phone script carries no real API key', () => {
+    // The key lived in this tracked file and was therefore public. Anyone holding
+    // it can POST to /api/messengerbot directly with any `sender` they choose,
+    // which includes unlinking another member's account. Keep the repo copy a
+    // placeholder and fill the real value in on the handset.
+    const source = fs.readFileSync(
+        path.join(__dirname, '..', 'messengerbot_script.js'),
+        'utf8'
+    );
+
+    const match = source.match(/const\s+API_KEY\s*=\s*"([^"]*)"/);
+    assert.ok(match, 'API_KEY assignment should exist');
+
+    const value = match[1];
+    assert.ok(
+        /^[A-Z_]+$/.test(value),
+        `API_KEY must stay a placeholder in the repo, found ${JSON.stringify(value)}`
+    );
+    assert.doesNotMatch(
+        value,
+        /^[0-9a-f]{16,}$/i,
+        'API_KEY looks like a real secret'
+    );
+});
+
 test('messengerbot script waits long enough for a Render cold start', () => {
     const { response, timeouts } = loadMessengerbotScript();
     const { replier } = createReplier();
