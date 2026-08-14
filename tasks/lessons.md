@@ -160,6 +160,28 @@
 - Mistake: I interpreted "my videos" as Habits School record media even though the user meant external YouTube longform videos from other channels.
 - Rule: When a request mentions "my video", "my image", or another broad media source, identify the source system first (app records, generated assets, YouTube playlist/channel, manual list) before planning schemas, privacy rules, or automation behavior.
 
+## 2026-08-15
+
+### Firestore Timestamps do not survive `new Date(value)`
+- Mistake: this repo read `chatbotLinkCodeExpiresAt` with `new Date(expiresAt)`, but the app writes it with `admin.firestore.Timestamp.fromDate(...)`. `new Date(<Timestamp>)` is Invalid Date, so every valid link code was judged expired and `!등록 <코드>` never once succeeded.
+- Rule: When reading a field another system writes, grep the writer to see the actual type. Do not assume ISO strings.
+- Rule: Normalize cross-system timestamps through one helper accepting Timestamp, `{seconds, nanoseconds}`, Date, epoch number, and ISO string, returning NaN otherwise.
+- Rule: Write the regression test so it asserts the *broken* parse as a precondition. `assert.ok(Number.isNaN(new Date(timestamp).getTime()))` documents why the helper exists and fails loudly if the platform ever changes.
+
+### A generic failure message hides a total outage
+- Mistake pattern: the expiry bug returned the same "코드를 확인하지 못했어요" as a typo or a used code, so a feature that worked 0% of the time looked like ordinary user error for months.
+- Rule: When a code path has several distinct failure causes, keep them distinguishable in logs even if the user-facing copy stays simple. Identical messaging for "wrong input" and "we are broken" delays discovery indefinitely.
+
+### Match client timeouts to the host's cold-start time, not to a guess
+- Mistake: the phone script used a 15s HTTP timeout while Render warns an idle instance needs 50s or more to wake. Every cold start surfaced as `SocketTimeoutException` and looked like the bot was down.
+- Rule: When a client calls a service that can scale to zero, set the timeout above the documented cold-start ceiling, and remember that scheduled keepalives with sleep windows guarantee cold starts inside those windows.
+
+### Verify the platform's data before designing around it
+- Mistake: I built and "verified" a room-name allowlist without reading one real production log line. MessengerBot R v0.7.29a reports `room` as the notification title, which for this open chat is the *speaker's* nickname, so five people in one room produced five different `room` values. Every test passed because every fixture used room names I invented.
+- Rule: For any filter over external data, read real samples first. Two log lines would have prevented the whole design.
+- Rule: A green suite proves the comparison works, not that the input means what you assumed. Verify input semantics separately from gate behavior.
+- Platform note: MessengerBot R v0.7.29a has no `BotManager`/`Event` API, so `channelId` is unavailable. The legacy `response(room, msg, sender, isGroupChat, ...)` signature exposes no reliable room identifier at all, and `isGroupChat` is false even for open-chat traffic. Room scoping on this version can only be operational, not enforced in code.
+
 ### Chat commands need the user's natural word order as aliases
 - Mistake: I added `!영상추천` and `!유튜브추천`, but the user naturally typed `!추천영상`, which fell through to Gemini and produced an unrelated old recommendation.
 - Rule: For Korean compound chat commands, include the likely reversed word order and user-used wording as deterministic aliases before allowing the message to reach freeform AI handling.

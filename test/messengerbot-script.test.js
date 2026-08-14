@@ -9,6 +9,7 @@ function loadMessengerbotScript() {
     const source = fs.readFileSync(scriptPath, 'utf8');
     const requests = [];
     const logs = [];
+    const timeouts = [];
 
     function Thread(callback) {
         this.callback = callback;
@@ -50,7 +51,8 @@ function loadMessengerbotScript() {
                             ignoreContentType() {
                                 return this;
                             },
-                            timeout() {
+                            timeout(value) {
+                                timeouts.push(value);
                                 return this;
                             },
                             post() {
@@ -79,7 +81,8 @@ function loadMessengerbotScript() {
     return {
         response: context.response,
         requests,
-        logs
+        logs,
+        timeouts
     };
 }
 
@@ -174,6 +177,21 @@ test('messengerbot script ignores non-command open-chat bot announcements that a
 
     assert.equal(requests.length, 0);
     assert.equal(replies.length, 0);
+});
+
+test('messengerbot script waits long enough for a Render cold start', () => {
+    const { response, timeouts } = loadMessengerbotScript();
+    const { replier } = createReplier();
+
+    response('최석재', '!오늘', '테스트 사용자', true, replier);
+
+    assert.equal(timeouts.length, 1);
+    // Render reports 50s or more to wake an idle instance. A 15s timeout failed
+    // on every cold start.
+    assert.ok(
+        timeouts[0] >= 60000,
+        `expected at least a 60s timeout, got ${timeouts[0]}ms`
+    );
 });
 
 test('messengerbot script sends follow-up replies after the primary reply when the server returns them', () => {

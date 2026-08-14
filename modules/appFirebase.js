@@ -70,6 +70,51 @@ function normalizeChatbotLinkCode(value) {
     return String(value || '').trim().toUpperCase();
 }
 
+/**
+ * Firestore timestamps do not survive `new Date(value)`.
+ *
+ * The Habits School app writes `chatbotLinkCodeExpiresAt` with
+ * `admin.firestore.Timestamp.fromDate(...)` (functions/runtime.js), and
+ * `new Date(<Timestamp>)` yields Invalid Date. Parsing it naively made every
+ * freshly generated code look expired, so `!등록 <코드>` rejected valid codes.
+ *
+ * Accepts the Timestamp object, its serialized `{seconds, nanoseconds}` form,
+ * a Date, an epoch number, and an ISO string.
+ *
+ * @returns {number} epoch milliseconds, or NaN when the value is unusable
+ */
+function toEpochMs(value) {
+    if (value === null || value === undefined) {
+        return NaN;
+    }
+
+    if (typeof value.toDate === 'function') {
+        const asDate = value.toDate();
+        return asDate instanceof Date ? asDate.getTime() : NaN;
+    }
+
+    if (value instanceof Date) {
+        return value.getTime();
+    }
+
+    if (typeof value === 'object') {
+        const seconds = value.seconds ?? value._seconds;
+        const nanoseconds = value.nanoseconds ?? value._nanoseconds ?? 0;
+
+        if (typeof seconds === 'number') {
+            return seconds * 1000 + Math.floor(nanoseconds / 1e6);
+        }
+
+        return NaN;
+    }
+
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : NaN;
+    }
+
+    return new Date(value).getTime();
+}
+
 function getDefaultShareSettings() {
     return { ...DEFAULT_SHARE_SETTINGS };
 }
@@ -830,9 +875,9 @@ async function consumeChatbotLinkCode(linkCode) {
 
         const userDoc = snapshot.docs[0];
         const userData = userDoc.data();
-        const expiresAt = userData.chatbotLinkCodeExpiresAt;
+        const expiresAtMs = toEpochMs(userData.chatbotLinkCodeExpiresAt);
 
-        if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime()) || new Date(expiresAt).getTime() < Date.now()) {
+        if (Number.isNaN(expiresAtMs) || expiresAtMs < Date.now()) {
             return null;
         }
 
@@ -1175,6 +1220,7 @@ module.exports = {
     getWeeklyLeaderboard,
     getLeaderboardByDateRange,
     consumeChatbotLinkCode,
+    toEpochMs,
     getLatestShareableRecord,
     extractShareMedia,
     getShareCardPayload,

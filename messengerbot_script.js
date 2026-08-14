@@ -16,6 +16,9 @@
  */
 
 const SERVER_URL = "https://habitchatbot.onrender.com/api/messengerbot";
+
+// Render 인스턴스가 유휴 상태에서 깨어나는 데 50초 이상 걸릴 수 있어 60초로 잡는다.
+const SERVER_TIMEOUT_MS = 60000;
 const OPEN_CHAT_BOT_NAME = "오픈채팅봇";
 const OPEN_CHAT_WELCOME_PREFIX = "식습관 운동습관 잠습관";
 const OPEN_CHAT_AUTO_COMMANDS = {
@@ -119,13 +122,15 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
             isGroupChat: isGroupChat
         };
 
-        // HTTP POST 요청 전송 (Jsoup 사용, 타임아웃 15초)
+        // HTTP POST 요청 전송 (Jsoup 사용)
+        // 타임아웃 60초: Render 인스턴스가 유휴 상태에서 깨어날 때 50초 이상 걸릴 수 있다.
+        // 15초로는 콜드 스타트마다 실패했다.
         var document = org.jsoup.Jsoup.connect(SERVER_URL)
             .header("Content-Type", "application/json")
             .header("x-api-key", API_KEY)
             .requestBody(JSON.stringify(postData))
             .ignoreContentType(true)
-            .timeout(15000)
+            .timeout(SERVER_TIMEOUT_MS)
             .post();
 
         // 서버 응답 (JSON 형식: {"reply": "..."})

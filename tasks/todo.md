@@ -1,3 +1,44 @@
+# 2026-08-15 링크 코드 만료 판정 버그 + 콜드 스타트 타임아웃
+> Status: Completed
+
+## Tasks
+- [x] `chatbotLinkCodeExpiresAt`가 Firestore Timestamp라서 `new Date()` 파싱이 깨지던 문제 수정
+- [x] 폰 스크립트 서버 타임아웃 15초 → 60초
+- [x] 회귀 테스트 추가 후 전체 검증
+
+## 배경
+
+앱(`habitschool/functions/runtime.js:4835`)은 연결 코드 만료 시각을
+`admin.firestore.Timestamp.fromDate(...)`로 씁니다. 그런데 이 저장소는
+`new Date(expiresAt)`로 읽고 있었고, Timestamp 객체를 `new Date()`에 넣으면
+Invalid Date가 나옵니다. 그래서 **방금 만든 유효한 코드도 전부 만료로 판정**됐고,
+`!등록 <코드>`는 처음부터 한 번도 성공한 적이 없습니다. 오류 메시지가
+"코드를 확인하지 못했어요"라는 일반 문구여서 원인이 드러나지 않았습니다.
+
+타임아웃 쪽은 별개입니다. Render 유휴 인스턴스가 깨어나는 데 50초 이상 걸리는데
+스크립트 타임아웃이 15초여서, 콜드 스타트마다 `SocketTimeoutException`으로 실패했습니다.
+KST 01–07시에는 self-ping과 GitHub Actions keepalive가 둘 다 쉬기 때문에
+그 시간대 테스트는 거의 항상 실패합니다.
+
+## Review
+
+- `modules/appFirebase.js`에 `toEpochMs()` 추가. Firestore `Timestamp`, 직렬화된
+  `{seconds, nanoseconds}`, `Date`, epoch 숫자, ISO 문자열을 모두 받고 그 외에는 NaN.
+  `consumeChatbotLinkCode`가 이걸 쓰도록 변경. 반환 계약은 그대로(사용자 객체 또는 null).
+- `messengerbot_script.js`에 `SERVER_TIMEOUT_MS = 60000` 추가하고 하드코딩된 15000 대체.
+- `test/link-code-expiry.test.js` 신설. **깨진 파싱(`new Date(timestamp)`가 NaN)을
+  전제 조건으로 단언**하므로 조용히 회귀할 수 없습니다.
+- `test/messengerbot-script.test.js`에 타임아웃 60초 이상 단언 추가.
+- 검증: `npm test` 83 통과 / 0 실패(기존 77), 변경 파일 `node --check`,
+  앱이 쓰는 실제 Timestamp 형태로 `consumeChatbotLinkCode` 직접 구동 7/7 통과.
+
+## 배포 후 확인
+- 카카오 1:1에서 앱 코드 발급 → `!등록 <코드>` → 연결 완료 문구가 나오는지
+- 폰 스크립트 교체 필요(타임아웃은 폰에 있음)
+- 새벽 01–07시 테스트는 keepalive가 쉬는 시간이라 여전히 느립니다. 낮에 확인하세요.
+
+---
+
 # 작업 로그 — 2026-03-23
 
 ## 완료된 작업
