@@ -36,8 +36,28 @@ function getHabitsSchoolGalleryUrl() {
     }
 }
 
+/**
+ * Opens the gallery and highlights the share card.
+ *
+ * The card itself is built in the app, where the member can pick a template,
+ * choose the hero photo, and hand the finished image to whichever room they
+ * want. `focus=share` is handled by handleAppEntryDeepLink in the app.
+ */
+function getHabitsSchoolShareCardUrl() {
+    try {
+        const url = new URL(normalizeBaseUrl());
+        url.searchParams.set('tab', 'gallery');
+        url.searchParams.set('focus', 'share');
+        url.hash = 'gallery';
+        return url.toString();
+    } catch (_) {
+        return `https://habitschool.web.app/?tab=gallery&focus=share#gallery`;
+    }
+}
+
 module.exports = {
     normalizeBaseUrl,
     buildHabitsSchoolInviteUrl,
-    getHabitsSchoolGalleryUrl
+    getHabitsSchoolGalleryUrl,
+    getHabitsSchoolShareCardUrl
 };

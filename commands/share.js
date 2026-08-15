@@ -1,12 +1,20 @@
-const config = require('../config');
+/**
+ * `!공유` — hand the member into the app's own share card.
+ *
+ * This used to render a PNG on the chatbot server and post the image URL into
+ * the room. The app's gallery card outgrew it: the member picks a template and
+ * a hero photo there, and the app hands the finished image straight to the
+ * platform share sheet, so it can go to any room they like rather than only the
+ * one they typed the command in.
+ *
+ * Keeping a second renderer alive meant a card that could not be restyled, a
+ * five-minute image token that broke if they came back to it, and a picture that
+ * failed whenever the free instance was cold.
+ */
+
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { buildUnlinkedMessage } = require('../modules/chatLink');
-const { getShareCardPayload, createShareCardToken } = require('../modules/appFirebase');
-
-function buildShareImageUrl(token) {
-    const baseUrl = String(config.RENDER_URL || '').replace(/\/+$/, '');
-    return `${baseUrl}/api/share-card/${token}.png`;
-}
+const { getHabitsSchoolShareCardUrl } = require('../utils/appLinks');
 
 async function handleShare(user) {
     const displayName = getDisplayName(user);
@@ -19,31 +27,15 @@ async function handleShare(user) {
         };
     }
 
-    const payload = await getShareCardPayload(mapping.googleUid);
-    if (!payload) {
-        return {
-            type: 'text',
-            text: `공유할 최신 기록을 아직 찾지 못했어요.\n앱에서 오늘 식단, 운동, 마음 기록 중 하나 이상 남긴 뒤 다시 !공유 를 입력해 주세요.`
-        };
-    }
-
-    const token = await createShareCardToken({
-        googleUid: mapping.googleUid,
-        kakaoUserKey: user?.userId || ''
-    });
-
-    const description = payload.subtitle || '오늘의 해빛 흐름을 카드로 정리했어요.';
-
     return {
-        type: 'share-card',
-        title: '내 해빛 공유 카드',
-        description: description.length > 80 ? `${description.slice(0, 79).trimEnd()}…` : description,
-        imageUrl: buildShareImageUrl(token),
-        inviteUrl: payload.inviteUrl || payload.appUrl,
-        webLinkUrl: payload.inviteUrl || payload.appUrl,
-        shareCode: payload.referralCode || '',
-        galleryUrl: payload.appUrl,
-        payload
+        type: 'text',
+        text: `${displayName}님, 오늘 기록으로 공유 카드를 만들어 보세요.
+
+${getHabitsSchoolShareCardUrl()}
+
+링크를 열면 갤러리에서 카드가 바로 준비돼요.
+정돈형 · 겹침형 · 포커스형 중에 고르고, 공유하기를 누르면
+원하는 단톡방이나 인스타로 바로 보낼 수 있어요.`
     };
 }
 

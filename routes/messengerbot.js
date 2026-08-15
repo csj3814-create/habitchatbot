@@ -61,26 +61,6 @@ function redactForLog(message) {
     return `!${command.split(' ')[0]} <redacted>`;
 }
 
-function formatShareReplies(result) {
-    if (result.type !== 'share-card') {
-        return [result.text];
-    }
-
-    const inviteLines = [
-        '같이 시작하는 링크예요.',
-        result.inviteUrl || result.webLinkUrl
-    ];
-
-    if (result.shareCode) {
-        inviteLines.push(`링크로 들어오면 ${result.shareCode} 코드가 함께 적용돼요.`);
-    }
-
-    return [
-        result.imageUrl,
-        inviteLines.filter(Boolean).join('\n')
-    ];
-}
-
 /**
  * NOTE ON ROOM SCOPING — read before adding anything room-sensitive here.
  *
@@ -160,11 +140,8 @@ function createMessengerbotRouter({ getChatSession }) {
             }
 
             if (command === '공유' || command === '인증공유') {
-                const replies = formatShareReplies(await handleShare(user));
-                return res.json({
-                    reply: replies[0] || '',
-                    followups: replies.slice(1)
-                });
+                const result = await handleShare(user);
+                return res.json({ reply: result.text });
             }
 
             if (command === '해빛' || command === '햇빛') {

@@ -333,7 +333,7 @@ test('kakao freeform prompt treats the user as a Habits School student', async (
     assert.doesNotMatch(capturedPrompt, /이름을 부를 때는 '최석재 코치님'/);
 });
 
-test('kakao share command sends the image first and follows with an invite callback', async () => {
+test('kakao share command replies with the app share-card link in one bubble', async () => {
     const callbackPosts = [];
 
     const { createKakaoRouter } = loadWithMocks(
@@ -392,7 +392,7 @@ test('kakao share command sends the image first and follows with an invite callb
                 handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
             },
             '../commands/share': {
-                handleShare: async () => ({ type: 'share-card', imageUrl: 'https://image.example/share.png' })
+                handleShare: async () => ({ type: 'text', text: 'SHARE_LINK' })
             },
             '../commands/haebit': {
                 handleHaebit: async () => 'HAEBIT',
@@ -426,15 +426,13 @@ test('kakao share command sends the image first and follows with an invite callb
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.json.useCallback, true);
-    assert.equal(response.json.template.outputs.length, 1);
-    assert.equal(response.json.template.outputs[0].simpleImage.imageUrl, 'https://image.example/share.png');
+    assert.equal(response.json.template.outputs[0].simpleText.text, 'SHARE_LINK');
 
+    // One bubble, sent inline. The image/invite split existed only because the
+    // server rendered a picture, and there is no picture any more.
+    assert.notEqual(response.json.useCallback, true);
     await new Promise((resolve) => setTimeout(resolve, 260));
-
-    assert.equal(callbackPosts.length, 1);
-    assert.equal(callbackPosts[0].url, 'https://callback.example.com/reply');
-    assert.equal(callbackPosts[0].payload.template.outputs[0].simpleText.text, 'INVITE_LINK');
+    assert.equal(callbackPosts.length, 0);
 });
 
 test('kakao routes static video links and haebit record alias without habit logging or Gemini', async () => {

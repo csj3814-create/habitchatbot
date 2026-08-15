@@ -402,7 +402,7 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
     assert.doesNotMatch(capturedPrompt, /이름을 부를 때는 '최석재 코치님'/);
 });
 
-test('messengerbot share command returns an image-first reply with follow-up invite text', async () => {
+test('messengerbot share command replies with the app share-card link only', async () => {
     const { createMessengerbotRouter } = loadWithMocks(
         path.join(__dirname, '..', 'routes', 'messengerbot.js'),
         {
@@ -441,13 +441,7 @@ test('messengerbot share command returns an image-first reply with follow-up inv
                 buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
             },
             '../commands/share': {
-                handleShare: async () => ({
-                    type: 'share-card',
-                    imageUrl: 'https://habitchatbot.onrender.com/api/share-card/token.png',
-                    inviteUrl: 'https://habitschool.web.app/?ref=ABC123',
-                    webLinkUrl: 'https://habitschool.web.app/?ref=ABC123',
-                    shareCode: 'ABC123'
-                })
+                handleShare: async () => ({ type: 'text', text: 'SHARE_LINK' })
             },
             '../commands/haebit': {
                 handleHaebit: async () => 'HAEBIT',
@@ -488,10 +482,10 @@ test('messengerbot share command returns an image-first reply with follow-up inv
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.json.reply, 'https://habitchatbot.onrender.com/api/share-card/token.png');
-    assert.deepEqual(response.json.followups, [
-        '같이 시작하는 링크예요.\nhttps://habitschool.web.app/?ref=ABC123\n링크로 들어오면 ABC123 코드가 함께 적용돼요.'
-    ]);
+    assert.equal(response.json.reply, 'SHARE_LINK');
+    // The follow-up bubble carried the invite line under the rendered image.
+    // With no image there is one message and nothing to follow it with.
+    assert.equal(response.json.followups, undefined);
 });
 
 test('messengerbot routes static video links and haebit record alias without Gemini', async () => {

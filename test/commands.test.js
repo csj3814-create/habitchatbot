@@ -480,14 +480,9 @@ test('handleShare asks the user to link their account first', async () => {
     const { handleShare } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'share.js'),
         {
-            '../config': { RENDER_URL: 'https://habitchatbot.example.com' },
             '../modules/userMapping': {
                 getMapping: async () => null,
                 getDisplayName: (user) => user.displayName
-            },
-            '../modules/appFirebase': {
-                getShareCardPayload: async () => null,
-                createShareCardToken: async () => 'unused'
             }
         }
     );
@@ -498,18 +493,13 @@ test('handleShare asks the user to link their account first', async () => {
     assert.match(result.text, /!연결 코드/);
 });
 
-test('handleShare explains when no shareable record exists yet', async () => {
+test('handleShare sends the member to the app share card, not a rendered image', async () => {
     const { handleShare } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'share.js'),
         {
-            '../config': { RENDER_URL: 'https://habitchatbot.example.com' },
             '../modules/userMapping': {
                 getMapping: async () => ({ googleUid: 'app-user-1' }),
                 getDisplayName: (user) => user.displayName
-            },
-            '../modules/appFirebase': {
-                getShareCardPayload: async () => null,
-                createShareCardToken: async () => 'unused'
             }
         }
     );
@@ -517,42 +507,13 @@ test('handleShare explains when no shareable record exists yet', async () => {
     const result = await handleShare({ displayName: '테스트 사용자', userId: 'kakao-1' });
 
     assert.equal(result.type, 'text');
-    assert.match(result.text, /!공유/);
-});
-
-test('handleShare returns a share-card payload with a tokenized image URL', async () => {
-    const { handleShare } = loadWithMocks(
-        path.join(__dirname, '..', 'commands', 'share.js'),
-        {
-            '../config': { RENDER_URL: 'https://habitchatbot.example.com/' },
-            '../modules/userMapping': {
-                getMapping: async () => ({ googleUid: 'app-user-1' }),
-                getDisplayName: (user) => user.displayName
-            },
-            '../modules/appFirebase': {
-                getShareCardPayload: async () => ({
-                    subtitle: '오늘의 해빛 요약을 카드로 정리했어요.',
-                    appUrl: 'https://habitschool.web.app/#gallery',
-                    inviteUrl: 'https://habitschool.web.app/?ref=ABC123',
-                    referralCode: 'ABC123'
-                }),
-                createShareCardToken: async ({ googleUid, kakaoUserKey }) => {
-                    assert.equal(googleUid, 'app-user-1');
-                    assert.equal(kakaoUserKey, 'kakao-1');
-                    return 'share-token-1';
-                }
-            }
-        }
-    );
-
-    const result = await handleShare({ displayName: '테스트 사용자', userId: 'kakao-1' });
-
-    assert.equal(result.type, 'share-card');
-    assert.equal(result.imageUrl, 'https://habitchatbot.example.com/api/share-card/share-token-1.png');
-    assert.equal(result.inviteUrl, 'https://habitschool.web.app/?ref=ABC123');
-    assert.equal(result.shareCode, 'ABC123');
-    assert.equal(result.webLinkUrl, 'https://habitschool.web.app/?ref=ABC123');
-    assert.equal(result.galleryUrl, 'https://habitschool.web.app/#gallery');
+    // focus=share lands on the card itself; the gallery alone leaves it below the fold.
+    assert.match(result.text, /habitschool\.web\.app/);
+    assert.match(result.text, /focus=share/);
+    assert.match(result.text, /tab=gallery/);
+    // Nothing is rendered on this server any more, so no image URL should appear.
+    assert.doesNotMatch(result.text, /\.png/);
+    assert.doesNotMatch(result.text, /api\/share-card/);
 });
 
 test('handleHaebit asks the user to link their account first', async () => {

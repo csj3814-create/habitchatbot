@@ -154,30 +154,11 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             return res.status(200).json(cmdResponse(await handleMind(user, getChatSession)));
         }
 
+        // `!공유` now hands the member into the app's own share card rather than
+        // posting a server-rendered image, so there is nothing to split across a
+        // callback any more.
         if (actualQuestion === '공유' || actualQuestion === '인증공유') {
             const result = await handleShare(user);
-            if (result.type === 'share-card') {
-                if (callbackUrl) {
-                    res.status(200).json({
-                        ...buildKakaoShareImageResponse(result),
-                        useCallback: true
-                    });
-
-                    (async () => {
-                        try {
-                            // Let the image bubble land first, then follow with the invite link.
-                            await delay(200);
-                            await axios.post(callbackUrl, buildKakaoShareInviteResponse(result), { timeout: 5000 });
-                        } catch (error) {
-                            console.error('Error sending Kakao share callback:', error);
-                        }
-                    })();
-
-                    return undefined;
-                }
-
-                return res.status(200).json(buildKakaoShareCardResponse(result));
-            }
             return res.status(200).json(cmdResponse(result.text));
         }
 
