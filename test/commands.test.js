@@ -174,7 +174,8 @@ function createFakeFriendDb({ myUid, myData, targetUid, targetData, friendshipDa
 const adminMock = {
     firestore: {
         FieldValue: {
-            serverTimestamp: () => 'SERVER_TIMESTAMP'
+            serverTimestamp: () => 'SERVER_TIMESTAMP',
+            arrayUnion: (...values) => ({ __arrayUnion: values })
         },
         Timestamp: {
             fromDate: (date) => ({
@@ -184,6 +185,10 @@ const adminMock = {
         }
     }
 };
+
+function findWrite(writes, path) {
+    return writes.find((write) => write.path === path);
+}
 
 test('handleRegister shows link-code guidance for an unlinked user', async () => {
     const { handleRegister } = loadWithMocks(
@@ -310,8 +315,16 @@ test('handleMyCode returns an invite link and fallback friend code', async () =>
     const result = await handleMyCode({ displayName: '테스트 사용자' });
 
     assert.match(result, /https:\/\/habitschool\.web\.app\/\?ref=ABC123/);
-    assert.match(result, /친구 코드: ABC123/);
+    // The room needs the code itself and the one command that uses it. The
+    // invite link only matters for someone who has not signed up yet, so it
+    // stays last rather than leading.
+    assert.match(result, /친구 코드/);
+    assert.match(result, /^ABC123$/m);
     assert.match(result, /!친구 ABC123/);
+    assert.ok(
+        result.indexOf('ABC123') < result.indexOf('https://'),
+        'the code should come before the invite link'
+    );
 });
 
 test('handleAddFriend allows a new request even when the user already has many friends', async () => {
@@ -387,8 +400,80 @@ test('handleAddFriend no longer mentions a global max-friends cap when users are
 
     const result = await handleAddFriend({ displayName: '보내는 사람' }, 'ABC123');
 
-    assert.match(result, /현재 친구 수: 1명/);
+    assert.match(result, /현재 친구 1명/);
     assert.doesNotMatch(result, /\/3/);
+});
+
+test('handleAddFriend completes the friendship when both sides requested it', async () => {
+    // The target already asked for this pairing, so `pendingForUid` is me. Both
+    // members had to type the other's code, so nothing should be left for the app.
+    const db = createFakeFriendDb({
+        myUid: 'me',
+        myData: { referralCode: 'ME0001', displayName: '나', friends: [] },
+        targetUid: 'target',
+        targetData: { referralCode: 'ABC123', displayName: '상대', friends: [] },
+        friendshipData: {
+            status: 'pending',
+            requesterUid: 'target',
+            pendingForUid: 'me',
+            expiresAt: { toMillis: () => Date.now() + 60 * 60 * 1000 }
+        }
+    });
+
+    const { handleAddFriend } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'addFriend.js'),
+        {
+            'firebase-admin': adminMock,
+            '../modules/appFirebase': { initAppFirebase: () => db },
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'me' }),
+                getDisplayName: (user) => user.displayName
+            }
+        }
+    );
+
+    const result = await handleAddFriend({ displayName: '보내는 사람' }, 'ABC123');
+
+    assert.match(result, /친구가 됐어요/);
+    assert.doesNotMatch(result, /앱에서 수락/, 'both sides already consented, so do not send them to the app');
+
+    const friendship = findWrite(db.writes, 'friendships/me__target');
+    assert.equal(friendship?.data?.status, 'active');
+
+    // The app treats users.friends as a cache of the friendship doc, so both
+    // sides must be updated together.
+    assert.deepEqual(findWrite(db.writes, 'users/me')?.data?.friends, { __arrayUnion: ['target'] });
+    assert.deepEqual(findWrite(db.writes, 'users/target')?.data?.friends, { __arrayUnion: ['me'] });
+});
+
+test('handleAddFriend still waits when only one side has requested', async () => {
+    const db = createFakeFriendDb({
+        myUid: 'me',
+        myData: { referralCode: 'ME0001', displayName: '나', friends: [] },
+        targetUid: 'target',
+        targetData: { referralCode: 'ABC123', displayName: '상대', friends: [] },
+        friendshipData: null
+    });
+
+    const { handleAddFriend } = loadWithMocks(
+        path.join(__dirname, '..', 'commands', 'addFriend.js'),
+        {
+            'firebase-admin': adminMock,
+            '../modules/appFirebase': { initAppFirebase: () => db },
+            '../modules/userMapping': {
+                getMapping: async () => ({ googleUid: 'me' }),
+                getDisplayName: (user) => user.displayName
+            }
+        }
+    );
+
+    const result = await handleAddFriend({ displayName: '보내는 사람' }, 'ABC123');
+
+    assert.match(result, /요청을 보냈어요/);
+    // Tell the other member the one command that finishes it from the room.
+    assert.match(result, /!친구 ME0001/);
+    assert.equal(findWrite(db.writes, 'friendships/me__target')?.data?.status, 'pending');
+    assert.equal(findWrite(db.writes, 'users/me'), undefined, 'a one-sided request must not create a friendship');
 });
 
 test('handleShare asks the user to link their account first', async () => {

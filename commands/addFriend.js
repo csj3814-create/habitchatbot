@@ -54,19 +54,19 @@ async function handleMyCode(user) {
 
         const inviteUrl = buildInviteUrl(referralCode);
 
-        return `내 초대 링크
-────────
-${inviteUrl}
+        // Code first, link second. In the group room almost everyone is already a
+        // member, so the six characters are what they need; the invite link only
+        // matters for someone who has not signed up yet.
+        return `${displayName}님의 친구 코드
 
-이 링크를 보내면
-- 아직 가입 전: 추천 가입이 기록되고 가입 후 친구 연결까지 이어져요.
-- 이미 가입함: 앱에서 확인 후 바로 친구로 연결돼요.
+${referralCode}
 
-수동으로 코드만 보내려면
-친구 코드: ${referralCode}
-상대가 !친구 ${referralCode} 를 입력하면 앱에서 친구 요청을 수락할 수 있어요.
+친구가 되고 싶은 분이
+!친구 ${referralCode}
+를 입력하면 요청이 가요. 서로 입력하면 바로 친구가 돼요.
 
-친구 요청은 ${FRIEND_REQUEST_TTL_DAYS}일 동안 유효해요.`;
+아직 가입 전인 분에게는 이 링크를 보내세요.
+${inviteUrl}`;
     } catch (error) {
         console.error('[addFriend] Failed to load my code:', error.message);
         return '초대 링크를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.';
@@ -77,17 +77,14 @@ async function handleAddFriend(user, args) {
     const displayName = getDisplayName(user);
 
     if (!args || args.trim() === '') {
-        return `친구 연결 방법
-────────
-가장 쉬운 방법
-1. 내가 !내코드를 입력해 초대 링크를 확인해요.
-2. 그 링크를 상대에게 보내요.
-3. 상대가 링크를 열어 가입하거나 앱에서 확인하면 친구 연결이 진행돼요.
+        return `친구 맺는 법
 
-코드로 직접 요청하려면
-!친구 ABC123
+1. 상대가 !내코드 로 자기 코드를 확인해요.
+2. 내가 !친구 그코드 를 입력해요.
+3. 상대도 !친구 내코드 를 입력하면 바로 친구가 돼요.
 
-코드 요청은 앱에서 수락해야 완료되고, ${FRIEND_REQUEST_TTL_DAYS}일 동안 유지돼요.`;
+상대가 앱에서 수락해도 완료돼요.
+요청은 ${FRIEND_REQUEST_TTL_DAYS}일 동안 유효해요.`;
     }
 
     const code = args.trim().toUpperCase();
@@ -159,7 +156,7 @@ async function handleAddFriend(user, args) {
             const isMutualFriend = friendshipData.status === 'active'
                 || (myFriends.includes(targetUid) && targetFriends.includes(myUid));
 
-            if (isMutualFriend) {
+            const activateFriendship = () => {
                 tx.set(friendshipRef, {
                     users: [myUid, targetUid].sort(),
                     userNames: {
@@ -167,8 +164,22 @@ async function handleAddFriend(user, args) {
                         [targetUid]: getUserLabel(targetLatestData, targetName)
                     },
                     status: 'active',
+                    activatedAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
+
+                // `users.friends` is the app's cache of the friendship doc. Keep
+                // both sides in step so the app does not have to repair it.
+                tx.set(myRef, {
+                    friends: admin.firestore.FieldValue.arrayUnion(targetUid)
+                }, { merge: true });
+                tx.set(targetRef, {
+                    friends: admin.firestore.FieldValue.arrayUnion(myUid)
+                }, { merge: true });
+            };
+
+            if (isMutualFriend) {
+                activateFriendship();
 
                 return {
                     status: 'already_friends',
@@ -178,8 +189,14 @@ async function handleAddFriend(user, args) {
 
             if (friendshipData.status === 'pending' && !isExpired) {
                 if (friendshipData.pendingForUid === myUid) {
+                    // The other member already asked for this exact pairing, and
+                    // now this member has asked for it too. Each of them had to
+                    // type the other's code, so consent is explicit on both
+                    // sides and there is nothing left for the app to confirm.
+                    activateFriendship();
+
                     return {
-                        status: 'incoming_pending',
+                        status: 'mutual_accept',
                         friendName: getUserLabel(targetLatestData, targetName)
                     };
                 }
@@ -187,7 +204,8 @@ async function handleAddFriend(user, args) {
                 if (friendshipData.requesterUid === myUid) {
                     return {
                         status: 'pending_exists',
-                        friendName: getUserLabel(targetLatestData, targetName)
+                        friendName: getUserLabel(targetLatestData, targetName),
+                        myCode: myData.referralCode || ''
                     };
                 }
 
@@ -242,19 +260,20 @@ async function handleAddFriend(user, args) {
 
             return {
                 status: 'pending_created',
-                friendName: getUserLabel(targetLatestData, targetName)
+                friendName: getUserLabel(targetLatestData, targetName),
+                myCode: myData.referralCode
             };
         });
 
         switch (outcome.status) {
         case 'already_friends':
-            return `${targetName}님과는 이미 서로 친구예요.\n이제 앱 갤러리와 소셜 챌린지에서 함께 볼 수 있어요.\n\n현재 친구 수: ${outcome.friendCount}명`;
+            return `${targetName}님과는 이미 친구예요.\n현재 친구 ${outcome.friendCount}명`;
+        case 'mutual_accept':
+            return `${outcome.friendName}님과 친구가 됐어요!\n서로 코드를 입력해서 바로 연결됐어요.\n\n앱 갤러리와 소셜 챌린지에서 함께 볼 수 있어요.`;
         case 'pending_created':
-            return `${outcome.friendName}님에게 친구 요청을 보냈어요.\n────────\n상대가 해빛스쿨 앱에서 요청을 수락하면 친구 연결이 완료돼요.\n\n더 쉬운 초대 방식이 필요하면 !내코드로 초대 링크를 다시 확인해 보세요.\n요청 만료: ${FRIEND_REQUEST_TTL_DAYS}일`;
+            return `${outcome.friendName}님에게 친구 요청을 보냈어요.\n\n${outcome.friendName}님이 !친구 ${outcome.myCode} 를 입력하면 바로 친구가 돼요.\n앱에서 수락해도 완료돼요. (${FRIEND_REQUEST_TTL_DAYS}일 유효)`;
         case 'pending_exists':
-            return `${outcome.friendName}님에게 이미 친구 요청을 보냈어요.\n상대가 앱에서 수락하면 친구 연결이 완료돼요.\n\n요청은 ${FRIEND_REQUEST_TTL_DAYS}일 뒤에 만료돼요.`;
-        case 'incoming_pending':
-            return `${outcome.friendName}님이 먼저 친구 요청을 보냈어요.\n해빛스쿨 앱에서 수락 또는 거절해 주세요.\n\n요청은 ${FRIEND_REQUEST_TTL_DAYS}일 뒤에 만료돼요.`;
+            return `${outcome.friendName}님에게 이미 요청을 보냈어요.\n\n${outcome.friendName}님이 !친구 ${outcome.myCode} 를 입력하면 바로 친구가 돼요.\n앱에서 수락해도 완료돼요. (${FRIEND_REQUEST_TTL_DAYS}일 유효)`;
         case 'other_pending':
             return `${outcome.friendName}님과의 친구 요청이 이미 진행 중이에요.\n해빛스쿨 앱에서 현재 상태를 확인해 주세요.`;
         case 'my_code_missing':
