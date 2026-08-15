@@ -14,7 +14,11 @@
  */
 
 const MESSENGERBOT_KEY_PREFIX = 'messengerbot:';
-const CONNECT_TOKEN_PATH = 'chatbot_connect_tokens';
+
+// Both hold short-lived tokens keyed by `expiresAt`. `share_card_tokens` is left
+// over from the server-rendered share card, which `!공유` no longer uses; nothing
+// creates new ones, so this sweep drains what remains.
+const EXPIRING_TOKEN_PATHS = ['chatbot_connect_tokens', 'share_card_tokens'];
 
 function toTimestampMs(value) {
     if (!value) {
@@ -87,18 +91,20 @@ async function purgeUnlinkedChatData(db, { retentionDays = 30, now = Date.now() 
         summary.deletedUsers += 1;
     }
 
-    const tokensSnapshot = await db.ref(CONNECT_TOKEN_PATH).once('value');
-    const tokens = tokensSnapshot.val() || {};
+    for (const tokenPath of EXPIRING_TOKEN_PATHS) {
+        const tokensSnapshot = await db.ref(tokenPath).once('value');
+        const tokens = tokensSnapshot.val() || {};
 
-    for (const [token, data] of Object.entries(tokens)) {
-        const expiresAtMs = toTimestampMs(data?.expiresAt);
+        for (const [token, data] of Object.entries(tokens)) {
+            const expiresAtMs = toTimestampMs(data?.expiresAt);
 
-        if (!Number.isNaN(expiresAtMs) && expiresAtMs >= now) {
-            continue;
+            if (!Number.isNaN(expiresAtMs) && expiresAtMs >= now) {
+                continue;
+            }
+
+            await db.ref(`${tokenPath}/${token}`).remove();
+            summary.deletedTokens += 1;
         }
-
-        await db.ref(`${CONNECT_TOKEN_PATH}/${token}`).remove();
-        summary.deletedTokens += 1;
     }
 
     return summary;

@@ -97,66 +97,6 @@ function buildKakaoResponse(text) {
     };
 }
 
-function buildKakaoShareImageResponse({ title, imageUrl }) {
-    return {
-        version: '2.0',
-        template: {
-            outputs: [
-                {
-                    simpleImage: {
-                        imageUrl,
-                        altText: title || '내 해빛 공유 카드'
-                    }
-                }
-            ]
-        }
-    };
-}
-
-function buildKakaoShareInviteResponse({ description, inviteUrl, webLinkUrl, shareCode }) {
-    const shareLink = inviteUrl || webLinkUrl || 'https://habitschool.web.app/';
-    const inviteText = truncateForKakao(
-        `같이 시작하는 링크예요 🌞
-해빛스쿨 접속 링크
-${shareLink}
-${shareCode ? `링크로 들어오면 ${shareCode} 코드가 함께 적용돼요.` : ''}`
-    );
-
-    return {
-        version: '2.0',
-        template: {
-            outputs: [
-                {
-                    simpleText: {
-                        text: inviteText
-                    }
-                }
-            ],
-            quickReplies: [
-                { label: '내습관 보기', action: 'message', messageText: '!내습관' },
-                { label: '주간 리포트', action: 'message', messageText: '!주간' },
-                { label: '내코드', action: 'message', messageText: '!내코드' }
-            ]
-        }
-    };
-}
-
-function buildKakaoShareCardResponse(payload) {
-    const imageResponse = buildKakaoShareImageResponse(payload);
-    const inviteResponse = buildKakaoShareInviteResponse(payload);
-
-    return {
-        version: '2.0',
-        template: {
-            outputs: [
-                ...imageResponse.template.outputs,
-                ...inviteResponse.template.outputs
-            ],
-            quickReplies: inviteResponse.template.quickReplies
-        }
-    };
-}
-
 function buildKakaoGuideResponse(text) {
     return {
         version: '2.0',
@@ -249,8 +189,5 @@ module.exports = {
     buildKakaoResponse,
     buildKakaoGuideResponse,
     buildKakaoAppCardResponse,
-    buildKakaoShareImageResponse,
-    buildKakaoShareInviteResponse,
-    buildKakaoShareCardResponse,
     buildKakaoConnectCardResponse
 };

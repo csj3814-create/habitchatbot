@@ -15,15 +15,12 @@ const { createKakaoRouter } = require('./routes/kakao');
 const { createMessengerbotRouter } = require('./routes/messengerbot');
 const {
     initAppFirebase,
-    consumeShareCardToken,
-    getShareCardPayload,
     getHaebitSharePagePayload
 } = require('./modules/appFirebase');
 const {
     getChatbotConnectToken,
     completeChatbotConnect
 } = require('./modules/chatbotConnect');
-const { renderShareCardPng } = require('./utils/shareCardRenderer');
 const { renderHaebitSharePage } = require('./utils/haebitSharePage');
 const {
     getHaebitVideoJobStatus,
@@ -161,28 +158,6 @@ app.get('/health', async (req, res) => {
 
 app.get('/', (req, res) => {
     res.send('<h1>Habits School chatbot server is running.</h1><p>Use the configured Kakao or MessengerBot endpoint.</p>');
-});
-
-app.get('/api/share-card/:token.png', async (req, res) => {
-    try {
-        const tokenData = await consumeShareCardToken(req.params.token);
-        if (!tokenData) {
-            return res.status(404).send('expired');
-        }
-
-        const payload = await getShareCardPayload(tokenData.googleUid);
-        if (!payload) {
-            return res.status(404).send('no-record');
-        }
-
-        const png = await renderShareCardPng(payload);
-        res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'private, max-age=300');
-        return res.status(200).send(png);
-    } catch (error) {
-        console.error('[ShareCard] render error:', error);
-        return res.status(500).send('error');
-    }
 });
 
 async function handleHaebitSharePage(req, res, next) {
@@ -370,7 +345,6 @@ const server = app.listen(config.PORT, () => {
     console.log(`Habits School Chatbot Server Running on http://localhost:${config.PORT}`);
     console.log(`Kakao Endpoint:            POST http://localhost:${config.PORT}/api/chat`);
     console.log(`MessengerBot Endpoint:     POST http://localhost:${config.PORT}/api/messengerbot`);
-    console.log(`Share Card Endpoint:       GET  http://localhost:${config.PORT}/api/share-card/:token.png`);
     console.log(`Haebit Share Page:         GET  http://localhost:${config.PORT}/:shareCode`);
     console.log(`Haebit Video Progress:     GET  http://localhost:${config.PORT}/video/:shareCode`);
     console.log(`Chatbot Connect Lookup:    GET  http://localhost:${config.PORT}/api/chatbot-connect/:token`);

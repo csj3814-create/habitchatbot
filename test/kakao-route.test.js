@@ -89,7 +89,6 @@ test('kakao accepts a pasted !연결 <코드> instead of dropping it into the AI
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoAppCardResponse: () => ({ template: { outputs: [] } }),
-                buildKakaoShareCardResponse: () => ({ template: { outputs: [] } }),
                 buildKakaoConnectCardResponse: () => {
                     throw new Error('a code must not produce a magic-link card');
                 }
@@ -170,9 +169,6 @@ test('kakao help commands return immediately without habit logging or Gemini ses
                 buildKakaoAppCardResponse: () => {
                     appCardCalls += 1;
                     return { template: { outputs: [{ basicCard: { title: 'APP_CARD' } }], quickReplies: [{ messageText: '!오늘' }] } };
-                },
-                buildKakaoShareCardResponse: () => {
-                    throw new Error('share response should not be built');
                 },
                 buildKakaoConnectCardResponse: () => {
                     throw new Error('connect response should not be built');
@@ -255,7 +251,6 @@ test('kakao freeform prompt treats the user as a Habits School student', async (
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
-                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
                 buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
             },
             '../utils/chatIdentity': {
@@ -349,19 +344,6 @@ test('kakao share command replies with the app share-card link in one bubble', a
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
-                buildKakaoShareImageResponse: () => ({
-                    version: '2.0',
-                    template: {
-                        outputs: [{ simpleImage: { imageUrl: 'https://image.example/share.png', altText: 'CARD' } }]
-                    }
-                }),
-                buildKakaoShareInviteResponse: () => ({
-                    version: '2.0',
-                    template: {
-                        outputs: [{ simpleText: { text: 'INVITE_LINK' } }]
-                    }
-                }),
-                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SYNC_SHARE' } }] } }),
                 buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
             },
             '../utils/chatIdentity': {
@@ -443,9 +425,6 @@ test('kakao routes static video links and haebit record alias without habit logg
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
-                buildKakaoShareImageResponse: () => ({ template: { outputs: [{ simpleImage: { imageUrl: 'SHARE_IMAGE' } }] } }),
-                buildKakaoShareInviteResponse: () => ({ template: { outputs: [{ simpleText: { text: 'INVITE' } }] } }),
-                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
                 buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
             },
             '../utils/chatIdentity': {
@@ -530,7 +509,6 @@ test('kakao routes best-record commands without habit logging or Gemini', async 
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
-                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
                 buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
             },
             '../utils/chatIdentity': {
@@ -607,7 +585,6 @@ test('kakao routes YouTube recommendation commands without habit logging or Gemi
                 buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
                 buildKakaoAppCardResponse: () => ({ template: { outputs: [{ basicCard: { title: 'APP_CARD' } }] } }),
-                buildKakaoShareCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'SHARE' } }] } }),
                 buildKakaoConnectCardResponse: () => ({ template: { outputs: [{ simpleText: { text: 'CONNECT' } }] } })
             },
             '../utils/chatIdentity': {

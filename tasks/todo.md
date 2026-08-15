@@ -61,6 +61,49 @@ API가 없어 `channelId`도 없습니다(`ReferenceError: "BotManager" is not d
 
 ---
 
+# 2026-08-15 `!공유`를 앱 갤러리 카드로 넘기고 서버 렌더러 제거
+> Status: Completed
+
+## 배경
+
+챗봇이 자체 PNG를 렌더해 명령이 입력된 방에 이미지 URL을 올리던 방식이었다. 앱 갤러리
+카드가 그보다 좋아졌다 — 회원이 템플릿과 대표 사진을 고르고, 완성된 이미지를 플랫폼
+공유 시트로 넘겨 **원하는 아무 방이나 인스타에** 보낼 수 있다.
+
+렌더러를 하나 더 유지한 대가:
+- 카드 디자인이 앱과 따로 놀아 같이 바꿀 수 없음
+- 이미지 토큰이 5분 만료라 나중에 다시 열면 죽은 링크
+- 무료 인스턴스가 식어 있으면 그림 자체가 실패
+
+## Tasks
+- [x] `!공유`가 앱 갤러리 공유 카드 링크를 반환하도록 변경
+- [x] 앱에 `focus=share` 딥링크 추가 (habitschool 저장소)
+- [x] 카카오 1:1의 `!연결 <코드>` 누락 경로 수정
+- [x] 참조가 사라진 서버 렌더러 일괄 제거
+- [x] 남은 `share_card_tokens`를 보관 삭제 잡 대상에 추가
+
+## 제거한 것
+
+`utils/shareCardRenderer.js`, `test/share-card-renderer.test.js`,
+`GET /api/share-card/:token.png`, `appFirebase`의 `getShareCardPayload` ·
+`createShareCardToken` · `consumeShareCardToken` · `generateShareCardToken` ·
+`SHARE_CARD_TOKEN_TTL_MS`, `kakaoTemplate`의 share 빌더 3개와 관련 테스트.
+
+**남긴 것**: `sharp` · `fontkit` · Noto CJK 폰트는 `utils/haebitVideoRenderer.js`가
+그대로 쓴다. `buildShareCardPayloadFromRecord`도 해빛 공유 페이지가 계속 쓴다.
+지우기 전에 전수 검사로 확인했다.
+
+RTDB `share_card_tokens`는 새로 생기지 않지만 기존 항목이 남아 있어,
+`modules/retention.js`가 `chatbot_connect_tokens`와 같은 방식으로 만료분을 걷어낸다.
+
+## 검증
+- `npm test` 109 통과 / 0 실패
+- 변경 파일 `node --check`
+- 부팅 검사 13/13: 모든 모듈 로드, 라우터 2개 실제 구성, 삭제된 심볼이 export에서
+  사라졌는지, 해빛 영상이 쓰는 export와 `sharp`/`fontkit`은 살아 있는지 확인
+
+---
+
 # 2026-08-15 링크 코드 만료 판정 버그 + 콜드 스타트 타임아웃
 > Status: Completed
 

@@ -10,9 +10,6 @@ const {
     buildKakaoResponse,
     buildKakaoGuideResponse,
     buildKakaoAppCardResponse,
-    buildKakaoShareImageResponse,
-    buildKakaoShareInviteResponse,
-    buildKakaoShareCardResponse,
     buildKakaoConnectCardResponse
 } = require('../utils/kakaoTemplate');
 const { createChatIdentity } = require('../utils/chatIdentity');

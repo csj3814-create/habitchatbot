@@ -17,7 +17,6 @@ const DEFAULT_SHARE_SETTINGS = {
     hideMind: false
 };
 
-const SHARE_CARD_TOKEN_TTL_MS = 5 * 60 * 1000;
 const MAX_SHARE_MEDIA_COUNT = 4;
 const MAX_GALLERY_MEDIA_COUNT = 12;
 const HAEBIT_VIDEO_DAY_COUNT = 2;
@@ -552,10 +551,6 @@ function buildShareCardPayloadFromRecord(googleUid, record, userProfile) {
     };
 }
 
-function generateShareCardToken() {
-    return crypto.randomBytes(18).toString('base64url');
-}
-
 function generateHaebitShareToken() {
     return crypto.randomBytes(6).toString('base64url');
 }
@@ -967,19 +962,6 @@ async function getLatestShareableRecord(googleUid, days = 14) {
     }
 }
 
-async function getShareCardPayload(googleUid) {
-    const [record, userProfile] = await Promise.all([
-        getLatestShareableRecord(googleUid),
-        getUserProfile(googleUid)
-    ]);
-
-    if (!record) {
-        return null;
-    }
-
-    return buildShareCardPayloadFromRecord(googleUid, record, userProfile);
-}
-
 function buildHaebitSharePayloadFromRecord(googleUid, record, userProfile) {
     const cardPayload = buildShareCardPayloadFromRecord(googleUid, record, userProfile);
     if (!cardPayload) {
@@ -1194,50 +1176,6 @@ async function getHaebitVideoPayload(token) {
     };
 }
 
-async function createShareCardToken({ googleUid, kakaoUserKey = '' }) {
-    const now = Date.now();
-    const expiresAt = new Date(now + SHARE_CARD_TOKEN_TTL_MS).toISOString();
-    const token = generateShareCardToken();
-
-    await getRealtimeDb().ref(`share_card_tokens/${token}`).set({
-        googleUid,
-        kakaoUserKey,
-        createdAt: new Date(now).toISOString(),
-        expiresAt
-    });
-
-    return token;
-}
-
-async function consumeShareCardToken(token) {
-    const normalizedToken = trimText(token);
-    if (!normalizedToken) {
-        return null;
-    }
-
-    const tokenRef = getRealtimeDb().ref(`share_card_tokens/${normalizedToken}`);
-    const snapshot = await tokenRef.once('value');
-    const data = snapshot.val();
-
-    if (!data?.googleUid || !data?.expiresAt) {
-        return null;
-    }
-
-    const expiresAtMs = new Date(data.expiresAt).getTime();
-    if (Number.isNaN(expiresAtMs) || expiresAtMs < Date.now()) {
-        await tokenRef.remove().catch(() => {});
-        return null;
-    }
-
-    return {
-        token: normalizedToken,
-        googleUid: data.googleUid,
-        kakaoUserKey: data.kakaoUserKey || '',
-        createdAt: data.createdAt || null,
-        expiresAt: data.expiresAt
-    };
-}
-
 module.exports = {
     initAppFirebase,
     getGalleryByDate,
@@ -1253,15 +1191,12 @@ module.exports = {
     toEpochMs,
     getLatestShareableRecord,
     extractShareMedia,
-    getShareCardPayload,
     buildHaebitSharePayloadFromRecord,
     buildHaebitVideoPayloadFromRecords,
     createHaebitShareToken,
     getHaebitShareToken,
     getHaebitSharePagePayload,
     getHaebitVideoPayload,
-    createShareCardToken,
-    consumeShareCardToken,
     normalizeShareSettings,
     getSharePoints,
     verifyAppUserIdToken

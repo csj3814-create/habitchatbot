@@ -151,6 +151,26 @@ test('purge clears expired connect tokens and keeps live ones', async () => {
     assert.ok(!db.removed.includes('chatbot_connect_tokens/liveToken'));
 });
 
+test('purge drains leftover share card tokens from the retired renderer', async () => {
+    // `!공유` no longer renders an image, so nothing creates these any more.
+    // The ones already in the database still need to age out.
+    const db = createFakeDb({
+        users: {},
+        user_mappings: {},
+        chatbot_connect_tokens: {},
+        share_card_tokens: {
+            oldCard: { expiresAt: daysAgo(1), googleUid: 'uid-1' },
+            liveCard: { expiresAt: new Date(NOW + 60 * 1000).toISOString(), googleUid: 'uid-2' }
+        }
+    });
+
+    const summary = await purgeUnlinkedChatData(db, { retentionDays: 30, now: NOW });
+
+    assert.equal(summary.deletedTokens, 1);
+    assert.ok(db.removed.includes('share_card_tokens/oldCard'));
+    assert.ok(!db.removed.includes('share_card_tokens/liveCard'));
+});
+
 test('purge tolerates a database with none of the expected paths', async () => {
     const db = createFakeDb({});
 
