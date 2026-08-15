@@ -874,56 +874,69 @@ async function consumeChatbotLinkCode(linkCode) {
         return { ok: false, reason: 'not_found' };
     }
 
+    // Read and write are reported separately. Both can fail with the same
+    // PERMISSION_DENIED, and knowing which one failed is the difference between
+    // "the service account cannot see Firestore" and "it is read-only".
+    // Never log the code itself in any branch.
+    let snapshot;
     try {
-        const snapshot = await db.collection('users')
+        snapshot = await db.collection('users')
             .where('chatbotLinkCode', '==', normalizedCode)
             .limit(1)
             .get();
+    } catch (error) {
+        console.error('[AppFirebase] Link code lookup failed (READ users):', error.message);
+        return { ok: false, reason: 'unavailable' };
+    }
 
-        if (snapshot.empty) {
-            return { ok: false, reason: 'not_found' };
+    if (snapshot.empty) {
+        return { ok: false, reason: 'not_found' };
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userData = userDoc.data();
+    const expiresAtMs = toEpochMs(userData.chatbotLinkCodeExpiresAt);
+
+    if (Number.isNaN(expiresAtMs) || expiresAtMs < Date.now()) {
+        // Leave the stale fields in place; the app overwrites them when the
+        // member generates a replacement code.
+        return { ok: false, reason: 'expired' };
+    }
+
+    let authRecord = null;
+    const appInstance = getHabitsSchoolApp();
+    if (appInstance) {
+        try {
+            authRecord = await appInstance.auth().getUser(userDoc.id);
+        } catch (error) {
+            console.warn(`[AppFirebase] Failed to load auth record for link code uid=${userDoc.id}:`, error.message);
         }
+    }
 
-        const userDoc = snapshot.docs[0];
-        const userData = userDoc.data();
-        const expiresAtMs = toEpochMs(userData.chatbotLinkCodeExpiresAt);
-
-        if (Number.isNaN(expiresAtMs) || expiresAtMs < Date.now()) {
-            // Leave the stale fields in place; the app overwrites them when the
-            // member generates a replacement code.
-            return { ok: false, reason: 'expired' };
-        }
-
-        let authRecord = null;
-        const appInstance = getHabitsSchoolApp();
-        if (appInstance) {
-            try {
-                authRecord = await appInstance.auth().getUser(userDoc.id);
-            } catch (error) {
-                console.warn(`[AppFirebase] Failed to load auth record for link code uid=${userDoc.id}:`, error.message);
-            }
-        }
-
+    // Consuming the code is what makes it single-use. If this write fails the
+    // code stays valid, so the link must fail too rather than leave a live code
+    // behind. Fixing a denial here is an IAM change (the Admin SDK bypasses
+    // Firestore security rules), not a code change.
+    try {
         await userDoc.ref.set({
             chatbotLinkCode: admin.firestore.FieldValue.delete(),
             chatbotLinkCodeExpiresAt: admin.firestore.FieldValue.delete(),
             chatbotLinkCodeGeneratedAt: admin.firestore.FieldValue.delete(),
             chatbotLinkCodeLastUsedAt: new Date().toISOString()
         }, { merge: true });
-
-        return {
-            ok: true,
-            user: {
-                uid: userDoc.id,
-                email: authRecord?.email || userData.email || null,
-                displayName: userData.customDisplayName || userData.displayName || authRecord?.displayName || null
-            }
-        };
     } catch (error) {
-        // Never log the code itself.
-        console.error('[AppFirebase] Failed to consume chatbot link code:', error.message);
+        console.error('[AppFirebase] Link code consume failed (WRITE users doc):', error.message);
         return { ok: false, reason: 'unavailable' };
     }
+
+    return {
+        ok: true,
+        user: {
+            uid: userDoc.id,
+            email: authRecord?.email || userData.email || null,
+            displayName: userData.customDisplayName || userData.displayName || authRecord?.displayName || null
+        }
+    };
 }
 
 async function getLatestShareableRecord(googleUid, days = 14) {
