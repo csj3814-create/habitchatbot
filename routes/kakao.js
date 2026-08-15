@@ -197,7 +197,18 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
             return res.status(200).json(cmdResponse(await handleHaebitVideo(user)));
         }
 
-        if (actualQuestion === '연결') {
+        if (actualQuestion === '연결' || actualQuestion.startsWith('연결 ')) {
+            const connectArg = actualQuestion === '연결'
+                ? ''
+                : actualQuestion.substring('연결 '.length).trim();
+
+            // The app now hands members a ready-made `!연결 <코드>` line, and some
+            // of them will paste it here rather than in the group room. Accept it,
+            // instead of dropping it through to the AI.
+            if (connectArg) {
+                return res.status(200).json(cmdResponse(await handleRegister(user, connectArg)));
+            }
+
             const result = await handleConnect(user);
             if (result.type === 'connect-card') {
                 return res.status(200).json(buildKakaoConnectCardResponse(result));

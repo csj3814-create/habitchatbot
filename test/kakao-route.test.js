@@ -76,6 +76,82 @@ function buildKakaoBody(utterance) {
     };
 }
 
+test('kakao accepts a pasted !연결 <코드> instead of dropping it into the AI', async () => {
+    // The app hands members a ready-made `!연결 <코드>` line for the group room,
+    // and some paste it into the 1:1 channel instead. Matching only the bare
+    // `연결` sent the code through to Gemini, which answered as if it were chat.
+    let registerArg = null;
+
+    const { createKakaoRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'kakao.js'),
+        {
+            '../utils/kakaoTemplate': {
+                buildKakaoResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoGuideResponse: (text) => ({ template: { outputs: [{ simpleText: { text } }] } }),
+                buildKakaoAppCardResponse: () => ({ template: { outputs: [] } }),
+                buildKakaoShareCardResponse: () => ({ template: { outputs: [] } }),
+                buildKakaoConnectCardResponse: () => {
+                    throw new Error('a code must not produce a magic-link card');
+                }
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender }) => ({
+                    platform, userId, displayName, legacySender
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/guide': { handleGuide: async () => 'GUIDE' },
+            '../commands/register': {
+                handleRegister: async (_user, arg) => {
+                    registerArg = arg;
+                    return 'REGISTER';
+                }
+            },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/connect': {
+                handleConnect: async () => ({ type: 'text', text: 'CONNECT' })
+            },
+            '../commands/share': { handleShare: async () => ({ type: 'text', text: 'SHARE' }) },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            }
+        }
+    );
+
+    const router = createKakaoRouter({
+        db: {},
+        getChatSession() {
+            throw new Error('a link code must never reach Gemini');
+        },
+        checkAndLogHabits: async () => {},
+        isAllowedImageUrl: () => false
+    });
+
+    const response = await postJsonToRouter(router, buildKakaoBody('!연결 ABCD1234'));
+
+    assert.equal(response.status, 200);
+    assert.equal(registerArg, 'ABCD1234');
+
+    // Bare `!연결` still offers the one-tap card, which is safe in a private chat.
+    registerArg = null;
+    const bare = await postJsonToRouter(router, buildKakaoBody('!연결'));
+    assert.equal(bare.status, 200);
+    assert.equal(registerArg, null);
+});
+
 test('kakao help commands return immediately without habit logging or Gemini session', async () => {
     let habitLogCalls = 0;
     let chatSessionCalls = 0;
