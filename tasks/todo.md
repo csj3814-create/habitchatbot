@@ -1,3 +1,53 @@
+# 2026-08-15 모델 내부 스캐폴딩이 단톡방에 노출되던 문제
+> Status: Completed
+
+## 증상
+
+회원 질문에 답할 때 답변 앞에 이런 게 그대로 붙어 나갔다. 200명이 있는 방에서.
+
+```
+tool_code
+print(google_search.search(queries=['버터 건강 영향', ...]))
+thought
+The user is asking whether they should avoid butter...
+```
+
+## 원인
+
+`gemini-2.5-flash`는 thinking이 기본 활성이고, 그 사고 과정이 별도 필드가 아니라
+**본문 텍스트 앞에 붙어서** 오는 경우가 있었다. 챗봇은 `response.text()`를 그대로
+방에 올렸다.
+
+**재현이 안 됐다.** 같은 질문으로 6번 호출해도 전부 깨끗했다. 그래서 정규식으로
+때려잡기 전에 원천 차단이 가능한지부터 확인했다.
+
+## 조치 (3계층)
+
+1. **원천** — `generationConfig.thinkingConfig.thinkingBudget = 0`.
+   구형 SDK가 모르는 필드를 조용히 버릴 수 있어서 실제로 먹는지 측정했다:
+   `thoughtsTokenCount` **260 → 없음**. thinking이 없으면 유출될 thought도 없다.
+   이 봇은 2~4문장 코칭을 하므로 사고 과정이 필요한 작업도 아니다.
+
+2. **경계** — `sanitizeModelText()`를 `utils/gemini.js`에 추가하고
+   `response.text()`를 읽는 4곳 전부에 적용
+   (`routes/kakao.js` 2곳, `routes/messengerbot.js`, `commands/categoryHabits.js`).
+   **맨 앞이 마커로 시작할 때만** 동작하므로 정상 답변은 다시 쓰지 않는다.
+
+3. **프롬프트** — 내부 과정 출력 금지 + "해빛스쿨은 실제 서비스" 명시.
+   유출된 thought 중 하나가 해빛스쿨을 `a fictional entity for this persona`로
+   판단하고 있었고, 그 탓에 실제로 틀린 답을 만들고 있었다.
+
+## Review
+
+- `test/gemini-sanitize.test.js` 신설. **단톡방에서 실제로 유출된 문자열**을 그대로
+  넣어 검증한다. 내가 지어낸 예시가 아니다.
+- 작업 중 ``를 넣다가 파일에 **백스페이스 문자(0x08)**가 들어가 정규식이 조용히
+  매칭에 실패했다. 테스트가 없었으면 "고쳤다"고 배포하고 아무것도 안 고쳐졌을 것이다.
+- 검증: `npm test` 115 통과 / 0 실패, 실 API 4/4 깨끗(전부 `thoughtsTokenCount` 없음),
+  배포 후 프로덕션 `/api/chat` 실측 2건 정상.
+
+---
+
 # 2026-08-15 단톡방 계정 연결 (`!연결 <코드>`)
 > Status: Completed
 

@@ -162,6 +162,26 @@
 
 ## 2026-08-15
 
+### Prove a config flag took effect, not just that it did not error
+- `thinkingConfig.thinkingBudget = 0` was accepted by an SDK old enough to have dropped an unknown field silently, and a silently-dropped flag looks exactly like a working one: no error, plausible reply.
+- Rule: when a setting is supposed to change behaviour, measure the behaviour. `thoughtsTokenCount` went 260 -> absent, which is proof; "it did not throw" is not.
+- Rule: prefer a knob with an observable side effect over one you can only assume worked.
+
+### When you cannot reproduce it, fix the source and guard the boundary
+- Mistake pattern to avoid: six sampled API calls came back clean, which says nothing about an intermittent fault. Declaring it fixed because the happy path passed would have shipped nothing.
+- Rule: for an intermittent fault you cannot trigger, remove the mechanism that produces it *and* add a guard where it would surface. Either alone leaves you unable to tell whether it is gone.
+- Rule: build the guard from the real captured artifact. The test uses the exact string that leaked into the chat room, not an example I invented, so it fails if my mental model of the shape was wrong.
+
+### A control character can break a regex with no error anywhere
+- Real incident: patching `` into a regex literal wrote a literal backspace (0x08) into the file. `node --check` passed, the file looked right in an editor and in grep, and the regex simply never matched.
+- Rule: when a regex silently fails to match text you can see matches it by hand, extract the literal from the file and inspect its bytes (`cat -A`, `JSON.stringify`) before rewriting the logic.
+- Rule: write the test before the tricky edit. The behaviour test caught this instantly; syntax checks and code review could not.
+
+### Suspect the verification command before the system
+- Mistake: my curl check embedded `!` in a JSON body from bash and mangled the utterance, so production answered an unrelated question. It read exactly like a serious product bug, and I nearly reported one.
+- Rule: when a check produces a result that makes no sense for the change you made, re-run it through a different path before drawing any conclusion. Here the same request built in Node returned correct answers, which located the fault in the check.
+- Rule: a passing check built the same broken way would have been equally worthless. Fragile harnesses fail in both directions.
+
 ### Verify the platform's data before designing a filter around it
 - Mistake: I built, tested, and "verified" a room-name allowlist without reading one real production log line. MessengerBot R v0.7.29a reports `room` as the notification title, which for this open chat is the *speaker's* nickname, so five people in one room produced five different `room` values. Every test passed because every fixture used room names I invented.
 - Rule: For any filter over external data, read real samples first. Two log lines would have prevented the whole design.
