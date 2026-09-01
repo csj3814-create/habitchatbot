@@ -7,6 +7,7 @@ const { Router } = require('express');
 const { apiKeyAuth } = require('../utils/apiKeyAuth');
 const { buildStudentAddressPrompt } = require('../utils/addressing');
 const { createChatIdentity } = require('../utils/chatIdentity');
+const { sanitizeModelText } = require('../utils/gemini');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
@@ -282,7 +283,7 @@ ${buildStudentAddressPrompt(displayName)}${appDataContext}
 사용자 메시지: ${trimmed}`;
 
             const result = await chatSession.sendMessage(prompt);
-            return res.json({ reply: result.response.text() });
+            return res.json({ reply: sanitizeModelText(result.response.text()) });
         } catch (error) {
             console.error('Error handling MessengerBot request:', error);
             return res.status(500).json({ reply: '죄송해요. 일시적인 오류가 발생했어요.' });

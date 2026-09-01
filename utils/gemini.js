@@ -6,6 +6,8 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const config = require('../config');
 
+const THINKING_BUDGET_DISABLED = 0;
+
 const SYSTEM_INSTRUCTION = `당신은 '해빛스쿨'의 열정적이고 다정한 1타 종합 습관 코치 '해빛코치'입니다. 항상 밝고 긍정적인 에너지를 뿜어내며, 따뜻한 존댓말(해요체)로 사용자를 격려하고 코칭해 주세요. 자신을 지칭할 때는 '해빛코치'라고 하세요. 사용자는 해빛스쿨 학생이며, 당신을 '코치님'이라고 부를 수 있습니다. 하지만 당신은 사용자를 절대 '코치님', 'OOO 코치님', '선생님'이라고 부르지 마세요. 사용자를 직접 부를 때는 기본적으로 이름+님 또는 그냥 님을 사용하고, 학교 느낌이 필요할 때만 '학생' 표현을 아주 드물게 사용하세요.
 
 [전문 코칭 분야 및 대응 가이드]
@@ -28,7 +30,44 @@ const SYSTEM_INSTRUCTION = `당신은 '해빛스쿨'의 열정적이고 다정�
 - **대화하듯 짧게**: 긴 설명은 금물입니다. 카카오톡 모바일 화면에 맞춰 2~4문장 이내로 짧고 임팩트 있게, 친구와 대화하듯 말해주세요. 이모티콘을 적극 활용하세요.
 - **실시간 정보 활용**: 날씨나 미세먼지 정보를 구글 검색 도구로 확인하여 실외 운동이 가능한지 등 실질적인 조언을 상황에 맞게 덧붙여주세요.
 - **오운완 반응**: '!오운완' 이라는 단어가 보이면 무조건 오버액션 수준으로 폭풍 칭찬을 해주세요!
+- **내부 과정 노출 금지**: tool_code, thought, print(...), 검색 쿼리 목록, 영어 사고 과정 등
+  내부 처리 내용을 답변에 절대 쓰지 마세요. 최종 답변 문장만 출력하세요.
+- **해빛스쿨은 실제 서비스입니다**: 가상의 설정이 아니라 실제로 운영 중인 습관 관리 서비스이고,
+  사용자는 실제 회원입니다. 앱 주소는 https://habitschool.web.app 입니다.
 - **앱 기록 독려**: 대화 중 자연스럽게 해빛스쿨 앱에 습관을 기록하도록 유도하세요. "해빛스쿨 앱에 오늘 식단 기록하셨나요?" 같은 멘트를 가끔 넣어주세요.`;
+
+// gemini-2.5 계열은 내부 스캐폴딩을 일반 텍스트로 흘리는 경우가 있다.
+// `tool_code` 블록(= print(google_search.search(...)) 호출)과 영어 `thought`
+// 추론이 실제 답변 앞에 그대로 붙어서 나온다. 단톡방에서는 그게 회원 전원에게
+// 코드 덩어리로 보인다.
+//
+// 모델 단에서 thinking을 껐으므로(THINKING_BUDGET_DISABLED) 이건 2차 방어선이다.
+// 맨 앞 블록만 건드리므로 정상 답변은 절대 다시 쓰지 않는다.
+const SCAFFOLD_PREFIX = /^\s*(tool_code|thought)\b/;
+
+// 추론과 답변 사이 이음매: 영문/기호 뒤에 마침표나 괄호가 붙고 곧바로 한글이
+// 시작되는 지점. 한국어 문장끼리는 이 형태가 나오지 않는다.
+const SEAM = /[a-z0-9)\]][.)](?=[가-힣])/gi;
+
+function sanitizeModelText(rawText) {
+    const text = String(rawText || '');
+    if (!SCAFFOLD_PREFIX.test(text)) {
+        return text.trim();
+    }
+
+    let stripped = text.replace(/^\s*tool_code\s*[\s\S]*?\)\)\s*/, '');
+
+    if (/^\s*thought\b/.test(stripped)) {
+        const body = stripped.replace(/^\s*thought\s*/, '');
+        let cut = -1;
+        for (const match of body.matchAll(SEAM)) {
+            cut = match.index + match[0].length;
+        }
+        stripped = cut > -1 ? body.slice(cut) : body;
+    }
+
+    return stripped.trim() || text.trim();
+}
 
 const DEFAULT_CHAT_HISTORY = [
     { role: "user", parts: [{ text: "안녕하세요!" }] },
@@ -44,6 +83,9 @@ function createGeminiManager() {
     const model = ai.getGenerativeModel({
         model: config.GEMINI_MODEL,
         tools: [{ googleSearch: {} }],
+        // thinking을 끄면 유출될 thought 자체가 생기지 않는다.
+        // 확인: thoughtsTokenCount 260 -> 없음.
+        generationConfig: { thinkingConfig: { thinkingBudget: THINKING_BUDGET_DISABLED } },
         systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
     });
 
@@ -71,4 +113,4 @@ function createGeminiManager() {
     return { model, getChatSession };
 }
 
-module.exports = { createGeminiManager, SYSTEM_INSTRUCTION, DEFAULT_CHAT_HISTORY };
+module.exports = { createGeminiManager, sanitizeModelText, SYSTEM_INSTRUCTION, DEFAULT_CHAT_HISTORY };

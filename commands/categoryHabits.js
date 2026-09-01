@@ -5,6 +5,7 @@
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName, buildIdentityKey } = require('../modules/userMapping');
 const { buildUnlinkedMessage } = require('../modules/chatLink');
+const { sanitizeModelText } = require('../utils/gemini');
 const {
     hasDiet,
     hasExercise,
@@ -22,7 +23,7 @@ async function getAiCoaching(getChatSession, sessionKey, prompt) {
     try {
         const session = getChatSession(sessionKey);
         const result = await session.sendMessage(prompt);
-        return result.response.text().trim().slice(0, 180);
+        return sanitizeModelText(result.response.text()).slice(0, 180);
     } catch (error) {
         console.warn('[CategoryHabits] AI coaching failed:', error.message);
         return null;

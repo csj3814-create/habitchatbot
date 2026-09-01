@@ -13,6 +13,7 @@ const {
     buildKakaoConnectCardResponse
 } = require('../utils/kakaoTemplate');
 const { createChatIdentity } = require('../utils/chatIdentity');
+const { sanitizeModelText } = require('../utils/gemini');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
@@ -272,7 +273,7 @@ ${buildStudentAddressPrompt(user.displayName)}
                     }
 
                     const result = await chatSession.sendMessage(promptParts);
-                    const callbackResponse = buildKakaoResponse(result.response.text());
+                    const callbackResponse = buildKakaoResponse(sanitizeModelText(result.response.text()));
                     await axios.post(callbackUrl, callbackResponse, { timeout: 5000 });
                 } catch (error) {
                     console.error('Error in background Kakao processing:', error);
@@ -294,7 +295,7 @@ ${buildStudentAddressPrompt(user.displayName)}
 
         try {
             const result = await chatSession.sendMessage(promptWithContext);
-            return res.status(200).json(buildKakaoResponse(result.response.text()));
+            return res.status(200).json(buildKakaoResponse(sanitizeModelText(result.response.text())));
         } catch (error) {
             console.error('Error handling Kakao chat request:', error);
             return res.status(200).json({
