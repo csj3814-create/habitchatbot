@@ -134,6 +134,7 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
         // HTTP POST 요청 전송 (Jsoup 사용)
         // 타임아웃 60초: Render 인스턴스가 유휴 상태에서 깨어날 때 50초 이상 걸릴 수 있다.
         // 15초로는 콜드 스타트마다 실패했다.
+        var requestStartedAt = Date.now();
         var document = org.jsoup.Jsoup.connect(SERVER_URL)
             .header("Content-Type", "application/json")
             .header("x-api-key", API_KEY)
@@ -144,6 +145,8 @@ function response(room, msg, sender, isGroupChat, replier, imageDB, packageName)
 
         // 서버 응답 (JSON 형식: {"reply": "..."})
         var responseJson = JSON.parse(document.body().text());
+        // "수신" 로그 시각과 비교하면 지연이 서버인지 폰인지 바로 보인다.
+        Log.i("서버 응답 " + (Date.now() - requestStartedAt) + "ms / 메시지: " + cleanMsg);
 
         if (responseJson && responseJson.reply) {
             replier.reply(responseJson.reply);

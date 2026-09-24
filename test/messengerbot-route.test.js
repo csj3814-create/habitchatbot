@@ -812,3 +812,89 @@ test('messengerbot routes YouTube recommendation commands without Gemini', async
     assert.equal(recommendationCalls, 1);
     assert.equal(response.json.reply, 'YOUTUBE_RECOMMENDATION');
 });
+
+test('messengerbot answers with a retry hint when Gemini times out', async () => {
+    const { GoogleGenerativeAIAbortError } = require('@google/generative-ai');
+    let sendOptions = null;
+
+    const { createMessengerbotRouter } = loadWithMocks(
+        path.join(__dirname, '..', 'routes', 'messengerbot.js'),
+        {
+            '../utils/apiKeyAuth': {
+                apiKeyAuth: (req, res, next) => next()
+            },
+            '../utils/chatIdentity': {
+                createChatIdentity: ({ platform, userId, displayName, legacySender, room }) => ({
+                    platform,
+                    userId,
+                    displayName,
+                    legacySender,
+                    room
+                })
+            },
+            '../commands/today': { handleToday: async () => 'TODAY' },
+            '../commands/myHabits': { handleMyHabits: async () => 'HABITS' },
+            '../commands/weekly': { handleWeekly: async () => 'WEEKLY' },
+            '../commands/classStatus': { handleClassStatus: async () => 'CLASS' },
+            '../commands/ranking': { handleRanking: async () => 'RANK' },
+            '../commands/guide': {
+                handleGuide: async () => 'GUIDE',
+                handleApp: async () => 'APP'
+            },
+            '../commands/categoryHabits': {
+                handleDiet: async () => 'DIET',
+                handleExercise: async () => 'EXERCISE',
+                handleMind: async () => 'MIND'
+            },
+            '../commands/addFriend': {
+                handleAddFriend: async () => 'FRIEND',
+                handleMyCode: async () => 'MYCODE'
+            },
+            '../commands/groupLink': {
+                handleGroupLink: async () => 'GROUP_LINK',
+                buildGroupLinkGuideMessage: () => 'LINK_GUIDE'
+            },
+            '../commands/share': {
+                handleShare: async () => ({ type: 'text', text: 'SHARE' })
+            },
+            '../commands/haebit': {
+                handleHaebit: async () => 'HAEBIT',
+                handleHaebitVideo: async () => 'HAEBIT_VIDEO'
+            },
+            '../modules/appFirebase': {
+                getUserRecords: async () => []
+            },
+            '../modules/userMapping': {
+                getMapping: async () => null,
+                getDisplayName: (user) => user.displayName
+            },
+            '../modules/statsHelpers': {
+                hasDiet: () => false,
+                hasExercise: () => false,
+                hasMind: () => false
+            }
+        }
+    );
+
+    const router = createMessengerbotRouter({
+        getChatSession() {
+            return {
+                async sendMessage(prompt, options) {
+                    sendOptions = options;
+                    throw new GoogleGenerativeAIAbortError('Request aborted');
+                }
+            };
+        }
+    });
+
+    const response = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!오늘 뭐 먹을까요',
+        sender: '회원',
+        isGroupChat: false
+    });
+
+    assert.equal(response.status, 200);
+    assert.match(response.json.reply, /다시 질문해 주세요/);
+    assert.equal(sendOptions.timeout, 40000);
+});

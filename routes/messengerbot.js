@@ -3,6 +3,7 @@
  */
 
 const { Router } = require('express');
+const { GoogleGenerativeAIAbortError } = require('@google/generative-ai');
 
 const { apiKeyAuth } = require('../utils/apiKeyAuth');
 const { buildStudentAddressPrompt } = require('../utils/addressing');
@@ -40,6 +41,11 @@ function normalizeCommand(rawMessage) {
 // model pitch !연결 in its own words; the bottom of the reply belongs to the
 // video recommendation.
 const LINK_NUDGE = '💡 !연결 하면 내 앱 기록으로 맞춤 코칭해 드려요.';
+
+// The phone gives up at 60s (messengerbot_script.js SERVER_TIMEOUT_MS) and then
+// posts nothing useful. Answer with a retry hint well before that.
+const GEMINI_TIMEOUT_MS = 40000;
+const GEMINI_TIMEOUT_REPLY = '해빛코치 답변이 오래 걸리고 있어요. 잠시 뒤 다시 질문해 주세요 🙏';
 
 function isYoutubeRecommendationCommand(command) {
     return command === '영상추천' || command === '추천영상' || command === '유튜브추천';
@@ -89,6 +95,7 @@ function createMessengerbotRouter({ getChatSession, videoMatcher }) {
     const router = Router();
 
     router.post('/', apiKeyAuth, async (req, res) => {
+        const startedAt = Date.now();
         const { room, msg, sender } = req.body;
 
         if (!msg) {
@@ -293,10 +300,24 @@ ${buildStudentAddressPrompt(displayName)}${appDataContext}${videoPrompt ? `\n\n$
 
 사용자 메시지: ${trimmed}`;
 
-            const result = await chatSession.sendMessage(prompt);
+            const contextMs = Date.now() - startedAt;
+            let result;
+            try {
+                result = await chatSession.sendMessage(prompt, { timeout: GEMINI_TIMEOUT_MS });
+            } catch (error) {
+                if (!(error instanceof GoogleGenerativeAIAbortError)) throw error;
+                console.warn(`[MessengerBot] Gemini timed out after ${GEMINI_TIMEOUT_MS}ms`);
+                return res.json({ reply: GEMINI_TIMEOUT_REPLY });
+            }
             const reply = renderCoachReply(sanitizeModelText(result.response.text()), {
                 footer: linkNudge
             });
+            // Server-side time only. If members still wait much longer than
+            // this, the delay is on the phone (notification pickup or reply).
+            console.log(
+                `[MessengerBot] Answered in ${Date.now() - startedAt}ms ` +
+                    `(context ${contextMs}ms, gemini ${Date.now() - startedAt - contextMs}ms)`
+            );
             return res.json({ reply });
         } catch (error) {
             console.error('Error handling MessengerBot request:', error);
