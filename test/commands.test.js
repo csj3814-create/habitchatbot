@@ -1050,51 +1050,33 @@ test('config uses the current requested YouTube recommendation playlist by defau
     }
 });
 
-test('handleYoutubeRecommendation recommends the latest unseen video and reuses the same-day choice', async () => {
+test('handleYoutubeRecommendation recommends catalog long-form videos in order and reuses the same-day choice', async () => {
     const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
     const db = createFakeRealtimeDb();
-    const videos = [
-        {
-            videoId: 'newest12345',
-            title: '최신 응급실 이야기',
-            url: 'https://www.youtube.com/watch?v=newest12345',
-            author: '건방진 닥터스',
-            published: '2026-07-01T00:00:00+00:00',
-            description: '응급실에서 꼭 알아야 할 이야기를 정리합니다. https://example.com #응급'
-        },
-        {
-            videoId: 'older123456',
-            title: '이전 응급실 이야기',
-            url: 'https://www.youtube.com/watch?v=older123456',
-            author: '건방진 닥터스',
-            published: '2026-06-01T00:00:00+00:00',
-            description: '이전 영상 설명입니다.'
-        }
+    const catalog = [
+        { code: 'S1', kind: 'shorts', id: 'shorts12345', title: '쇼츠는 추천하지 않아요 #쇼츠' },
+        { code: 'L1', kind: 'long', id: 'first123456', title: '첫 번째 응급실 이야기 | 최석재 #최석재 #응급' },
+        { code: 'L2', kind: 'long', id: 'second12345', title: '두 번째 응급실 이야기' }
     ];
 
     const first = await handleYoutubeRecommendation({
         db,
+        catalog,
         playlistId: 'PL_TEST',
-        dateStr: '2026-07-02',
-        fetchVideos: async () => videos
+        dateStr: '2026-07-02'
     });
     const second = await handleYoutubeRecommendation({
         db,
+        catalog: [...catalog].reverse(),
         playlistId: 'PL_TEST',
-        dateStr: '2026-07-02',
-        fetchVideos: async () => [...videos].reverse()
+        dateStr: '2026-07-02'
     });
 
-    assert.match(first, /오늘의 추천 영상/);
-    assert.match(first, /최신 응급실 이야기/);
-    assert.match(first, /응급실에서 꼭 알아야 할 이야기를 정리합니다\./);
-    assert.doesNotMatch(first, /https:\/\/example\.com/);
-    assert.doesNotMatch(first, /#응급/);
-    assert.match(first, /https:\/\/www\.youtube\.com\/watch\?v=newest12345/);
-    assert.match(second, /최신 응급실 이야기/);
+    assert.equal(first, '오늘의 추천 영상\n첫 번째 응급실 이야기 | 최석재\nhttps://youtu.be/first123456');
+    assert.equal(second, first);
     assert.equal(
         db.state.daily_youtube_recommendations.PL_TEST.dates['2026-07-02'].videoId,
-        'newest12345'
+        'first123456'
     );
 });
 
@@ -1104,7 +1086,7 @@ test('handleYoutubeRecommendation skips videos that were already recommended bef
         daily_youtube_recommendations: {
             PL_TEST: {
                 videos: {
-                    newest12345: { firstRecommendedDate: '2026-07-01' }
+                    first123456: { firstRecommendedDate: '2026-07-01' }
                 }
             }
         }
@@ -1114,19 +1096,9 @@ test('handleYoutubeRecommendation skips videos that were already recommended bef
         db,
         playlistId: 'PL_TEST',
         dateStr: '2026-07-02',
-        fetchVideos: async () => [
-            {
-                videoId: 'newest12345',
-                title: '이미 추천한 영상',
-                url: 'https://www.youtube.com/watch?v=newest12345',
-                published: '2026-07-01T00:00:00+00:00'
-            },
-            {
-                videoId: 'older123456',
-                title: '아직 추천하지 않은 영상',
-                url: 'https://www.youtube.com/watch?v=older123456',
-                published: '2026-06-01T00:00:00+00:00'
-            }
+        catalog: [
+            { code: 'L1', kind: 'long', id: 'first123456', title: '이미 추천한 영상' },
+            { code: 'L2', kind: 'long', id: 'second12345', title: '아직 추천하지 않은 영상' }
         ]
     });
 
@@ -1134,18 +1106,18 @@ test('handleYoutubeRecommendation skips videos that were already recommended bef
     assert.doesNotMatch(result, /이미 추천한 영상/);
     assert.equal(
         db.state.daily_youtube_recommendations.PL_TEST.dates['2026-07-02'].videoId,
-        'older123456'
+        'second12345'
     );
 });
 
-test('handleYoutubeRecommendation does not repeat once every playlist video has been recommended', async () => {
+test('handleYoutubeRecommendation does not repeat once every catalog video has been recommended', async () => {
     const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
     const db = createFakeRealtimeDb({
         daily_youtube_recommendations: {
             PL_TEST: {
                 videos: {
-                    newest12345: { firstRecommendedDate: '2026-07-01' },
-                    older123456: { firstRecommendedDate: '2026-07-02' }
+                    first123456: { firstRecommendedDate: '2026-07-01' },
+                    second12345: { firstRecommendedDate: '2026-07-02' }
                 }
             }
         }
@@ -1155,24 +1127,31 @@ test('handleYoutubeRecommendation does not repeat once every playlist video has 
         db,
         playlistId: 'PL_TEST',
         dateStr: '2026-07-03',
-        fetchVideos: async () => [
-            {
-                videoId: 'newest12345',
-                title: '이미 추천한 영상',
-                url: 'https://www.youtube.com/watch?v=newest12345',
-                published: '2026-07-01T00:00:00+00:00'
-            },
-            {
-                videoId: 'older123456',
-                title: '이것도 추천한 영상',
-                url: 'https://www.youtube.com/watch?v=older123456',
-                published: '2026-06-01T00:00:00+00:00'
-            }
+        catalog: [
+            { code: 'L1', kind: 'long', id: 'first123456', title: '이미 추천한 영상' },
+            { code: 'L2', kind: 'long', id: 'second12345', title: '이것도 추천한 영상' }
         ]
     });
 
     assert.match(result, /아직 새로 추천할 영상이 없어요/);
     assert.equal(db.state.daily_youtube_recommendations.PL_TEST.dates?.['2026-07-03'], undefined);
+});
+
+test('handleYoutubeRecommendation uses the committed catalog by default', async () => {
+    const { handleYoutubeRecommendation, getCatalogVideos } = require('../commands/youtubeRecommendation');
+    const { CATALOG } = require('../utils/videoCatalog');
+    const db = createFakeRealtimeDb();
+    const firstLong = CATALOG.find((video) => video.kind === 'long');
+
+    const result = await handleYoutubeRecommendation({
+        db,
+        playlistId: 'PL_TEST',
+        dateStr: '2026-07-02'
+    });
+
+    assert.ok(getCatalogVideos().length > 0);
+    assert.ok(getCatalogVideos().every((video) => video.url.startsWith('https://youtu.be/')));
+    assert.match(result, new RegExp(`https://youtu\.be/${firstLong.id}$`));
 });
 
 test('handleToday appends a YouTube recommendation on ordinary KST dates', async () => {

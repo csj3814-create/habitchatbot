@@ -1,11 +1,15 @@
 /**
- * Daily recommendation from the configured YouTube playlist.
+ * Daily recommendation from the long-form playlist in data/videoCatalog.json.
+ *
+ * YouTube's playlist RSS rejects the short playlist id (HTTP 500), so the
+ * committed catalog is the source of truth; refresh it with
+ * scripts/update_video_catalog.js.
  */
 
 const admin = require('firebase-admin');
 
 const config = require('../config');
-const { fetchYouTubePlaylistVideos } = require('../utils/youtubePlaylist');
+const { CATALOG, cleanTitle, getVideoUrl } = require('../utils/videoCatalog');
 
 const HISTORY_ROOT = 'daily_youtube_recommendations';
 
@@ -34,6 +38,16 @@ function normalizeSummaryText(text, limit = 120) {
     const lastSpace = sliced.lastIndexOf(' ');
     const safeEnd = lastSpace > 60 ? lastSpace : limit;
     return `${sliced.slice(0, safeEnd).trimEnd()}...`;
+}
+
+function getCatalogVideos(catalog = CATALOG) {
+    return catalog
+        .filter((video) => video.kind === 'long')
+        .map((video) => ({
+            videoId: video.id,
+            title: cleanTitle(video.title),
+            url: getVideoUrl(video)
+        }));
 }
 
 function getHistoryPath(playlistId) {
@@ -126,9 +140,9 @@ async function handleYoutubeRecommendation(options = {}) {
     const dateStr = options.dateStr || formatKstDate(options.now || new Date());
 
     try {
-        const videos = await (options.fetchVideos || fetchYouTubePlaylistVideos)(playlistId);
-        if (!Array.isArray(videos) || videos.length === 0) {
-            return '오늘의 추천 영상을 찾지 못했어요.\n플레이리스트에 공개 영상이 있는지 확인해 주세요.';
+        const videos = getCatalogVideos(options.catalog);
+        if (videos.length === 0) {
+            return '오늘의 추천 영상을 찾지 못했어요.\n영상 목록이 비어 있어요.';
         }
 
         const db = getDb(options);
@@ -136,7 +150,7 @@ async function handleYoutubeRecommendation(options = {}) {
         const { video, reused } = selectVideoForDate(videos, history, dateStr);
 
         if (!video) {
-            return '오늘의 추천 영상\n아직 새로 추천할 영상이 없어요. 플레이리스트에 새 영상이 올라오면 다시 소개할게요.';
+            return '오늘의 추천 영상\n아직 새로 추천할 영상이 없어요. 새 영상이 목록에 추가되면 다시 소개할게요.';
         }
 
         const selected = reused ? video : await saveRecommendation(db, playlistId, dateStr, video);
@@ -152,6 +166,7 @@ async function handleYoutubeRecommendation(options = {}) {
 module.exports = {
     buildYoutubeRecommendationMessage,
     formatKstDate,
+    getCatalogVideos,
     getHistoryPath,
     handleYoutubeRecommendation,
     loadRecommendationHistory,
