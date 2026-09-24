@@ -8,6 +8,7 @@ const { apiKeyAuth } = require('../utils/apiKeyAuth');
 const { buildStudentAddressPrompt } = require('../utils/addressing');
 const { createChatIdentity } = require('../utils/chatIdentity');
 const { sanitizeModelText } = require('../utils/gemini');
+const { renderCoachReply } = require('../utils/videoCatalog');
 const { handleToday } = require('../commands/today');
 const { handleMyHabits } = require('../commands/myHabits');
 const { handleWeekly } = require('../commands/weekly');
@@ -34,6 +35,11 @@ function normalizeCommand(rawMessage) {
 
     return { trimmed, command, args };
 }
+
+// Unlinked members get this one line under the answer instead of letting the
+// model pitch !연결 in its own words; the bottom of the reply belongs to the
+// video recommendation.
+const LINK_NUDGE = '💡 !연결 하면 내 앱 기록으로 맞춤 코칭해 드려요.';
 
 function isYoutubeRecommendationCommand(command) {
     return command === '영상추천' || command === '추천영상' || command === '유튜브추천';
@@ -79,7 +85,7 @@ function redactForLog(message) {
  *
  * Do not add a `room`-based check here expecting it to hold.
  */
-function createMessengerbotRouter({ getChatSession }) {
+function createMessengerbotRouter({ getChatSession, videoMatcher }) {
     const router = Router();
 
     router.post('/', apiKeyAuth, async (req, res) => {
@@ -204,13 +210,17 @@ function createMessengerbotRouter({ getChatSession }) {
             // only reader of that store and went away with it.
             const chatSession = getChatSession(`messengerbot:${sender}`);
 
+            // Runs alongside the app-data lookup below; it never throws.
+            const videoPromptPromise = videoMatcher
+                ? videoMatcher.buildCandidatePrompt(trimmed)
+                : Promise.resolve('');
             let appDataContext = '';
+            let linkNudge = '';
 
             try {
                 const mapping = await getMapping(user);
                 if (!mapping) {
-                    appDataContext =
-                        '\n\n[아직 해빛스쿨 앱 계정 연결이 없습니다. 자연스럽게 !연결 안내를 해 주세요.]';
+                    linkNudge = LINK_NUDGE;
                 } else {
                     const recentRecords = await getUserRecords(mapping.googleUid, 3);
                     if (recentRecords.length > 0) {
@@ -277,13 +287,17 @@ ${parts.join('\n')}
             }
 
             const displayName = getDisplayName(user);
+            const videoPrompt = await videoPromptPromise;
             const prompt = `[현재 대화 사용자 이름: ${displayName}]
-${buildStudentAddressPrompt(displayName)}${appDataContext}
+${buildStudentAddressPrompt(displayName)}${appDataContext}${videoPrompt ? `\n\n${videoPrompt}` : ''}
 
 사용자 메시지: ${trimmed}`;
 
             const result = await chatSession.sendMessage(prompt);
-            return res.json({ reply: sanitizeModelText(result.response.text()) });
+            const reply = renderCoachReply(sanitizeModelText(result.response.text()), {
+                footer: linkNudge
+            });
+            return res.json({ reply });
         } catch (error) {
             console.error('Error handling MessengerBot request:', error);
             return res.status(500).json({ reply: '죄송해요. 일시적인 오류가 발생했어요.' });

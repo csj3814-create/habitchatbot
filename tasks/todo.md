@@ -971,3 +971,26 @@ KST 01–07시에는 self-ping과 GitHub Actions keepalive가 둘 다 쉬기 때
 - `!명상` now sends the meditation and breathing practice video in both MessengerBot and Kakao routes.
 - Kakao responses use the existing YouTube card builder, and tests cover short-link card conversion.
 - Verification passed: syntax checks, focused command/route/template tests, and `npm test` (77 passed).
+
+## 2026-09-24 단톡방 답변 하단: !연결 권유 축소 + 출연 영상 추천
+
+- [x] 두 재생목록(롱폼 PLdVWJNYK0Cg8, 쇼츠 PLG8W47QZ3yXg) 수집 → `data/videoCatalog.json` (롱폼 302 + 쇼츠 100)
+- [x] `scripts/update_video_catalog.js`: 짧은 재생목록 ID는 RSS가 거부(500/404)해서 재생목록 페이지 + continuation으로 수집
+- [x] 시스템 지시문에 목록을 코드(L/S번호)로 넣고, 모델은 `[영상:코드]`만 출력 → 서버가 실제 링크로 치환 (없는 코드는 버림)
+- [x] 단톡방 자유 질문: 모델의 !연결 권유 삭제, 미연결 회원에게만 고정 한 줄 → 맨 아래 추천 영상
+- [x] 기존 외부 채널 영상 5개 목록 제거, 카카오 1:1 경로도 태그 치환 처리
+
+### Review
+- `npm test` 120 pass. 실제 Gemini로 3개 질문 확인: 식후 졸음→당뇨 전단계 영상, 치매 걱정→치매 초기 증상 영상, 발뒤꿈치 통증→뒤꿈치 영상.
+- 요청당 프롬프트 토큰 약 1.5만 개로 늘어남(목록 포함). 새 영상이 올라오면 스크립트 재실행 후 배포 필요.
+
+## 2026-09-24 영상 추천 비용 절감 + 주간 자동 갱신
+
+- [x] 측정: 전체 목록을 시스템 지시문에 넣으면 요청당 +13,622 토큰 (1,092 → 14,714)
+- [x] 임베딩 후보 방식: 서버 시작 시 제목 402개 임베딩(gemini-embedding-001, 256차원, 약 7초 1회), 질문마다 상위 5개만 프롬프트에 → 요청당 약 1.3k 토큰
+- [x] 태그를 코드(L12) 대신 videoId로: 주간 갱신으로 순서가 바뀌어도 안전
+- [x] `.github/workflows/update-video-catalog.yml`: 매주 월 09:00 KST 수집, 바뀌면 main에 커밋 (영상 수가 20% 넘게 줄면 중단)
+- [x] 발견·수정: 모든 채팅 세션이 DEFAULT_CHAT_HISTORY 배열 하나를 공유 → 회원 간 대화 섞임 + 프롬프트 무한 증가. structuredClone으로 분리
+
+### Review
+- `npm test` 123 pass. 실측 4개 질문 모두 관련 영상 선택, 프롬프트 1,289~1,332 토큰, 임베딩 조회 약 0.36초(앱 기록 조회와 병렬).

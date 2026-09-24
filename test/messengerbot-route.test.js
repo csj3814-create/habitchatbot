@@ -305,7 +305,9 @@ test('messengerbot never logs a submitted link code', async () => {
 });
 
 test('messengerbot freeform prompt uses student honorific guidance', async () => {
+    const { CATALOG, formatVideoRecommendation } = require('../utils/videoCatalog');
     let capturedPrompt = null;
+    let videoQuestion = null;
 
     const { createMessengerbotRouter } = loadWithMocks(
         path.join(__dirname, '..', 'routes', 'messengerbot.js'),
@@ -372,13 +374,19 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
                 throw new Error('db.ref should not be called for freeform prompts');
             }
         },
+        videoMatcher: {
+            async buildCandidatePrompt(question) {
+                videoQuestion = question;
+                return '[추천 후보 영상]\nVIDEO_CANDIDATES';
+            }
+        },
         getChatSession() {
             return {
                 async sendMessage(prompt) {
                     capturedPrompt = prompt;
                     return {
                         response: {
-                            text: () => 'AI'
+                            text: () => `AI\n[영상:${CATALOG[0].id}]`
                         }
                     };
                 }
@@ -395,7 +403,16 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.json.reply, 'AI');
+    assert.equal(
+        response.json.reply,
+        `AI\n\n💡 !연결 하면 내 앱 기록으로 맞춤 코칭해 드려요.\n\n${formatVideoRecommendation(CATALOG[0])}`
+    );
+    assert.equal(videoQuestion, '안녕하세요');
+    assert.match(
+        capturedPrompt,
+        /\n\n\[추천 후보 영상\]\nVIDEO_CANDIDATES\n\n사용자 메시지: 안녕하세요$/
+    );
+    assert.doesNotMatch(capturedPrompt, /!연결 안내/);
     assert.match(capturedPrompt, /해빛스쿨 학생/);
     assert.match(capturedPrompt, /'최석재님'/);
     assert.match(capturedPrompt, /절대 '최석재 코치님', '코치님', '선생님'이라고 부르지 마세요/);

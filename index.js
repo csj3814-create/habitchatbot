@@ -8,6 +8,7 @@ const admin = require('firebase-admin');
 const config = require('./config');
 const serviceAccount = require('./serviceAccountKey.json');
 const { createGeminiManager } = require('./utils/gemini');
+const { createVideoMatcher } = require('./utils/videoCatalog');
 const { createHabitLogger, isAllowedImageUrl } = require('./utils/habitLogger');
 const { shouldRunSelfPing } = require('./utils/selfPingWindow');
 const { createRetentionRunner } = require('./modules/retention');
@@ -53,6 +54,7 @@ const CHATBOT_CONNECT_ALLOWED_ORIGINS = new Set([
 const db = admin.database();
 const app = express();
 const { getChatSession } = createGeminiManager();
+const videoMatcher = createVideoMatcher();
 const { checkAndLogHabits } = createHabitLogger(db);
 
 app.set('trust proxy', 1);
@@ -313,7 +315,7 @@ app.post('/api/chatbot-connect/complete', async (req, res) => {
 });
 
 app.use('/api/chat', createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedImageUrl }));
-app.use('/api/messengerbot', createMessengerbotRouter({ getChatSession }));
+app.use('/api/messengerbot', createMessengerbotRouter({ getChatSession, videoMatcher }));
 
 if (config.RETENTION_PURGE_ENABLED) {
     const runRetention = createRetentionRunner(db, { retentionDays: config.RETENTION_DAYS });
@@ -350,6 +352,8 @@ const server = app.listen(config.PORT, () => {
     console.log(`Chatbot Connect Lookup:    GET  http://localhost:${config.PORT}/api/chatbot-connect/:token`);
     console.log(`Chatbot Connect Complete:  POST http://localhost:${config.PORT}/api/chatbot-connect/complete`);
     console.log(`Health Check:              GET  http://localhost:${config.PORT}/health`);
+    // Embed the video titles now so the first group question doesn't pay for it.
+    videoMatcher.warmUp();
 });
 
 function gracefulShutdown(signal) {
