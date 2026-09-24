@@ -94,18 +94,24 @@ function createGeminiManager() {
 
     function getChatSession(userId) {
         if (!userSessions.has(userId)) {
+            // startChat keeps the array it is given and pushes every turn onto
+            // it. Passing the shared constant made one history for all users:
+            // members saw each other's messages and prompts grew without bound.
             const chatSession = model.startChat({
-                history: DEFAULT_CHAT_HISTORY
+                history: structuredClone(DEFAULT_CHAT_HISTORY)
             });
             userSessions.set(userId, chatSession);
         }
 
         // 기존 타이머 정리 후 재설정 (타이머 누적 방지)
         if (sessionTimers.has(userId)) clearTimeout(sessionTimers.get(userId));
-        sessionTimers.set(userId, setTimeout(() => {
+        const timer = setTimeout(() => {
             userSessions.delete(userId);
             sessionTimers.delete(userId);
-        }, config.SESSION_TTL_MS));
+        }, config.SESSION_TTL_MS);
+        // Expiry only; it shouldn't be what keeps the process alive.
+        timer.unref();
+        sessionTimers.set(userId, timer);
 
         return userSessions.get(userId);
     }

@@ -217,3 +217,13 @@
 ### Chat commands need the user's natural word order as aliases
 - Mistake: I added `!영상추천` and `!유튜브추천`, but the user naturally typed `!추천영상`, which fell through to Gemini and produced an unrelated old recommendation.
 - Rule: For Korean compound chat commands, include the likely reversed word order and user-used wording as deterministic aliases before allowing the message to reach freeform AI handling.
+
+## 2026-09-24
+
+### SDK가 넘긴 배열을 그대로 보관하는지 확인하기
+- 실수: `model.startChat({ history: DEFAULT_CHAT_HISTORY })`에 공유 상수를 넘겼다. SDK는 그 배열을 그대로 `_history`로 쓰고 매 턴 push해서, 모든 회원이 대화 기록 하나를 공유했다(개인 기록 섞임 + 토큰 무한 증가).
+- 규칙: 상태를 쌓는 SDK 객체에 기본값을 넘길 때는 항상 복사본(`structuredClone`)을 넘긴다. 세션이 분리되는지 테스트로 고정한다.
+- 발견법: 서로 다른 세션인데 promptTokenCount가 호출마다 늘면 상태 공유를 의심한다.
+
+### 매 요청에 붙는 큰 참조 목록은 토큰부터 재기
+- 목록 전체(1.36만 토큰)를 시스템 지시문에 넣지 말고, 임베딩으로 후보 몇 개만 추려 프롬프트에 넣는다.

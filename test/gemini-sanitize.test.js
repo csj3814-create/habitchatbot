@@ -56,3 +56,17 @@ test('the system prompt forbids leaking internal steps and states the service is
     // A leaked thought called 해빛스쿨 "a fictional entity for this persona".
     assert.match(SYSTEM_INSTRUCTION, /해빛스쿨은 실제 서비스입니다/);
 });
+
+test('each chat session gets its own history', () => {
+    const { createGeminiManager, DEFAULT_CHAT_HISTORY } = require('../utils/gemini');
+    const before = JSON.stringify(DEFAULT_CHAT_HISTORY);
+    const { getChatSession } = createGeminiManager();
+
+    const a = getChatSession('user-a');
+    const b = getChatSession('user-b');
+    a._history.push({ role: 'user', parts: [{ text: 'private' }] });
+
+    assert.notEqual(a._history, b._history);
+    assert.equal(b._history.length, DEFAULT_CHAT_HISTORY.length);
+    assert.equal(JSON.stringify(DEFAULT_CHAT_HISTORY), before);
+});
