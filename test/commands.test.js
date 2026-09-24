@@ -983,48 +983,6 @@ test('resolveBestRecordsPeriod accepts compact and spaced scheduled commands', a
     assert.equal(resolveBestRecordsPeriod('오늘'), null);
 });
 
-test('parseYouTubePlaylistFeed extracts playlist video metadata in latest-first order', () => {
-    const { parseYouTubePlaylistFeed } = require('../utils/youtubePlaylist');
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <yt:videoId>older123456</yt:videoId>
-    <title>Older longform</title>
-    <link rel="alternate" href="https://www.youtube.com/watch?v=older123456"/>
-    <author><name>Old Channel</name><uri>https://www.youtube.com/channel/old</uri></author>
-    <published>2025-01-01T00:00:00+00:00</published>
-    <updated>2025-01-02T00:00:00+00:00</updated>
-    <media:group>
-      <media:description>오래된 설명입니다.</media:description>
-      <media:thumbnail url="https://img.youtube.com/vi/older123456/hqdefault.jpg"/>
-    </media:group>
-  </entry>
-  <entry>
-    <yt:videoId>newer123456</yt:videoId>
-    <title>Newer longform</title>
-    <link rel="alternate" href="https://www.youtube.com/watch?v=newer123456"/>
-    <author><name>New Channel</name><uri>https://www.youtube.com/channel/new</uri></author>
-    <published>2026-01-01T00:00:00+00:00</published>
-    <updated>2026-01-02T00:00:00+00:00</updated>
-    <media:group>
-      <media:description>최신 설명입니다. https://example.com #태그</media:description>
-      <media:thumbnail url="https://img.youtube.com/vi/newer123456/hqdefault.jpg"/>
-    </media:group>
-  </entry>
-</feed>`;
-
-    const videos = parseYouTubePlaylistFeed(xml);
-
-    assert.equal(videos.length, 2);
-    assert.equal(videos[0].videoId, 'newer123456');
-    assert.equal(videos[0].title, 'Newer longform');
-    assert.equal(videos[0].url, 'https://www.youtube.com/watch?v=newer123456');
-    assert.equal(videos[0].author, 'New Channel');
-    assert.equal(videos[0].published, '2026-01-01T00:00:00+00:00');
-    assert.equal(videos[0].description, '최신 설명입니다. https://example.com #태그');
-    assert.equal(videos[0].thumbnailUrl, 'https://img.youtube.com/vi/newer123456/hqdefault.jpg');
-});
-
 test('config uses the current requested YouTube recommendation playlist by default', () => {
     const configPath = require.resolve('../config');
     const originalEnv = process.env.DAILY_YOUTUBE_PLAYLIST_ID;

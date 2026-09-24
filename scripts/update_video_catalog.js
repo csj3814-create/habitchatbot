@@ -5,8 +5,8 @@
  *
  *   node scripts/update_video_catalog.js
  *
- * These playlists use the short `PL` + 11 id format, which the RSS feed
- * (utils/youtubePlaylist.js) rejects, so this reads the playlist page and
+ * These playlists use the short `PL` + 11 id format, which YouTube's RSS feed
+ * rejects (HTTP 500/404), so this reads the playlist page and
  * follows the web client's continuation calls instead. The result is committed
  * so the server never scrapes YouTube itself; it embeds these titles at boot
  * (utils/videoCatalog.js).
