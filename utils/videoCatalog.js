@@ -142,7 +142,7 @@ function createVideoMatcher({ catalog = CATALOG, embedder, candidateCount = CAND
             return [
                 '[추천 후보 영상 (최석재 전문의 출연, 질문과 가까운 순)]',
                 ...candidates.map((video) => `${video.id} ${cleanTitle(video.title)}`),
-                '[답변 마지막 줄에 위 후보 중 답변과 가장 관련 높은 영상 1개를 [영상:ID] 형식으로 꼭 붙여 주세요.]'
+                '[답변 마지막 줄에 위 후보 중 답변과 가장 관련 높은 영상 1개를 [영상:ID] 형식으로 꼭 붙여 주세요. 응급 증상 안내 답변이면 붙이지 마세요.]'
             ].join('\n');
         } catch (error) {
             console.warn('[VideoCatalog] Candidate lookup failed:', error.message);
@@ -175,11 +175,15 @@ function formatVideoRecommendation(video) {
 
 /**
  * Model reply -> room reply: strip the tag, then append the real link.
- * `footer` (e.g. a short !연결 nudge) sits between the answer and the video.
+ * `footer` (e.g. a short !연결 nudge) sits between the answer and the video,
+ * and only rides along with one: the model leaves the tag off emergency
+ * answers ("119/응급실로 가세요"), and a sign-up nudge under those would read
+ * as tone-deaf.
  */
 function renderCoachReply(text, { footer = '' } = {}) {
     const { text: body, video } = extractVideoRecommendation(text);
-    return [body, footer, video && formatVideoRecommendation(video)].filter(Boolean).join('\n\n');
+    if (!video) return body;
+    return [body, footer, formatVideoRecommendation(video)].filter(Boolean).join('\n\n');
 }
 
 module.exports = {

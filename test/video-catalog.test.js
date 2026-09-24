@@ -42,6 +42,22 @@ test('the tag becomes a real link and never reaches the room', () => {
     assert.ok(reply.endsWith(getVideoUrl(shortVideo)));
 });
 
+test('an answer without a video (e.g. an emergency) carries no !연결 nudge either', () => {
+    const emergency = '응급 상황이 의심돼요. 바로 119에 전화하세요.';
+
+    assert.equal(renderCoachReply(emergency, { footer: 'NUDGE' }), emergency);
+});
+
+test('system instruction sends emergency symptoms to 119 or the ER first', () => {
+    assert.match(SYSTEM_INSTRUCTION, /\[응급 증상 대응 - 다른 모든 규칙보다 우선\]/);
+    assert.ok(
+        SYSTEM_INSTRUCTION.indexOf('[응급 증상 대응') < SYSTEM_INSTRUCTION.indexOf('[전문 코칭 분야')
+    );
+    for (const symptom of ['힘이 빠지', '발음이 어눌', '가슴 통증', '가장 심한 두통']) {
+        assert.ok(SYSTEM_INSTRUCTION.includes(symptom), symptom);
+    }
+});
+
 test('an id outside the catalog is dropped instead of producing a link', () => {
     const { text, video } = extractVideoRecommendation('답변\n[영상:AAAAAAAAAAA]');
 
