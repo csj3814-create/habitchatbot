@@ -24,6 +24,7 @@ const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
 const { handleHaebitIntroVideo, handleMeditationVideo } = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
+const { handleChangelog } = require('../commands/changelog');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
@@ -193,6 +194,10 @@ function createMessengerbotRouter({ getChatSession, videoMatcher }) {
             const bestRecordsPeriod = resolveBestRecordsPeriod(command);
             if (bestRecordsPeriod) {
                 return res.json({ reply: await handleBestRecords(bestRecordsPeriod) });
+            }
+
+            if (command === '업데이트') {
+                return res.json({ reply: await handleChangelog() });
             }
 
             if (isYoutubeRecommendationCommand(command)) {

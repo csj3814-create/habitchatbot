@@ -748,6 +748,9 @@ test('messengerbot routes YouTube recommendation commands without Gemini', async
                     return 'YOUTUBE_RECOMMENDATION';
                 }
             },
+            '../commands/changelog': {
+                handleChangelog: async () => 'CHANGELOG'
+            },
             '../commands/guide': {
                 handleGuide: async () => 'GUIDE',
                 handleApp: async () => 'APP'
@@ -811,6 +814,15 @@ test('messengerbot routes YouTube recommendation commands without Gemini', async
     assert.equal(response.status, 200);
     assert.equal(recommendationCalls, 1);
     assert.equal(response.json.reply, 'YOUTUBE_RECOMMENDATION');
+
+    const changelogResponse = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!업데이트',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(changelogResponse.json.reply, 'CHANGELOG');
 });
 
 test('messengerbot answers with a retry hint when Gemini times out', async () => {
