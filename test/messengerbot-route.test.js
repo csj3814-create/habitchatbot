@@ -410,7 +410,7 @@ test('messengerbot freeform prompt uses student honorific guidance', async () =>
     assert.equal(videoQuestion, '안녕하세요');
     assert.match(
         capturedPrompt,
-        /\n\n\[추천 후보 영상\]\nVIDEO_CANDIDATES\n\n사용자 메시지: 안녕하세요$/
+        /\n\n\[추천 후보 영상\]\nVIDEO_CANDIDATES\n\[단톡방 답변이에요\. 본문은 공백 포함 250자 이내[^\n]*\]\n\n사용자 메시지: 안녕하세요$/
     );
     assert.doesNotMatch(capturedPrompt, /!연결 안내/);
     assert.match(capturedPrompt, /해빛스쿨 학생/);

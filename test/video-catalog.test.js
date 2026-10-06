@@ -58,6 +58,30 @@ test('system instruction sends emergency symptoms to 119 or the ER first', () =>
     }
 });
 
+test('a long answer gives way at a sentence end so the link stays visible', () => {
+    const sentence = '홍삼은 꾸준히 드시는 것이 중요해요. ';
+    const long = `${sentence.repeat(30)}\n[영상:${longVideo.id}]`;
+    const reply = renderCoachReply(long, { footer: 'NUDGE', maxLength: 480 });
+
+    assert.ok(reply.length <= 480, `length ${reply.length}`);
+    assert.ok(reply.endsWith(getVideoUrl(longVideo)));
+    assert.match(reply, /중요해요\.\n\nNUDGE\n\n📺/);
+});
+
+test('a reply without sentence breaks is hard-cut with an ellipsis', () => {
+    const reply = renderCoachReply(`${'가'.repeat(600)}\n[영상:${longVideo.id}]`, { maxLength: 300 });
+
+    assert.ok(reply.length <= 300);
+    assert.match(reply, /가…\n\n📺/);
+});
+
+test('short answers and the uncapped 1:1 path are left alone', () => {
+    const short = `짧은 답변이에요 😊\n[영상:${longVideo.id}]`;
+
+    assert.ok(renderCoachReply(short, { maxLength: 480 }).startsWith('짧은 답변이에요 😊\n\n📺'));
+    assert.equal(renderCoachReply('가'.repeat(900)).length, 900);
+});
+
 test('an id outside the catalog is dropped instead of producing a link', () => {
     const { text, video } = extractVideoRecommendation('답변\n[영상:AAAAAAAAAAA]');
 

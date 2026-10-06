@@ -179,11 +179,33 @@ function formatVideoRecommendation(video) {
  * and only rides along with one: the model leaves the tag off emergency
  * answers ("119/응급실로 가세요"), and a sign-up nudge under those would read
  * as tone-deaf.
+ * `maxLength` caps the whole reply; the body gives way so the link survives.
  */
-function renderCoachReply(text, { footer = '' } = {}) {
+function renderCoachReply(text, { footer = '', maxLength = Infinity } = {}) {
     const { text: body, video } = extractVideoRecommendation(text);
-    if (!video) return body;
-    return [body, footer, formatVideoRecommendation(video)].filter(Boolean).join('\n\n');
+    const tail = video ? [footer, formatVideoRecommendation(video)].filter(Boolean) : [];
+    const tailLength = tail.reduce((sum, part) => sum + part.length + 2, 0);
+
+    return [fitToLength(body, maxLength - tailLength), ...tail].join('\n\n');
+}
+
+// A sentence ends at . ! ? or an emoji, followed by whitespace or the end.
+const SENTENCE_END = /(?:[.!?]|\p{Extended_Pictographic}️?)(?=\s|$)/gu;
+
+/**
+ * Trim to whole sentences so the answer still reads as finished. Only falls
+ * back to a hard cut when keeping whole sentences would drop more than half.
+ */
+function fitToLength(body, limit) {
+    if (body.length <= limit) return body;
+
+    const window = body.slice(0, limit);
+    let cut = -1;
+    for (const match of window.matchAll(SENTENCE_END)) {
+        cut = match.index + match[0].length;
+    }
+
+    return cut >= limit / 2 ? window.slice(0, cut).trimEnd() : `${window.slice(0, limit - 1).trimEnd()}…`;
 }
 
 module.exports = {

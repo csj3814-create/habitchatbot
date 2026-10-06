@@ -48,6 +48,13 @@ const LINK_NUDGE = '💡 !연결 하면 내 앱 기록으로 맞춤 코칭해 �
 const GEMINI_TIMEOUT_MS = 40000;
 const GEMINI_TIMEOUT_REPLY = '해빛코치 답변이 오래 걸리고 있어요. 잠시 뒤 다시 질문해 주세요 🙏';
 
+// KakaoTalk folds a message behind "전체보기" at about 500 characters, and the
+// video link sits at the very bottom, so it was the part being hidden. Ask
+// for short answers, then hard-cap the reply with some margin.
+const KAKAO_REPLY_MAX_LENGTH = 480;
+const LENGTH_DIRECTIVE =
+    '[단톡방 답변이에요. 본문은 공백 포함 250자 이내, 2~3문장으로 핵심만 쓰고, 이름은 한 번만 부르세요.]';
+
 function isYoutubeRecommendationCommand(command) {
     return command === '영상추천' || command === '추천영상' || command === '유튜브추천';
 }
@@ -302,6 +309,7 @@ ${parts.join('\n')}
             const videoPrompt = await videoPromptPromise;
             const prompt = `[현재 대화 사용자 이름: ${displayName}]
 ${buildStudentAddressPrompt(displayName)}${appDataContext}${videoPrompt ? `\n\n${videoPrompt}` : ''}
+${LENGTH_DIRECTIVE}
 
 사용자 메시지: ${trimmed}`;
 
@@ -315,7 +323,8 @@ ${buildStudentAddressPrompt(displayName)}${appDataContext}${videoPrompt ? `\n\n$
                 return res.json({ reply: GEMINI_TIMEOUT_REPLY });
             }
             const reply = renderCoachReply(sanitizeModelText(result.response.text()), {
-                footer: linkNudge
+                footer: linkNudge,
+                maxLength: KAKAO_REPLY_MAX_LENGTH
             });
             // Server-side time only. If members still wait much longer than
             // this, the delay is on the phone (notification pickup or reply).
