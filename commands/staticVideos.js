@@ -4,6 +4,7 @@
 
 const MEDITATION_VIDEO_URL = 'https://youtu.be/dcftmD1qVDs';
 const HAEBIT_INTRO_VIDEO_URL = 'https://youtu.be/kusU9zROdhc';
+const HAEBIT_STORIES_URL = 'https://habitschool.web.app/stories';
 
 function handleMeditationVideo() {
     return [
@@ -21,9 +22,19 @@ function handleHaebitIntroVideo() {
     ].join('\n');
 }
 
+function handleHaebitStories() {
+    return [
+        '해빛스쿨 이야기 모아보기예요 📖',
+        '한 가족의 70년을 따라가는 「해빛 가족」 아홉 편과 정호 이야기, 짧은 이야기 세 편을 한곳에서 차례로 볼 수 있어요.',
+        HAEBIT_STORIES_URL
+    ].join('\n');
+}
+
 module.exports = {
     HAEBIT_INTRO_VIDEO_URL,
+    HAEBIT_STORIES_URL,
     MEDITATION_VIDEO_URL,
     handleHaebitIntroVideo,
+    handleHaebitStories,
     handleMeditationVideo
 };

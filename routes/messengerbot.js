@@ -22,7 +22,11 @@ const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { handleGroupLink, buildGroupLinkGuideMessage } = require('../commands/groupLink');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
-const { handleHaebitIntroVideo, handleMeditationVideo } = require('../commands/staticVideos');
+const {
+    handleHaebitIntroVideo,
+    handleHaebitStories,
+    handleMeditationVideo
+} = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 const { handleChangelog } = require('../commands/changelog');
 const { getUserRecords } = require('../modules/appFirebase');
@@ -172,6 +176,10 @@ function createMessengerbotRouter({ getChatSession, videoMatcher }) {
 
             if (command === '명상') {
                 return res.json({ reply: handleMeditationVideo() });
+            }
+
+            if (command === '이야기') {
+                return res.json({ reply: handleHaebitStories() });
             }
 
             if (command === '해빛기록' || command === '하루기록') {

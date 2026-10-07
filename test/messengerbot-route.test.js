@@ -599,6 +599,16 @@ test('messengerbot routes static video links and haebit record alias without Gem
     assert.equal(meditationResponse.status, 200);
     assert.match(meditationResponse.json.reply, /https:\/\/youtu\.be\/dcftmD1qVDs/);
 
+    const storiesResponse = await postJsonToRouter(router, {
+        room: 'open-chat',
+        msg: '!이야기',
+        sender: '테스트 사용자',
+        isGroupChat: false
+    });
+
+    assert.equal(storiesResponse.status, 200);
+    assert.match(storiesResponse.json.reply, /https:\/\/habitschool\.web\.app\/stories$/);
+
     const recordResponse = await postJsonToRouter(router, {
         room: 'open-chat',
         msg: '!해빛기록',

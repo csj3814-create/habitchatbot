@@ -28,7 +28,11 @@ const { handleAddFriend, handleMyCode } = require('../commands/addFriend');
 const { handleConnect } = require('../commands/connect');
 const { handleShare } = require('../commands/share');
 const { handleHaebit, handleHaebitVideo } = require('../commands/haebit');
-const { handleHaebitIntroVideo, handleMeditationVideo } = require('../commands/staticVideos');
+const {
+    handleHaebitIntroVideo,
+    handleHaebitStories,
+    handleMeditationVideo
+} = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 
 const HELP_MSG = `명령어 안내
@@ -167,6 +171,10 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
 
         if (actualQuestion === '명상') {
             return res.status(200).json(buildKakaoResponse(handleMeditationVideo()));
+        }
+
+        if (actualQuestion === '이야기') {
+            return res.status(200).json(buildKakaoResponse(handleHaebitStories()));
         }
 
         if (actualQuestion === '해빛기록' || actualQuestion === '하루기록') {

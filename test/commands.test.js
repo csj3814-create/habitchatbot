@@ -647,6 +647,13 @@ test('static video commands return the requested YouTube links', () => {
     assert.match(handleHaebitIntroVideo(), /https:\/\/youtu\.be\/kusU9zROdhc/);
 });
 
+test('!이야기 points to the stories page', () => {
+    const { handleHaebitStories } = require('../commands/staticVideos');
+
+    assert.match(handleHaebitStories(), /해빛 가족/);
+    assert.match(handleHaebitStories(), /https:\/\/habitschool\.web\.app\/stories$/);
+});
+
 test('handleConnect returns a deep-link card for an unlinked user', async () => {
     const { handleConnect } = loadWithMocks(
         path.join(__dirname, '..', 'commands', 'connect.js'),

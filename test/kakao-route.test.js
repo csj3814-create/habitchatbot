@@ -485,6 +485,14 @@ test('kakao routes static video links and haebit record alias without habit logg
     assert.equal(meditationResponse.status, 200);
     assert.match(meditationResponse.json.template.outputs[0].simpleText.text, /https:\/\/youtu\.be\/dcftmD1qVDs/);
 
+    const storiesResponse = await postJsonToRouter(router, buildKakaoBody('!이야기'));
+
+    assert.equal(storiesResponse.status, 200);
+    assert.match(
+        storiesResponse.json.template.outputs[0].simpleText.text,
+        /https:\/\/habitschool\.web\.app\/stories$/
+    );
+
     const recordResponse = await postJsonToRouter(router, buildKakaoBody('!해빛기록'));
 
     assert.equal(recordResponse.status, 200);
