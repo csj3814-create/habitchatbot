@@ -89,6 +89,26 @@ function resolveLeaderboardLabel({ uid, entry = {}, mapping = {}, profile = {} }
     return accountLabel || shortUidLabel(uid || entry.uid);
 }
 
+// 해빛 배지: 앱에서 대표로 단 배지를 이름 앞에 붙인다.
+// 앱 서버(habitschool functions/global-rewards.js)만 displayBadge·displayBadgeEmoji 를 쓴다.
+// 그 배지를 지금도 가졌는지(globalBadges) 한 번 더 보고, 이모지 자리에 글자·숫자가 오면 붙이지 않는다.
+const MAX_BADGE_EMOJI_LENGTH = 8;
+
+function getDisplayBadgeEmoji(profile) {
+    const id = cleanText(profile?.displayBadge);
+    const emoji = cleanText(profile?.displayBadgeEmoji);
+    const owned = profile?.globalBadges && typeof profile.globalBadges === 'object'
+        && Object.prototype.hasOwnProperty.call(profile.globalBadges, id);
+    if (!id || !emoji || !owned) return '';
+    if (emoji.length > MAX_BADGE_EMOJI_LENGTH || /[\p{L}\p{N}]/u.test(emoji)) return '';
+    return emoji;
+}
+
+function withDisplayBadge(label, profile) {
+    const emoji = getDisplayBadgeEmoji(profile);
+    return emoji ? `${emoji} ${label}` : label;
+}
+
 async function loadLeaderboardLabels(entries = []) {
     const entryByUid = {};
     const uids = [];
@@ -123,18 +143,19 @@ async function loadLeaderboardLabels(entries = []) {
 
     const profiles = await getUserProfilesByIds(uids);
     return uids.reduce((labels, uid) => {
-        labels[uid] = resolveLeaderboardLabel({
+        labels[uid] = withDisplayBadge(resolveLeaderboardLabel({
             uid,
             entry: entryByUid[uid],
             mapping: mappingByUid[uid],
             profile: profiles[uid]
-        });
+        }), profiles[uid]);
         return labels;
     }, {});
 }
 
 module.exports = {
     loadLeaderboardLabels,
+    withDisplayBadge,
     resolveLeaderboardLabel,
     accountLabelFromEmail,
     shortUidLabel
