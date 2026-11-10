@@ -715,9 +715,12 @@ test('handleGuide explains the step-by-step participation flow', async () => {
 
     assert.match(result, /해빛코치 참여 안내/);
     assert.match(result, /1\. 아래 링크를 눌러서 들어가세요/);
-    assert.match(result, /https:\/\/habitschool\.web\.app\/simple\//);
+    assert.match(result, /https:\/\/habitschool\.web\.app\/\n/);
+    assert.doesNotMatch(result, /simple|심플/);
     assert.match(result, /2\. 구글 로그인을 하세요/);
-    assert.match(result, /3\. 맨 아래 해빛스쿨 앱 설치를 누르세요/);
+    assert.match(result, /3\. 내 기록 탭에서 홈 화면에 앱 설치를 누르세요/);
+    // 카카오 1:1 은 300자에서 자른다. 넘으면 명령어 목록이 잘려 나간다.
+    assert.ok(result.length <= 300, `guide is ${result.length} chars`);
     assert.match(result, /4\. 매일의 식단 운동 마음을 기록하세요/);
     assert.match(result, /챗봇에서 바로 써보세요/);
     assert.match(result, /!오늘 - 오늘 기록 요약/);
@@ -735,10 +738,10 @@ test('handleApp keeps the app-start copy short and points to the web app', async
 
     const result = await handleApp();
 
-    assert.match(result, /심플형 앱/);
-    assert.match(result, /처음엔 여기서 시작하세요/);
-    assert.match(result, /https:\/\/habitschool\.web\.app\/simple\//);
-    assert.match(result, /식단 운동 수면 마음 기록/);
+    assert.match(result, /해빛스쿨 앱 안내/);
+    assert.match(result, /https:\/\/habitschool\.web\.app\/\n/);
+    assert.doesNotMatch(result, /simple|심플/);
+    assert.match(result, /play\.google\.com\/store\/apps\/details\?id=com\.habitschool\.app/);
     assert.match(result, /!오늘 !내습관 !주간 !공유/);
     assert.doesNotMatch(result, /!연결/);
 });

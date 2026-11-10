@@ -1,4 +1,4 @@
-const DEFAULT_LOGIN_URL = 'https://habitschool.web.app/simple/';
+const DEFAULT_LOGIN_URL = 'https://habitschool.web.app/';
 
 function escapeHtml(value) {
     return String(value ?? '')

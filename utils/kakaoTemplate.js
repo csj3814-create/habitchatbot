@@ -4,7 +4,7 @@
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
 const KAKAO_TEXT_MAX = 300;
-const DEFAULT_APP_URL = 'https://habitschool.web.app/simple/';
+const DEFAULT_APP_URL = 'https://habitschool.web.app/';
 const DEFAULT_GALLERY_URL = 'https://habitschool.web.app/#gallery';
 const DEFAULT_CARD_THUMBNAIL_URL = 'https://habitschool.web.app/icons/og-image.png';
 
@@ -108,8 +108,8 @@ function buildKakaoGuideResponse(text) {
 }
 
 function buildKakaoAppCardResponse({
-    title = '해빛스쿨 심플형 앱',
-    description = '처음엔 심플형으로 시작\n식단 운동 수면 마음 기록',
+    title = '해빛스쿨 앱',
+    description = '구글 로그인 후 바로 시작\n식단 운동 수면 마음 기록',
     appUrl = DEFAULT_APP_URL,
     galleryUrl = DEFAULT_GALLERY_URL,
     thumbnailImageUrl = DEFAULT_CARD_THUMBNAIL_URL
