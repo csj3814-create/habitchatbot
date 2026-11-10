@@ -2,7 +2,7 @@
  * !내습관: 연결된 사용자의 최근 기록과 7일 추세를 요약합니다.
  */
 
-const { getUserRecords } = require('../modules/appFirebase');
+const { getUserRecords, getUserProfile } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { buildUnlinkedMessage } = require('../modules/chatLink');
 const { loadLeaderboardLabels } = require('../modules/leaderboardLabels');
@@ -13,7 +13,7 @@ const {
     hasGratitude,
     hasMeditation,
     progressBar,
-    calculateStreak
+    resolveStreak
 } = require('../modules/statsHelpers');
 
 async function handleMyHabits(user) {
@@ -43,7 +43,14 @@ async function handleMyHabits(user) {
     }
 
     const latest = records[records.length - 1];
-    const streak = calculateStreak(records);
+    // 연속 기록은 앱이 회원 문서에 적어 둔 값을 쓴다. 위에서 읽은 30건으로 세면 30일이 상한이다.
+    let profile = null;
+    try {
+        profile = await getUserProfile(mapping.googleUid);
+    } catch (error) {
+        console.warn('[MyHabits] Could not load the profile for the streak:', error.message);
+    }
+    const streak = resolveStreak(profile, records);
     const recentRecords = records.slice(-7);
 
     const dietDays = recentRecords.filter(hasDiet).length;

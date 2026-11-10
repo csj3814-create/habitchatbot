@@ -886,7 +886,7 @@ test('handleMyHabits uses resolved account labels for linked users with generic 
                 hasGratitude: (record) => Boolean(record.sleepAndMind?.gratitude),
                 hasMeditation: () => false,
                 progressBar: (count) => `${count}/7일`,
-                calculateStreak: () => 1
+                resolveStreak: () => 1
             }
         }
     );

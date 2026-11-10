@@ -588,16 +588,50 @@ function initAppFirebase() {
     }
 }
 
+/**
+ * 탈퇴하며 "30일 보관 후 삭제"를 고른 회원의 uid.
+ *
+ * 앱은 보관 중인 회원의 프로필·갤러리를 account_holds/{uid} 로 옮기지만 daily_logs 는
+ * 제자리에 둔다(habitschool functions/account-deletion.js — "본인·관리자만 읽으므로").
+ * 이 봇은 daily_logs 를 직접 읽어 방에 보여 주므로, 여기서 빼지 않으면 "보관하는 동안
+ * 다른 회원에게 보이지 않는다"는 방침이 단톡방에서만 지켜지지 않는다.
+ *
+ * 못 읽으면 빈 목록으로 답한다 — 순위 전체를 막을 일은 아니고, 다음 조회에서 다시 읽는다.
+ */
+const HELD_ACCOUNTS_TTL_MS = 10 * 60 * 1000;
+let heldAccountsCache = null;
+let heldAccountsCacheTime = 0;
+
+async function getHeldAccountUids(db, now = Date.now()) {
+    if (heldAccountsCache && (now - heldAccountsCacheTime) < HELD_ACCOUNTS_TTL_MS) {
+        return heldAccountsCache;
+    }
+
+    try {
+        const snapshot = await db.collection('account_holds').select().get();
+        heldAccountsCache = new Set(snapshot.docs.map((doc) => doc.id));
+        heldAccountsCacheTime = now;
+        return heldAccountsCache;
+    } catch (error) {
+        console.warn('[AppFirebase] Could not load held accounts:', error.message);
+        return new Set();
+    }
+}
+
+/** 방에 보여 줄 집계용 기록. 보관 중인 회원의 기록은 뺀다. */
+async function loadRoomVisibleLogs(db, query) {
+    const [snapshot, heldUids] = await Promise.all([query.get(), getHeldAccountUids(db)]);
+    return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((log) => !heldUids.has(log.userId));
+}
+
 async function getGalleryByDate(dateStr) {
     const db = initAppFirebase();
     if (!db) return [];
 
     try {
-        const snapshot = await db.collection('daily_logs')
-            .where('date', '==', dateStr)
-            .get();
-
-        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        return await loadRoomVisibleLogs(db, db.collection('daily_logs').where('date', '==', dateStr));
     } catch (error) {
         console.error(`[AppFirebase] Failed to load gallery for ${dateStr}:`, error.message);
         throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요.');
@@ -658,11 +692,8 @@ async function getActiveUserCount(dateStr) {
     if (!db) return 0;
 
     try {
-        const snapshot = await db.collection('daily_logs')
-            .where('date', '==', dateStr)
-            .get();
-
-        const uniqueUsers = new Set(snapshot.docs.map((doc) => doc.data().userId));
+        const logs = await loadRoomVisibleLogs(db, db.collection('daily_logs').where('date', '==', dateStr));
+        const uniqueUsers = new Set(logs.map((log) => log.userId));
         return uniqueUsers.size;
     } catch (error) {
         console.error(`[AppFirebase] Failed to load active user count (date=${dateStr}):`, error.message);
@@ -683,11 +714,7 @@ async function getWeeklyStats() {
             dates.push(date.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }));
         }
 
-        const snapshot = await db.collection('daily_logs')
-            .where('date', 'in', dates)
-            .get();
-
-        const allLogs = snapshot.docs.map((doc) => doc.data());
+        const allLogs = await loadRoomVisibleLogs(db, db.collection('daily_logs').where('date', 'in', dates));
 
         return {
             totalRecords: allLogs.length,
@@ -816,11 +843,9 @@ async function getWeeklyLeaderboard() {
             dates.push(date.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }));
         }
 
-        const snapshot = await db.collection('daily_logs')
-            .where('date', 'in', dates)
-            .get();
-
-        return buildLeaderboardFromRecords(snapshot.docs.map((doc) => doc.data()));
+        return buildLeaderboardFromRecords(
+            await loadRoomVisibleLogs(db, db.collection('daily_logs').where('date', 'in', dates))
+        );
     } catch (error) {
         console.error('[AppFirebase] Failed to load weekly leaderboard:', error.message);
         throw new Error('앱 서버 연결에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요.');
@@ -836,13 +861,13 @@ async function getLeaderboardByDateRange(startDate, endDate) {
     }
 
     try {
-        const snapshot = await db.collection('daily_logs')
-            .where('date', '>=', startDate)
-            .where('date', '<=', endDate)
-            .orderBy('date', 'asc')
-            .get();
-
-        return buildLeaderboardFromRecords(snapshot.docs.map((doc) => doc.data()));
+        return buildLeaderboardFromRecords(await loadRoomVisibleLogs(
+            db,
+            db.collection('daily_logs')
+                .where('date', '>=', startDate)
+                .where('date', '<=', endDate)
+                .orderBy('date', 'asc')
+        ));
     } catch (error) {
         console.error(`[AppFirebase] Failed to load leaderboard (${startDate}~${endDate}):`, error.message);
         throw new Error('앱 기록 순위를 확인하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.');
