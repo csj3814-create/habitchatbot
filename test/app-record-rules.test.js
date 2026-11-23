@@ -123,7 +123,7 @@ function loadAppFirebaseWithDb(db) {
     };
 }
 
-function createDb({ logs, heldUids, holdsFail = false }) {
+function createDb({ logs, heldUids, holdsFail = false, clinicUids = [], clinicFail = false }) {
     const query = (docs) => {
         const self = {
             where: () => self,
@@ -144,6 +144,13 @@ function createDb({ logs, heldUids, holdsFail = false }) {
                     return { select: () => ({ get: async () => { throw new Error('PERMISSION_DENIED'); } }) };
                 }
                 return query(heldUids.map((uid) => ({ id: uid, data: () => ({}) })));
+            }
+            if (name === 'users') {
+                if (clinicFail) {
+                    const failing = { where: () => failing, select: () => failing, get: async () => { throw new Error('UNAVAILABLE'); } };
+                    return failing;
+                }
+                return query(clinicUids.map((uid) => ({ id: uid, data: () => ({}) })));
             }
             throw new Error(`unexpected collection ${name}`);
         }
@@ -189,4 +196,39 @@ test('if the hold list cannot be read the room still gets its numbers', async (t
 
     const today = await appFirebase.getGalleryByDate('2026-11-10');
     assert.equal(today.length, 3);
+});
+
+// 병원 QR 회원: users/{uid}.clinicId (habitschool js/auth.js). 앱은 병원 소속이 드러나지 않게 하므로
+// 이름이 나가는 순위에서는 빼고, 인원수만 세는 곳에는 둔다.
+const CLINIC_LOGS = [
+    { userId: 'active-1', date: '2026-11-10', awardedPoints: { diet: true } },
+    { userId: 'clinic-1', date: '2026-11-10', awardedPoints: { diet: true, exercise: true, mind: true } }
+];
+
+test('a clinic member is left out of the rankings but still counted in the totals', async (t) => {
+    process.env.APP_FIREBASE_KEY = '{}';
+    const { appFirebase, restore } = loadAppFirebaseWithDb(
+        createDb({ logs: CLINIC_LOGS, heldUids: [], clinicUids: ['clinic-1'] })
+    );
+    t.after(restore);
+
+    const weekly = await appFirebase.getWeeklyLeaderboard();
+    assert.deepEqual(weekly.map((entry) => entry.uid), ['active-1']);
+
+    const ranged = await appFirebase.getLeaderboardByDateRange('2026-11-01', '2026-11-10');
+    assert.deepEqual(ranged.map((entry) => entry.uid), ['active-1']);
+
+    const today = await appFirebase.getGalleryByDate('2026-11-10');
+    assert.equal(today.length, 2);
+});
+
+test('if the clinic list cannot be read no ranking goes to the room', async (t) => {
+    process.env.APP_FIREBASE_KEY = '{}';
+    const { appFirebase, restore } = loadAppFirebaseWithDb(
+        createDb({ logs: CLINIC_LOGS, heldUids: [], clinicFail: true })
+    );
+    t.after(restore);
+
+    await assert.rejects(appFirebase.getWeeklyLeaderboard());
+    await assert.rejects(appFirebase.getLeaderboardByDateRange('2026-11-01', '2026-11-10'));
 });

@@ -109,6 +109,15 @@ function withDisplayBadge(label, profile) {
     return emoji ? `${emoji} ${label}` : label;
 }
 
+// 이름 숨기기: 앱의 갤러리 공개 설정은 회원 단위다(users/{uid}.settings.shareSettings, 앱 v607).
+// 이름을 숨긴 회원은 앱 갤러리와 주간 순위에서 「익명 학생」으로 보이고 배지도 붙지 않는다.
+// 단톡방 순위도 같게 한다.
+const ANONYMOUS_LABEL = '익명 학생';
+
+function hidesIdentity(profile) {
+    return profile?.settings?.shareSettings?.hideIdentity === true;
+}
+
 async function loadLeaderboardLabels(entries = []) {
     const entryByUid = {};
     const uids = [];
@@ -143,6 +152,10 @@ async function loadLeaderboardLabels(entries = []) {
 
     const profiles = await getUserProfilesByIds(uids);
     return uids.reduce((labels, uid) => {
+        if (hidesIdentity(profiles[uid])) {
+            labels[uid] = ANONYMOUS_LABEL;
+            return labels;
+        }
         labels[uid] = withDisplayBadge(resolveLeaderboardLabel({
             uid,
             entry: entryByUid[uid],
@@ -156,6 +169,7 @@ async function loadLeaderboardLabels(entries = []) {
 module.exports = {
     loadLeaderboardLabels,
     withDisplayBadge,
+    hidesIdentity,
     resolveLeaderboardLabel,
     accountLabelFromEmail,
     shortUidLabel

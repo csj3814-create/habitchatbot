@@ -43,6 +43,17 @@ const PROFILES = {
         displayBadgeEmoji: '👑'
     },
     'plain-uid': { customDisplayName: '박기록' },
+    'hidden-uid': {
+        customDisplayName: '정숨김',
+        globalBadges: { globe: {} },
+        displayBadge: 'globe',
+        displayBadgeEmoji: '🌍',
+        settings: { shareSettings: { hideIdentity: true } }
+    },
+    'shown-again-uid': {
+        customDisplayName: '한보임',
+        settings: { shareSettings: { hideIdentity: false } }
+    },
     'weird-emoji-uid': {
         customDisplayName: '최장문',
         globalBadges: { sprout: {} },
@@ -97,4 +108,26 @@ test('!순위 결과에 배지가 이름 앞에 나온다', async () => {
     const message = await handleRanking();
     assert.match(message, /🥇 🌍 김해빛 /);
     assert.match(message, /🥈 박기록 /);
+});
+
+// 앱 v607: 이름 숨기기는 회원 단위(users/{uid}.settings.shareSettings.hideIdentity). 앱 순위처럼 「익명 학생」.
+test('이름을 숨긴 회원은 순위에 「익명 학생」으로, 배지 없이 나온다', async () => {
+    const { loadLeaderboardLabels } = loadLabels();
+    const labels = await loadLeaderboardLabels([{ uid: 'hidden-uid', displayName: '정숨김' }, { uid: 'shown-again-uid' }]);
+    assert.deepEqual(labels, { 'hidden-uid': '익명 학생', 'shown-again-uid': '한보임' });
+});
+
+test('!순위 에도 숨긴 이름은 나오지 않는다', async () => {
+    const { handleRanking } = loadWithMocks(path.join(__dirname, '..', 'commands', 'ranking.js'), {
+        '../modules/appFirebase': {
+            getWeeklyLeaderboard: async () => [
+                { uid: 'hidden-uid', displayName: '정숨김', diet: 7, exercise: 5, mind: 7, score: 21.5 }
+            ]
+        },
+        '../modules/leaderboardLabels': loadLabels(),
+        '../modules/statsHelpers': { getKstDateStr: () => '2026-11-24' }
+    });
+    const message = await handleRanking();
+    assert.match(message, /🥇 익명 학생 /);
+    assert.doesNotMatch(message, /정숨김/);
 });

@@ -626,6 +626,42 @@ async function loadRoomVisibleLogs(db, query) {
         .filter((log) => !heldUids.has(log.userId));
 }
 
+/**
+ * 병원 QR 로 들어온 회원(users/{uid}.clinicId)의 uid.
+ *
+ * 앱은 병원 회원에게 단톡방 띠를 보이지 않고, 갤러리 글에도 병원 소속을 적지 않는다
+ * (habitschool functions/gallery-posts.js — 누가 어느 병원 환자인지 드러나지 않게).
+ * 그런데 순위는 이름을 단톡방에 올리므로, 병원 회원은 순위에서 뺀다(대표 2026-11-24).
+ * 인원수만 세는 !오늘·!주간 통계에는 그대로 둔다 — 이름이 나가지 않는다.
+ *
+ * 못 읽으면 순위를 내지 않는다. 보관 회원 목록과 달리, 여기서 틀리면 환자 이름이 방에 나간다.
+ * 실패는 캐시하지 않으니 다음 조회에서 다시 읽는다.
+ */
+const CLINIC_MEMBERS_TTL_MS = 10 * 60 * 1000;
+let clinicMembersCache = null;
+let clinicMembersCacheTime = 0;
+
+async function getClinicMemberUids(db, now = Date.now()) {
+    if (clinicMembersCache && (now - clinicMembersCacheTime) < CLINIC_MEMBERS_TTL_MS) {
+        return clinicMembersCache;
+    }
+
+    // 앱은 병원 연결을 끊을 때 clinicId 를 지운다(js/auth.js). 남아 있는 값은 병원 이름 문자열이다.
+    const snapshot = await db.collection('users').where('clinicId', '>', '').select().get();
+    clinicMembersCache = new Set(snapshot.docs.map((doc) => doc.id));
+    clinicMembersCacheTime = now;
+    return clinicMembersCache;
+}
+
+/** 순위용 기록: 방에 보여 줄 기록에서 병원 회원을 더 뺀다. */
+async function loadLeaderboardLogs(db, query) {
+    const [logs, clinicUids] = await Promise.all([
+        loadRoomVisibleLogs(db, query),
+        getClinicMemberUids(db)
+    ]);
+    return logs.filter((log) => !clinicUids.has(log.userId));
+}
+
 async function getGalleryByDate(dateStr) {
     const db = initAppFirebase();
     if (!db) return [];
@@ -844,7 +880,7 @@ async function getWeeklyLeaderboard() {
         }
 
         return buildLeaderboardFromRecords(
-            await loadRoomVisibleLogs(db, db.collection('daily_logs').where('date', 'in', dates))
+            await loadLeaderboardLogs(db, db.collection('daily_logs').where('date', 'in', dates))
         );
     } catch (error) {
         console.error('[AppFirebase] Failed to load weekly leaderboard:', error.message);
@@ -861,7 +897,7 @@ async function getLeaderboardByDateRange(startDate, endDate) {
     }
 
     try {
-        return buildLeaderboardFromRecords(await loadRoomVisibleLogs(
+        return buildLeaderboardFromRecords(await loadLeaderboardLogs(
             db,
             db.collection('daily_logs')
                 .where('date', '>=', startDate)
