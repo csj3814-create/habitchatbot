@@ -26,7 +26,7 @@ modules/
   appFirebase.js
   userMapping.js
   statsHelpers.js
-  habitCheckers.js
+  dietGrades.js
 utils/
   gemini.js
   habitLogger.js

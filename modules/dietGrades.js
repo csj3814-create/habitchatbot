@@ -15,6 +15,15 @@
 
 // 앱 js/diet-slots.js 와 같아야 한다(2026-11-20 4칸 → 6칸).
 const DIET_SLOTS = Object.freeze(['breakfast', 'lunch', 'dinner', 'snack', 'meal5', 'meal6']);
+// 칸 이름은 시간(아침·점심)이 아니라 순서다 — 앱 js/app-core.js 의 칸 라벨과 같다.
+const DIET_SLOT_LABELS = Object.freeze({
+    breakfast: '첫 번째 식사',
+    lunch: '두 번째 식사',
+    dinner: '세 번째 식사',
+    snack: '네 번째 식사',
+    meal5: '다섯 번째 식사',
+    meal6: '여섯 번째 식사'
+});
 const DIET_CHECK_KEYS = Object.freeze(['vegetables', 'protein', 'ultraprocessed', 'carbs', 'sodium']);
 const DIET_CHECK_LABELS = Object.freeze({
     vegetables: '채소',
@@ -94,8 +103,23 @@ function formatFailedChecks(failed = []) {
     return `아쉬운 점: ${failed.map((key) => DIET_CHECK_LABELS[key]).join(' · ')}`;
 }
 
+/** 코치에게 넘기는 한 줄: "사진 3장, 등급 A, 아쉬운 점: 채소". 사진도 등급도 없으면 ''. */
+function describeDayDiet(log) {
+    const photos = countDietPhotos(log);
+    const day = summarizeDayDiet(log);
+    const parts = [];
+    if (photos > 0) parts.push(`사진 ${photos}장`);
+    if (day) {
+        parts.push(`등급 ${day.grade}`);
+        if (day.failed.length > 0) parts.push(formatFailedChecks(day.failed));
+    }
+    return parts.join(', ');
+}
+
 module.exports = {
     DIET_SLOTS,
+    DIET_SLOT_LABELS,
+    describeDayDiet,
     DIET_CHECK_KEYS,
     mealGrade,
     countDietPhotos,

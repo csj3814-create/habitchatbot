@@ -6,6 +6,7 @@ const admin = require('firebase-admin');
 const crypto = require('node:crypto');
 
 const { hasDiet, hasExercise, hasMind } = require('./statsHelpers');
+const { DIET_SLOTS, DIET_SLOT_LABELS } = require('./dietGrades');
 const { buildHabitsSchoolInviteUrl, getHabitsSchoolGalleryUrl } = require('../utils/appLinks');
 
 const DEFAULT_SHARE_SETTINGS = {
@@ -198,7 +199,7 @@ function extractShareMedia(log, settings = normalizeShareSettings(log?.shareSett
     };
 
     if (log.diet && !settings.hideDiet) {
-        ['breakfast', 'lunch', 'dinner', 'snack'].forEach((meal) => {
+        DIET_SLOTS.forEach((meal) => {
             addMedia(log.diet[`${meal}ThumbUrl`] || log.diet[`${meal}Url`], '식단');
         });
     }
@@ -270,14 +271,9 @@ function buildDietGalleryItems(log, settings = normalizeShareSettings(log?.share
 
     const items = [];
     const seen = new Set();
-    const meals = [
-        ['breakfast', '아침'],
-        ['lunch', '점심'],
-        ['dinner', '저녁'],
-        ['snack', '간식']
-    ];
-
-    meals.forEach(([key, label]) => {
+    // 앱 식단 칸 6개(2026-11-20 4칸 → 6칸). 라벨은 순서 — 앱 화면과 같다.
+    DIET_SLOTS.forEach((key) => {
+        const label = DIET_SLOT_LABELS[key];
         const media = addGalleryMedia(items, seen, {
             url: log.diet[`${key}Url`],
             thumbUrl: log.diet[`${key}ThumbUrl`],

@@ -134,3 +134,29 @@ test('!식단 shows the photo count, the day grade, what was missed and the 7-da
     assert.match(message, /최근 7일 평균: A \(3끼\)/);
     assert.doesNotMatch(message, /아침|점심/);
 });
+
+// 앱 식단 칸은 6개, 이름은 순서(첫 번째~여섯 번째 식사). 공유 페이지·해빛 영상·코치 대화가 모두 따른다.
+test('share and video photos come from all six diet slots, labelled by order', () => {
+    const { buildHaebitSharePayloadFromRecord, extractShareMedia } = require('../modules/appFirebase');
+    const record = {
+        date: '2026-11-24',
+        diet: { breakfastUrl: 'https://x/1.jpg', meal5Url: 'https://x/5.jpg', meal6Url: 'https://x/6.jpg' }
+    };
+
+    const shareMedia = extractShareMedia(record).map((m) => m.url);
+    assert.deepEqual(shareMedia, ['https://x/1.jpg', 'https://x/5.jpg', 'https://x/6.jpg']);
+
+    const payload = buildHaebitSharePayloadFromRecord('uid-1', record, { customDisplayName: '김해빛' });
+    const labels = payload.galleryMedia.filter((m) => m.category === '식단').map((m) => m.label);
+    assert.deepEqual(labels, ['첫 번째 식사', '다섯 번째 식사', '여섯 번째 식사']);
+});
+
+test('the coach gets a photo count and the grade, not meal names', () => {
+    const { describeDayDiet } = require('../modules/dietGrades');
+    assert.equal(
+        describeDayDiet({ diet: { breakfastUrl: 'a', lunchUrl: 'b' }, dietAnalysis: { breakfast: meal({ vegetables: false }), lunch: meal({ vegetables: false }) } }),
+        '사진 2장, 등급 A, 아쉬운 점: 채소'
+    );
+    assert.equal(describeDayDiet({ diet: { meal6Url: 'a' } }), '사진 1장');
+    assert.equal(describeDayDiet({}), '');
+});

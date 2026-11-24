@@ -32,6 +32,7 @@ const { handleChangelog } = require('../commands/changelog');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
+const { describeDayDiet } = require('../modules/dietGrades');
 
 function normalizeCommand(rawMessage) {
     const trimmed = String(rawMessage || '').trim();
@@ -254,21 +255,10 @@ function createMessengerbotRouter({ getChatSession, videoMatcher }) {
                         const latest = recentRecords[recentRecords.length - 1];
                         const parts = [];
 
-                        if (latest.diet) {
-                            const meals = ['breakfastUrl', 'lunchUrl', 'dinnerUrl', 'snackUrl']
-                                .filter((key) => latest.diet[key])
-                                .map(
-                                    (key) =>
-                                        ({
-                                            breakfastUrl: '아침',
-                                            lunchUrl: '점심',
-                                            dinnerUrl: '저녁',
-                                            snackUrl: '간식'
-                                        })[key]
-                                );
-
-                            if (meals.length > 0) parts.push(`식단: ${meals.join(', ')}`);
-                        }
+                        // 앱 식단 칸은 시간이 아니라 순서(6칸)라 끼니 이름을 넘기지 않는다.
+                        // 사진 수와 앱 식단 등급(체크 5개, S~F)을 넘긴다.
+                        const diet = describeDayDiet(latest);
+                        if (diet) parts.push(`식단: ${diet}`);
 
                         if (latest.exercise) {
                             const exercise = [];
