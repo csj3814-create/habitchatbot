@@ -70,3 +70,15 @@ test('each chat session gets its own history', () => {
     assert.equal(b._history.length, DEFAULT_CHAT_HISTORY.length);
     assert.equal(JSON.stringify(DEFAULT_CHAT_HISTORY), before);
 });
+
+// 앱 v609~v616 기능. 회원이 물으면 지어내지 않고 이 숫자로 답해야 한다(habitschool CHANGELOG.md).
+test('system instruction knows the current app features and their numbers', () => {
+    assert.match(SYSTEM_INSTRUCTION, /\[해빛스쿨 앱 기능/);
+    assert.match(SYSTEM_INSTRUCTION, /5개 모두 통과하면 S, 하나씩 빠질 때마다 A·B·C·D, 하나도 통과하지 못하면 F/);
+    assert.match(SYSTEM_INSTRUCTION, /해빛 코칭: 자산 탭/);
+    assert.match(SYSTEM_INSTRUCTION, /처음에는 300P, 다음부터는 500P/);
+    assert.match(SYSTEM_INSTRUCTION, /첫 기록을 남기면 200P/);
+    assert.match(SYSTEM_INSTRUCTION, /4주에 14번 채우면 500P/);
+    assert.match(SYSTEM_INSTRUCTION, /지어내지 말고/);
+    assert.match(SYSTEM_INSTRUCTION, /https:\/\/habitschool\.kr/);
+});
