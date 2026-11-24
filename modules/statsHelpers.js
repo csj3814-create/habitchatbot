@@ -23,7 +23,8 @@ function hasSyncedSleep(record) {
 }
 
 const hasDiet = r => isAwarded(r, 'diet')
-    || !!(r.diet && (r.diet.breakfastUrl || r.diet.lunchUrl || r.diet.dinnerUrl || r.diet.snackUrl));
+    || !!(r.diet && (r.diet.breakfastUrl || r.diet.lunchUrl || r.diet.dinnerUrl || r.diet.snackUrl
+        || r.diet.meal5Url || r.diet.meal6Url));
 const hasExercise = r => isAwarded(r, 'exercise')
     || !!(r.exercise && ((r.exercise.cardioList?.length > 0) || (r.exercise.strengthList?.length > 0)));
 const hasSleep = r => !!r.sleepAndMind?.sleepImageUrl || hasSyncedSleep(r);

@@ -7,6 +7,12 @@ const { getMapping, getDisplayName, buildIdentityKey } = require('../modules/use
 const { buildUnlinkedMessage } = require('../modules/chatLink');
 const { sanitizeModelText } = require('../utils/gemini');
 const {
+    countDietPhotos,
+    summarizeDayDiet,
+    summarizePeriodDiet,
+    formatFailedChecks
+} = require('../modules/dietGrades');
+const {
     hasDiet,
     hasExercise,
     hasSleep,
@@ -48,31 +54,38 @@ async function handleDiet(user, getChatSession = null) {
 
     const dietDays = records.filter(hasDiet).length;
     const latest = [...records].reverse().find(record => record.diet) || records[records.length - 1];
-    const meals = [];
-    if (latest.diet?.breakfastUrl) meals.push('아침');
-    if (latest.diet?.lunchUrl) meals.push('점심');
-    if (latest.diet?.dinnerUrl) meals.push('저녁');
-    if (latest.diet?.snackUrl) meals.push('간식');
+    const photos = countDietPhotos(latest);
+    const day = summarizeDayDiet(latest);
+    const week = summarizePeriodDiet(records);
 
     let msg = `${displayName}님의 식단 현황\n────────\n`;
     msg += `기록: ${progressBar(dietDays)}\n`;
     msg += `마지막 기록: ${latest.date}\n`;
-    msg += `식사: ${meals.length > 0 ? meals.join(', ') : '없음'}\n`;
+    msg += `식사 사진: ${photos > 0 ? `${photos}장` : '없음'}\n`;
+    // 앱 식단 분석의 등급(체크 5개, S~F). 분석하지 않은 사진만 있으면 등급 줄을 내지 않는다.
+    if (day) {
+        msg += `식단 등급: ${day.grade} (${day.meals}끼)\n`;
+        msg += `${formatFailedChecks(day.failed)}\n`;
+    }
+    if (week && week.meals > (day?.meals || 0)) {
+        msg += `최근 7일 평균: ${week.grade} (${week.meals}끼)\n`;
+    }
 
     if (getChatSession) {
         const lines = records.filter(hasDiet).map(record => {
-            const mealNames = [];
-            if (record.diet?.breakfastUrl) mealNames.push('아침');
-            if (record.diet?.lunchUrl) mealNames.push('점심');
-            if (record.diet?.dinnerUrl) mealNames.push('저녁');
-            if (record.diet?.snackUrl) mealNames.push('간식');
-            return `${record.date}: ${mealNames.join(', ')}`;
+            const parts = [`사진 ${countDietPhotos(record)}장`];
+            const summary = summarizeDayDiet(record);
+            if (summary) {
+                parts.push(`등급 ${summary.grade}`);
+                if (summary.failed.length > 0) parts.push(formatFailedChecks(summary.failed));
+            }
+            return `${record.date}: ${parts.join(', ')}`;
         });
 
         const coaching = await getAiCoaching(
             getChatSession,
             `diet:${buildIdentityKey(user)}`,
-            `${displayName}의 최근 식단 기록:\n${lines.join('\n')}\n\n식단 코칭을 두 문장 이내로 해 주세요.`
+            `${displayName}의 최근 식단 기록(등급은 앱의 체크 5개 기준: 채소·단백질·초가공·탄수화물·나트륨, 5개 통과 S ~ 0개 F):\n${lines.join('\n')}\n\n식단 코칭을 두 문장 이내로 해 주세요.`
         );
 
         if (coaching) {

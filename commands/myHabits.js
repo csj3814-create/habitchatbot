@@ -6,6 +6,7 @@ const { getUserRecords, getUserProfile } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { buildUnlinkedMessage } = require('../modules/chatLink');
 const { loadLeaderboardLabels } = require('../modules/leaderboardLabels');
+const { countDietPhotos, summarizeDayDiet } = require('../modules/dietGrades');
 const {
     hasDiet,
     hasExercise,
@@ -59,11 +60,9 @@ async function handleMyHabits(user) {
     const gratitudeDays = recentRecords.filter(hasGratitude).length;
     const meditationDays = recentRecords.filter(hasMeditation).length;
 
-    const dietMeals = [];
-    if (latest.diet?.breakfastUrl) dietMeals.push('아침');
-    if (latest.diet?.lunchUrl) dietMeals.push('점심');
-    if (latest.diet?.dinnerUrl) dietMeals.push('저녁');
-    if (latest.diet?.snackUrl) dietMeals.push('간식');
+    // 앱의 식단 칸은 시간이 아니라 순서다(첫 번째~여섯 번째 식사). 사진 수와 앱 식단 등급만 보인다.
+    const dietPhotos = countDietPhotos(latest);
+    const dietDay = summarizeDayDiet(latest);
 
     const exerciseParts = [];
     if (latest.exercise?.cardioList?.length) exerciseParts.push(`유산소 ${latest.exercise.cardioList.length}개`);
@@ -81,8 +80,11 @@ async function handleMyHabits(user) {
     msg += `──────────\n`;
     msg += `마지막 기록: ${latest.date}\n`;
 
-    if (dietMeals.length > 0) {
-        msg += `식단: ${dietMeals.join(', ')}\n`;
+    if (dietPhotos > 0 || dietDay) {
+        const dietParts = [];
+        if (dietPhotos > 0) dietParts.push(`사진 ${dietPhotos}장`);
+        if (dietDay) dietParts.push(`등급 ${dietDay.grade}`);
+        msg += `식단: ${dietParts.join(' · ')}\n`;
     }
 
     if (exerciseParts.length > 0) {
