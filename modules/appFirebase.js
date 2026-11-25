@@ -658,6 +658,49 @@ async function loadLeaderboardLogs(db, query) {
     return logs.filter((log) => !clinicUids.has(log.userId));
 }
 
+/**
+ * 이번 주 포인트 → HBT 전환 비율 (1P 당 HBT).
+ *
+ * 앱 서버의 주간 작업(habitschool functions/runtime.js adjustMiningRate)이 매주
+ * mining_rate_history/{주차} 에 newRate·phase 를 남긴다. 실제 전환은 그때그때 체인의
+ * currentRate 를 읽지만, 그 값은 이 주간 작업이 정한 값이다. 체인을 부르지 않으려고 기록을 읽는다.
+ * 못 읽으면 null — 비율 줄만 빼고 답한다.
+ */
+const MINING_RATE_TTL_MS = 60 * 60 * 1000;
+let miningRateCache = null;
+let miningRateCacheTime = 0;
+
+async function getLatestMiningRate(now = Date.now()) {
+    if (miningRateCache && (now - miningRateCacheTime) < MINING_RATE_TTL_MS) {
+        return miningRateCache;
+    }
+
+    const db = initAppFirebase();
+    if (!db) return null;
+
+    try {
+        const snapshot = await db.collection('mining_rate_history')
+            .orderBy('timestamp', 'desc')
+            .limit(4)
+            .get();
+        const latest = snapshot.docs
+            .map((doc) => ({ weekId: doc.id, ...doc.data() }))
+            .find((entry) => Number.isFinite(Number(entry.newRate)) && Number(entry.newRate) > 0);
+        if (!latest) return null;
+
+        miningRateCache = {
+            weekId: latest.weekId,
+            rate: Number(latest.newRate),
+            phase: Number(latest.phase) || null
+        };
+        miningRateCacheTime = now;
+        return miningRateCache;
+    } catch (error) {
+        console.warn('[AppFirebase] Could not load the HBT rate:', error.message);
+        return null;
+    }
+}
+
 async function getGalleryByDate(dateStr) {
     const db = initAppFirebase();
     if (!db) return [];
@@ -1240,6 +1283,7 @@ module.exports = {
     getUserRecordByDate,
     getUserProfile,
     getUserProfilesByIds,
+    getLatestMiningRate,
     getActiveUserCount,
     getWeeklyStats,
     getWeeklyLeaderboard,

@@ -34,6 +34,8 @@ const {
     handleMeditationVideo
 } = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
+const { handleHbt, isHbtCommand } = require('../commands/hbt');
+const { handleChangelog } = require('../commands/changelog');
 
 const HELP_MSG = `명령어 안내
 !오늘 - 전체 기록 요약
@@ -44,6 +46,8 @@ const HELP_MSG = `명령어 안내
 !주간 - 주간 리포트
 !클래스 - 전체 현황
 !순위 - 이번 주 리더보드
+!HBT - HBT 안내와 내 포인트·예치 챌린지
+!업데이트 - 앱 최신 업데이트 소식
 !연결 - 앱에서 계정 연결 마무리
 !등록 코드 - 앱 계정 연결
 !내코드 - 내 친구 코드 확인
@@ -143,6 +147,14 @@ function createKakaoRouter({ db, getChatSession, checkAndLogHabits, isAllowedIma
 
         if (isYoutubeRecommendationQuestion(actualQuestion)) {
             return res.status(200).json(buildKakaoResponse(await handleYoutubeRecommendation()));
+        }
+
+        if (actualQuestion === '업데이트') {
+            return res.status(200).json(cmdResponse(await handleChangelog()));
+        }
+
+        if (isHbtCommand(actualQuestion)) {
+            return res.status(200).json(cmdResponse(await handleHbt(user)));
         }
 
         if (actualQuestion === '식단') {

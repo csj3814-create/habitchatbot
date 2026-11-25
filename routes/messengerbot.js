@@ -29,6 +29,7 @@ const {
 } = require('../commands/staticVideos');
 const { handleYoutubeRecommendation } = require('../commands/youtubeRecommendation');
 const { handleChangelog } = require('../commands/changelog');
+const { handleHbt, isHbtCommand } = require('../commands/hbt');
 const { getUserRecords } = require('../modules/appFirebase');
 const { getMapping, getDisplayName } = require('../modules/userMapping');
 const { hasDiet, hasExercise, hasMind } = require('../modules/statsHelpers');
@@ -214,6 +215,10 @@ function createMessengerbotRouter({ getChatSession, videoMatcher }) {
 
             if (command === '업데이트') {
                 return res.json({ reply: await handleChangelog() });
+            }
+
+            if (isHbtCommand(command)) {
+                return res.json({ reply: await handleHbt(user) });
             }
 
             if (isYoutubeRecommendationCommand(command)) {

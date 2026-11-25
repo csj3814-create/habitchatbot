@@ -55,7 +55,7 @@ ${SHORT_APP_URL}
 ${PLAY_STORE_URL}
 
 챗봇
-!오늘 !내습관 !주간 !공유 !해빛 !명상`;
+!오늘 !내습관 !주간 !공유 !HBT !업데이트`;
 }
 
 module.exports = { handleGuide, handleApp, PLAY_STORE_URL, SHORT_APP_URL };
