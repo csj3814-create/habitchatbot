@@ -22,7 +22,9 @@ const CHANGELOG_SOURCES = [
         headers: {}
     }
 ];
-const CHANGELOG_PAGE_URL = 'https://habitschool.web.app/changelog';
+// 짧은 주소(habitschool.kr)도 업데이트 노트 페이지를 그대로 연다(2026-11-25 확인, 200).
+// 카톡은 주소만 있는 줄을 가장 확실하게 링크로 바꾸므로 주소는 따로 한 줄에 둔다.
+const CHANGELOG_PAGE_URL = 'https://habitschool.kr/changelog';
 const FETCH_TIMEOUT_MS = 5000;
 
 const TAG_ICONS = { 신규: '🆕', 개선: '✨', 수정: '🔧' };
@@ -78,7 +80,7 @@ function formatRelease(release) {
     for (const item of release.items) {
         lines.push(`${TAG_ICONS[item.tag] || '•'} ${item.text}`);
     }
-    lines.push('', `자세히 보기: ${CHANGELOG_PAGE_URL}`);
+    lines.push('', '📋 지난 업데이트까지 모두 보기', CHANGELOG_PAGE_URL);
     return lines.join('\n');
 }
 
@@ -91,7 +93,7 @@ async function handleChangelog(options = {}) {
         return formatRelease(release);
     } catch (error) {
         console.warn('[Changelog] Could not load the changelog:', error.message);
-        return `업데이트 내용을 불러오지 못했어요.\n${CHANGELOG_PAGE_URL} 에서 확인해 주세요.`;
+        return `업데이트 내용을 불러오지 못했어요.\n아래 링크에서 확인해 주세요.\n${CHANGELOG_PAGE_URL}`;
     }
 }
 

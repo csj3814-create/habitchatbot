@@ -58,7 +58,8 @@ test('!업데이트 reply is plain text with icons and the changelog link', asyn
             '🆕 첫 교환은 1,400P 입니다.',
             '🔧 쉬고 계신 동안 예전 연속 기록이 그대로 보이던 문제를 고쳤습니다.',
             '',
-            '자세히 보기: https://habitschool.web.app/changelog'
+            '📋 지난 업데이트까지 모두 보기',
+            'https://habitschool.kr/changelog'
         ].join('\n')
     );
     assert.doesNotMatch(reply, /\*\*|보이면 안 되는/);
@@ -78,6 +79,6 @@ test('both sources down gives a short notice with the page link', async () => {
 
     assert.equal(
         await handleChangelog({ client }),
-        '업데이트 내용을 불러오지 못했어요.\nhttps://habitschool.web.app/changelog 에서 확인해 주세요.'
+        '업데이트 내용을 불러오지 못했어요.\n아래 링크에서 확인해 주세요.\nhttps://habitschool.kr/changelog'
     );
 });
